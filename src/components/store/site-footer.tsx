@@ -1,0 +1,63 @@
+import Link from "next/link";
+import { Logo } from "@/components/art/item-art";
+import { getSettings } from "@/server/settings";
+import { t } from "@/lib/i18n";
+
+export async function SiteFooter() {
+  const settings = await getSettings();
+  return (
+    <footer className="mt-24 border-t border-line bg-surface/40">
+      <div className="container-page grid gap-10 py-12 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div>
+          <Logo />
+          <p className="mt-3 max-w-xs text-pretty text-[13.5px] leading-relaxed text-muted">
+            Toko resmi server survival CipiSMP. Rank dan kit berlaku sampai akhir season, dikirim otomatis
+            setelah pembayaran terverifikasi.
+          </p>
+          <p className="mt-4 font-pixel text-[10px] uppercase tracking-[0.12em] text-muted-2">
+            Java cipismp.my.id · Bedrock port 19202
+          </p>
+        </div>
+        <nav aria-label="Toko">
+          <p className="mb-3 text-2xs uppercase tracking-wider text-muted-2">Toko</p>
+          <ul className="space-y-2 text-[13.5px] text-muted">
+            <li><Link href="/rank" className="hover:text-ink">Rank</Link></li>
+            <li><Link href="/kit" className="hover:text-ink">Kit</Link></li>
+            <li><Link href="/status-pesanan" className="hover:text-ink">Cek pesanan</Link></li>
+            <li><Link href="/cara-kerja" className="hover:text-ink">Cara kerja</Link></li>
+          </ul>
+        </nav>
+        <nav aria-label="Bantuan">
+          <p className="mb-3 text-2xs uppercase tracking-wider text-muted-2">Bantuan</p>
+          <ul className="space-y-2 text-[13.5px] text-muted">
+            <li><Link href="/faq" className="hover:text-ink">FAQ</Link></li>
+            <li>
+              <a href={`mailto:${settings.site.supportEmail}`} className="hover:text-ink">
+                {settings.site.supportEmail}
+              </a>
+            </li>
+            <li>
+              <a href={settings.site.discordUrl} className="hover:text-ink" rel="noreferrer noopener" target="_blank">
+                Discord
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <nav aria-label="Legal">
+          <p className="mb-3 text-2xs uppercase tracking-wider text-muted-2">Legal</p>
+          <ul className="space-y-2 text-[13.5px] text-muted">
+            <li><Link href="/legal/syarat-layanan" className="hover:text-ink">Syarat Layanan</Link></li>
+            <li><Link href="/legal/kebijakan-privasi" className="hover:text-ink">Kebijakan Privasi</Link></li>
+            <li><Link href="/legal/syarat-penjualan" className="hover:text-ink">Syarat Penjualan</Link></li>
+          </ul>
+        </nav>
+      </div>
+      <div className="border-t border-line/70">
+        <div className="container-page flex flex-col gap-2 py-6 text-2xs text-muted-2 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} CipiSMP. {t("footer.disclaimer")}</p>
+          <p>{t("footer.noRefund")}</p>
+        </div>
+      </div>
+    </footer>
+  );
+}

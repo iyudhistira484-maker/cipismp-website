@@ -1,0 +1,155 @@
+import Link from "next/link";
+import { ArrowUpRight, Clock, Layers } from "lucide-react";
+import type { Product } from "@/server/db/schema";
+import type { KitItem } from "@/server/db/schema";
+import { ItemArt, RankBadge } from "@/components/art/item-art";
+import { Badge } from "@/components/ui/badge";
+import { ItemTooltip } from "@/components/ui/tooltip";
+import { formatRp } from "@/lib/money";
+import { activeUntilLabel } from "@/lib/seasons";
+import { cn } from "@/lib/utils";
+
+export function RankCard({
+  product,
+  season,
+  highlighted = false,
+}: {
+  product: Product;
+  season: { name: string; endAt: Date } | null;
+  highlighted?: boolean;
+}) {
+  return (
+    <article
+      className={cn(
+        "group relative flex flex-col overflow-hidden rounded-lg border bg-gradient-to-b from-surface-2 to-surface transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong",
+        highlighted ? "border-accent/40" : "border-line",
+      )}
+    >
+      {highlighted ? (
+        <span className="absolute right-4 top-4 z-10 rounded-full bg-accent px-2 py-0.5 text-2xs font-semibold text-accent-ink">
+          Paling seimbang
+        </span>
+      ) : null}
+      <div className="relative overflow-hidden border-b border-line/70 px-5 pb-5 pt-6">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.22]"
+          style={{
+            background:
+              "radial-gradient(120px 120px at 78% 12%, rgba(224,168,78,0.35), transparent 70%)",
+          }}
+        />
+        <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={62} />
+        <h3 className="mt-4 font-display text-[22px] leading-tight text-ink">{product.name}</h3>
+        <p className="mt-1.5 min-h-[40px] text-pretty text-[13px] leading-relaxed text-muted">{product.tagline}</p>
+      </div>
+
+      <div className="flex flex-1 flex-col p-5">
+        <p className="font-display text-[26px] leading-none text-ink">
+          {formatRp(product.priceIdr)}
+          <span className="ml-1.5 text-[12px] font-normal text-muted">per season</span>
+        </p>
+        <ul className="mt-4 flex-1 space-y-2">
+          {product.perks.slice(0, 4).map((perk) => (
+            <li key={perk} className="flex items-start gap-2 text-[13px] leading-relaxed text-muted">
+              <span className="mt-[7px] size-1 shrink-0 rounded-full bg-accent/70" aria-hidden />
+              {perk}
+            </li>
+          ))}
+          {product.perks.length > 4 ? (
+            <li className="pl-3 text-2xs text-muted-2">+{product.perks.length - 4} keuntungan lain</li>
+          ) : null}
+        </ul>
+
+        {season ? (
+          <p className="mt-4 flex items-start gap-1.5 border-t border-line/70 pt-3 text-2xs leading-relaxed text-muted-2">
+            <Clock className="mt-px size-3 shrink-0" aria-hidden />
+            {activeUntilLabel(season)}
+          </p>
+        ) : null}
+
+        <Link
+          href={`/rank/${product.slug}`}
+          className="mt-4 inline-flex h-10 items-center justify-between rounded-md border border-line-strong bg-bg/40 px-3.5 text-[13px] font-medium text-ink transition-colors duration-150 hover:border-accent/50 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
+          Lihat detail
+          <ArrowUpRight className="size-4" aria-hidden />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+export function KitCard({
+  product,
+  items,
+  season,
+}: {
+  product: Product;
+  items: KitItem[];
+  season: { name: string; endAt: Date } | null;
+}) {
+  return (
+    <article className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong">
+      <div className="border-b border-line/70 bg-bg/40 p-4">
+        <div className="grid grid-cols-4 gap-2" aria-hidden>
+          {items.slice(0, 8).map((item) => (
+            <div
+              key={item.id}
+              className="grid aspect-square place-items-center rounded-[6px] border border-line/80 bg-surface-2/60 transition-colors group-hover:border-line-strong"
+            >
+              <ItemArt itemKey={item.itemKey} className="size-7" title={item.name} />
+            </div>
+          ))}
+        </div>
+        {items.length > 8 ? (
+          <p className="mt-2 text-2xs text-muted-2">+{items.length - 8} item lain</p>
+        ) : null}
+      </div>
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-display text-[19px] leading-tight text-ink">{product.name}</h3>
+          <Badge tone="neutral" className="mt-0.5 shrink-0">
+            <Layers className="size-2.5" aria-hidden />
+            {product.maxPerSeason}/season
+          </Badge>
+        </div>
+        <p className="mt-1.5 text-pretty text-[13px] leading-relaxed text-muted">{product.tagline}</p>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {items.slice(0, 3).map((item) => (
+            <ItemTooltip
+              key={item.id}
+              title={`${item.name}${item.quantity > 1 ? ` ×${item.quantity}` : ""}`}
+              lines={item.lore}
+              enchantments={item.enchantments}
+            >
+              <button
+                type="button"
+                className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-2xs text-muted transition-colors hover:border-accent/40 hover:text-accent"
+              >
+                {item.name}
+              </button>
+            </ItemTooltip>
+          ))}
+          {items.length > 3 ? <span className="px-1 py-0.5 text-2xs text-muted-2">+{items.length - 3}</span> : null}
+        </div>
+
+        <div className="mt-auto flex items-end justify-between gap-3 pt-5">
+          <p className="font-display text-[22px] leading-none text-ink">{formatRp(product.priceIdr)}</p>
+          <Link
+            href={`/kit/${product.slug}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-2 text-[12.5px] font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            Isi kit
+            <ArrowUpRight className="size-3.5" aria-hidden />
+          </Link>
+        </div>
+        {season ? (
+          <p className="mt-3 border-t border-line/70 pt-3 text-2xs leading-relaxed text-muted-2">
+            {activeUntilLabel(season)}
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
