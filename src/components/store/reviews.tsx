@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Star } from "lucide-react";
+import { Stars } from "@/components/ui/stars";
 import { Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -9,21 +10,6 @@ import { submitReviewAction, type ReviewState } from "@/app/actions/reviews";
 import { cn } from "@/lib/utils";
 
 const initial: ReviewState = {};
-
-export function Stars({ value, size = 14, className }: { value: number; size?: number; className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-0.5", className)} aria-label={`${value} dari 5 bintang`}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          style={{ width: size, height: size }}
-          className={star <= Math.round(value) ? "fill-accent text-accent" : "text-line-strong"}
-          aria-hidden
-        />
-      ))}
-    </span>
-  );
-}
 
 export function ReviewForm({ productId, productName }: { productId: string; productName: string }) {
   const [state, action] = useActionState(submitReviewAction, initial);

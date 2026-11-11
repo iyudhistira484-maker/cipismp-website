@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/server/auth/guard";
 import { listReviewsForModeration, reviewCounts } from "@/server/reviews";
-import { Stars } from "@/components/store/reviews";
+import { Stars } from "@/components/ui/stars";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/feedback";
 import { AdminPageHeader, Card, Table, Td } from "@/components/admin/shell";

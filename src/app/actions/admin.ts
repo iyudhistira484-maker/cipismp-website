@@ -597,6 +597,84 @@ export async function adminSaveStoreSettingsAction(_prev: AdminState, formData: 
   }
 }
 
+export async function adminSaveSiteSettingsAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("settings.write");
+    const name = String(formData.get("siteName") ?? "").trim();
+    const tagline = String(formData.get("siteTagline") ?? "").trim();
+    const supportEmail = String(formData.get("supportEmail") ?? "").trim();
+    const discordUrl = String(formData.get("discordUrl") ?? "").trim();
+    const announcementRaw = String(formData.get("announcement") ?? "").trim();
+
+    if (name.length < 2 || name.length > 40) return { error: "Nama situs 2–40 karakter." };
+    if (tagline.length > 160) return { error: "Tagline maksimal 160 karakter." };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(supportEmail)) return { error: "Email bantuan tidak valid." };
+    if (discordUrl && !/^https:\/\//.test(discordUrl)) return { error: "URL Discord harus diawali https://" };
+    if (announcementRaw.length > 280) return { error: "Pengumuman maksimal 280 karakter." };
+
+    const patch = {
+      site: {
+        name,
+        tagline,
+        supportEmail,
+        discordUrl,
+        announcement: announcementRaw.length > 0 ? announcementRaw : null,
+      },
+    };
+    const before = await getSettings();
+    await updateSettings(patch, actor.id);
+    await writeAudit({
+      actor,
+      action: "settings.site",
+      targetType: "settings",
+      before: { site: before.site },
+      after: patch,
+      ip,
+    });
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/", "layout");
+    return { success: "Identitas situs disimpan." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function adminSaveDeliverySettingsAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("settings.write");
+    const maxAttempts = Number(formData.get("maxAttempts") ?? 6);
+    const baseDelaySeconds = Number(formData.get("baseDelaySeconds") ?? 60);
+    const offlineGraceMinutes = Number(formData.get("offlineGraceMinutes") ?? 30);
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
+      return { error: "Percobaan maksimal 1–20." };
+    }
+    if (!Number.isInteger(baseDelaySeconds) || baseDelaySeconds < 15 || baseDelaySeconds > 3600) {
+      return { error: "Jeda dasar 15–3600 detik." };
+    }
+    if (!Number.isInteger(offlineGraceMinutes) || offlineGraceMinutes < 0 || offlineGraceMinutes > 1440) {
+      return { error: "Masa tunggu offline 0–1440 menit." };
+    }
+
+    const patch = { delivery: { maxAttempts, baseDelaySeconds, offlineGraceMinutes } };
+    const before = await getSettings();
+    await updateSettings(patch, actor.id);
+    await writeAudit({
+      actor,
+      action: "settings.delivery",
+      targetType: "settings",
+      before: { delivery: before.delivery },
+      after: patch,
+      ip,
+    });
+    revalidatePath("/admin/pengaturan");
+    return { success: "Pengaturan pengiriman disimpan." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 const PROVIDERS: ProviderId[] = ["TRIPAY", "MIDTRANS", "FAKE"];
 
 export async function adminSaveProviderAction(_prev: AdminState, formData: FormData): Promise<AdminState> {

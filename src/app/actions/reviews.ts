@@ -8,6 +8,7 @@ import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { ReviewError, setReviewStatus, submitReview } from "@/server/reviews";
 import { writeAudit } from "@/server/audit";
+import { alertStaff } from "@/server/notifications";
 import { getSettings } from "@/server/settings";
 import { getProductById } from "@/server/catalog";
 import { db } from "@/server/db";
@@ -69,6 +70,13 @@ export async function submitReviewAction(_prev: ReviewState, formData: FormData)
       targetId: product.id,
       after: { rating: parsed.data.rating },
       ip: clientIp(requestHeaders),
+    });
+
+    await alertStaff({
+      kind: "SYSTEM",
+      title: "Ulasan baru menunggu moderasi",
+      body: `${product.name} · ${parsed.data.rating}/5 dari ${viewer.user.email}`,
+      href: "/admin/ulasan",
     });
 
     revalidatePath(`/rank/${product.slug}`);

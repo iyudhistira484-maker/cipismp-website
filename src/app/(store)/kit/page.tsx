@@ -5,6 +5,7 @@ import { KitCard } from "@/components/store/product-cards";
 import { Alert } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/field";
 import { getActiveSeason, getKitItemsForProducts, getPublishedProducts } from "@/server/catalog";
+import { ratingMap } from "@/server/reviews";
 import { isPurchaseFrozen } from "@/lib/seasons";
 import { formatDateWIB } from "@/lib/dates";
 
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 export default async function KitListPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
   const [all, season] = await Promise.all([getPublishedProducts("KIT"), getActiveSeason()]);
+  const ratings = await ratingMap(all.map((kit) => kit.id));
   const items = await getKitItemsForProducts(all.map((k) => k.id));
   const itemsByProduct = new Map<string, typeof items>();
   for (const item of items) {
@@ -78,6 +80,7 @@ export default async function KitListPage({ searchParams }: { searchParams: Prom
             product={kit}
             items={itemsByProduct.get(kit.id) ?? []}
             season={season ? { name: season.name, endAt: season.endAt } : null}
+            rating={ratings.get(kit.id)}
           />
         ))}
       </div>

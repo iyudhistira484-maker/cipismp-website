@@ -24,6 +24,8 @@ import {
   adminSaveProviderAction,
   adminSaveSeasonAction,
   adminSaveServerAction,
+  adminSaveDeliverySettingsAction,
+  adminSaveSiteSettingsAction,
   adminSaveStoreSettingsAction,
   adminSetRoleAction,
   adminTestProvidersAction,
@@ -459,6 +461,74 @@ export interface StoreSettingsValues {
   defaultFreezeDays: number;
   defaultProvider: string;
   features: { coupons: boolean; gifting: boolean; reviews: boolean; discordLogin: boolean };
+}
+
+export interface SiteSettingsValues {
+  name: string;
+  tagline: string;
+  supportEmail: string;
+  discordUrl: string;
+  announcement: string | null;
+  delivery: { maxAttempts: number; baseDelaySeconds: number; offlineGraceMinutes: number };
+}
+
+export function SiteSettingsForm({ settings }: { settings: SiteSettingsValues }) {
+  const [state, action] = useActionState(adminSaveSiteSettingsAction, empty);
+  return (
+    <form action={action} className="space-y-3">
+      <StateAlert state={state} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Nama situs" htmlFor="site-name">
+          <Input id="site-name" name="siteName" defaultValue={settings.name} maxLength={40} required />
+        </Field>
+        <Field label="Email bantuan" htmlFor="site-email" hint="Tampil di footer, FAQ, dan halaman bantuan">
+          <Input id="site-email" name="supportEmail" type="email" defaultValue={settings.supportEmail} required />
+        </Field>
+        <Field label="Tagline" htmlFor="site-tagline" hint="Maksimal 160 karakter">
+          <Input id="site-tagline" name="siteTagline" defaultValue={settings.tagline} maxLength={160} />
+        </Field>
+        <Field label="URL Discord" htmlFor="site-discord" hint="Diawali https:// — boleh dikosongkan">
+          <Input id="site-discord" name="discordUrl" defaultValue={settings.discordUrl} maxLength={200} />
+        </Field>
+      </div>
+      <Field label="Pengumuman di atas situs" htmlFor="site-announcement" hint="Kosongkan untuk menyembunyikan banner">
+        <Textarea
+          id="site-announcement"
+          name="announcement"
+          defaultValue={settings.announcement ?? ""}
+          maxLength={280}
+          rows={2}
+          className="min-h-16"
+        />
+      </Field>
+      <SubmitButton size="sm">Simpan identitas</SubmitButton>
+    </form>
+  );
+}
+
+export function DeliverySettingsForm({ settings }: { settings: SiteSettingsValues["delivery"] }) {
+  const [state, action] = useActionState(adminSaveDeliverySettingsAction, empty);
+  return (
+    <form action={action} className="space-y-3">
+      <StateAlert state={state} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Percobaan maks" htmlFor="delivery-attempts">
+          <Input id="delivery-attempts" name="maxAttempts" type="number" min={1} max={20} defaultValue={settings.maxAttempts} />
+        </Field>
+        <Field label="Jeda dasar (detik)" htmlFor="delivery-delay">
+          <Input id="delivery-delay" name="baseDelaySeconds" type="number" min={15} max={3600} defaultValue={settings.baseDelaySeconds} />
+        </Field>
+        <Field label="Tunggu offline (menit)" htmlFor="delivery-grace">
+          <Input id="delivery-grace" name="offlineGraceMinutes" type="number" min={0} max={1440} defaultValue={settings.offlineGraceMinutes} />
+        </Field>
+      </div>
+      <p className="text-2xs leading-relaxed text-muted-2">
+        Jeda percobaan naik eksponensial dari nilai dasar. Setelah percobaan habis, pengiriman menjadi DEAD dan perlu
+        tindakan manual di halaman Pengiriman.
+      </p>
+      <SubmitButton size="sm">Simpan pengiriman</SubmitButton>
+    </form>
+  );
 }
 
 export function StoreSettingsForm({ settings }: { settings: StoreSettingsValues }) {

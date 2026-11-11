@@ -163,6 +163,10 @@ setelah disimpan:
   (hari terakhir sebelum pergantian season saat pembelian dikunci).
 - **Gateway default** untuk checkout baru (kredensialnya tetap di halaman Pembayaran).
 - **Toggle fitur**: kupon, hadiah (gift), ulasan pembeli, login Discord.
+- **Identitas situs**: nama situs, tagline, email bantuan (footer/FAQ), URL Discord, dan
+  pengumuman banner di atas semua halaman toko (kosongkan untuk menyembunyikan).
+- **Pengiriman**: jumlah percobaan maksimal, jeda dasar (naik eksponensial), dan masa tunggu
+  sebelum dianggap offline. Setelah percobaan habis, pengiriman menjadi DEAD.
 
 Mematikan sebuah fitur langsung menyembunyikan UI-nya; data lama tidak dihapus. Perubahan
 tercatat di audit log (`settings.store`).

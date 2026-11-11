@@ -1,5 +1,6 @@
 import { MessageSquare, ShieldCheck } from "lucide-react";
-import { ReviewForm, Stars } from "@/components/store/reviews";
+import { ReviewForm } from "@/components/store/reviews";
+import { Stars } from "@/components/ui/stars";
 import { Alert, EmptyState } from "@/components/ui/feedback";
 import { getViewer } from "@/server/auth/guard";
 import { getSettings } from "@/server/settings";

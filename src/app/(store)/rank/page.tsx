@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { RankCard } from "@/components/store/product-cards";
 import { Alert } from "@/components/ui/feedback";
 import { getActiveSeason, getPublishedProducts } from "@/server/catalog";
+import { ratingMap } from "@/server/reviews";
 import { isPurchaseFrozen } from "@/lib/seasons";
 import { formatDateWIB } from "@/lib/dates";
 import { Input } from "@/components/ui/field";
@@ -22,6 +23,7 @@ export default async function RankListPage({
 }) {
   const { q = "" } = await searchParams;
   const [all, season] = await Promise.all([getPublishedProducts("RANK"), getActiveSeason()]);
+  const ratings = await ratingMap(all.map((rank) => rank.id));
   const query = q.trim().toLowerCase();
   const ranks = query
     ? all.filter(
@@ -80,6 +82,7 @@ export default async function RankListPage({
             product={rank}
             season={season ? { name: season.name, endAt: season.endAt } : null}
             highlighted={rank.tier === 2}
+            rating={ratings.get(rank.id)}
           />
         ))}
       </div>

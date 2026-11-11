@@ -3,14 +3,21 @@ import { getSettings } from "@/server/settings";
 import { getAvailableProviders, PROVIDER_LABEL } from "@/server/payments";
 import { env } from "@/server/env";
 import { AdminPageHeader, Card } from "@/components/admin/shell";
-import { StoreSettingsForm } from "@/components/admin/admin-forms";
+import {
+  DeliverySettingsForm,
+  SiteSettingsForm,
+  StoreSettingsForm,
+} from "@/components/admin/admin-forms";
 import { Alert } from "@/components/ui/feedback";
 
 export const metadata = { title: "Pengaturan toko" };
 
 export default async function AdminStoreSettingsPage() {
   await requireStaff("settings.write");
-  const [settings, providers] = await Promise.all([getSettings(), getAvailableProviders()]);
+  const [settings, providers] = await Promise.all([
+    getSettings(),
+    getAvailableProviders(),
+  ]);
 
   return (
     <>
@@ -20,33 +27,60 @@ export default async function AdminStoreSettingsPage() {
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <Card title="Pajak, biaya, dan fitur">
-          <StoreSettingsForm
-            settings={{
-              taxPercent: settings.store.taxPercent,
-              taxLabel: settings.store.taxLabel,
-              feeMode: settings.store.feeMode,
-              feeFlatIdr: settings.store.feeFlatIdr,
-              feePercent: settings.store.feePercent,
-              orderExpiryMinutes: settings.store.orderExpiryMinutes,
-              checkoutEnabled: settings.store.checkoutEnabled,
-              minimumAge: settings.store.minimumAge,
-              defaultFreezeDays: settings.store.defaultFreezeDays,
-              defaultProvider: settings.payments.defaultProvider,
-              features: settings.features,
-            }}
-          />
-        </Card>
+        <div className="space-y-4">
+          <Card title="Pajak, biaya, dan fitur">
+            <StoreSettingsForm
+              settings={{
+                taxPercent: settings.store.taxPercent,
+                taxLabel: settings.store.taxLabel,
+                feeMode: settings.store.feeMode,
+                feeFlatIdr: settings.store.feeFlatIdr,
+                feePercent: settings.store.feePercent,
+                orderExpiryMinutes: settings.store.orderExpiryMinutes,
+                checkoutEnabled: settings.store.checkoutEnabled,
+                minimumAge: settings.store.minimumAge,
+                defaultFreezeDays: settings.store.defaultFreezeDays,
+                defaultProvider: settings.payments.defaultProvider,
+                features: settings.features,
+              }}
+            />
+          </Card>
+
+          <Card title="Identitas situs">
+            <SiteSettingsForm
+              settings={{
+                name: settings.site.name,
+                tagline: settings.site.tagline,
+                supportEmail: settings.site.supportEmail,
+                discordUrl: settings.site.discordUrl,
+                announcement: settings.site.announcement,
+                delivery: settings.delivery,
+              }}
+            />
+          </Card>
+        </div>
 
         <div className="space-y-4">
+          <Card title="Pengiriman & percobaan ulang">
+            <DeliverySettingsForm settings={settings.delivery} />
+          </Card>
+
           <Card title="Gateway siap pakai">
             {providers.length === 0 ? (
-              <Alert tone="warning">Belum ada gateway aktif. Checkout tidak akan bisa membuat pembayaran.</Alert>
+              <Alert tone="warning">
+                Belum ada gateway aktif. Checkout tidak akan bisa membuat
+                pembayaran.
+              </Alert>
             ) : (
               <ul className="space-y-1.5 text-[12.5px] text-muted">
                 {providers.map((provider) => (
-                  <li key={provider.id} className="flex items-center justify-between gap-2">
-                    <span className="text-ink">{PROVIDER_LABEL[provider.id]}</span>
+                  <li
+                    key={provider.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="text-ink">
+                      {PROVIDER_LABEL[provider.id]}
+                    </span>
                     <span className="text-2xs text-muted-2">
                       {provider.mode} · {provider.methods.length} metode
                     </span>
@@ -55,7 +89,8 @@ export default async function AdminStoreSettingsPage() {
               </ul>
             )}
             <p className="mt-3 text-2xs leading-relaxed text-muted-2">
-              Kredensial diatur di halaman Pembayaran. Mode <span className="font-mono">live</span> mengirim transaksi
+              Kredensial diatur di halaman Pembayaran. Mode{" "}
+              <span className="font-mono">live</span> mengirim transaksi
               sungguhan — uji dulu dengan nominal kecil.
             </p>
           </Card>
@@ -72,15 +107,22 @@ export default async function AdminStoreSettingsPage() {
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="text-muted">Batas bayar</dt>
-                <dd className="text-ink">{settings.store.orderExpiryMinutes} menit</dd>
+                <dd className="text-ink">
+                  {settings.store.orderExpiryMinutes} menit
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="text-muted">Freeze season</dt>
-                <dd className="text-ink">{settings.store.defaultFreezeDays} hari terakhir</dd>
+                <dd className="text-ink">
+                  {settings.store.defaultFreezeDays} hari terakhir
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="text-muted">Versi dokumen legal</dt>
-                <dd className="text-ink">ToS {settings.legal.tosVersion} · Privasi {settings.legal.privacyVersion}</dd>
+                <dd className="text-ink">
+                  ToS {settings.legal.tosVersion} · Privasi{" "}
+                  {settings.legal.privacyVersion}
+                </dd>
               </div>
             </dl>
             <p className="mt-3 text-2xs leading-relaxed text-muted-2">

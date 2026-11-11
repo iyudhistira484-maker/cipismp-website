@@ -10,19 +10,21 @@ import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader, Card, Stat, Table, Td } from "@/components/admin/shell";
 import { CompForm } from "@/components/admin/admin-forms";
 import { RevenueChart } from "@/components/admin/revenue-chart";
+import { reviewCounts } from "@/server/reviews";
 import { hasPermission } from "@/server/rbac";
 
 export const metadata = { title: "Ringkasan" };
 
 export default async function AdminHomePage() {
   const viewer = await requireStaff("orders.read");
-  const [summary, recentOrders, monitor, pendingPayments, products, trend] = await Promise.all([
+  const [summary, recentOrders, monitor, pendingPayments, products, trend, reviews] = await Promise.all([
     analyticsSummary(),
     listOrders({ limit: 8 }),
     deliveryMonitor(8),
     pendingPaymentRows(5),
     adminActiveProducts(),
     revenueTrend(30),
+    reviewCounts(),
   ]);
   const canComp = hasPermission(viewer.user.role, "grants.write");
 
@@ -60,6 +62,17 @@ export default async function AdminHomePage() {
           Tidak ada season aktif. Toko tidak bisa menjual sampai season diaktifkan.
         </div>
       )}
+
+      {reviews.PENDING > 0 ? (
+        <Link
+          href="/admin/ulasan"
+          className="mt-3 flex items-center gap-2 rounded-lg border border-info/25 bg-info/[0.05] px-4 py-3 text-[13px] text-info hover:border-info/50"
+        >
+          <span className="font-medium">{reviews.PENDING} ulasan menunggu moderasi</span>
+          <span className="text-muted">Setujui atau sembunyikan agar halaman produk tetap rapi.</span>
+          <ArrowUpRight className="ml-auto size-3.5" aria-hidden />
+        </Link>
+      ) : null}
 
       <Card title="Tren pendapatan" className="mt-4" description="30 hari terakhir, hanya order yang sudah dibayar.">
         <RevenueChart points={trend} />

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { getActiveSeason, getKitItemsForProducts, getPublishedProducts } from "@/server/catalog";
 import { getServerStatus } from "@/server/server-status";
 import { getSettings } from "@/server/settings";
+import { ratingMap } from "@/server/reviews";
 import { formatDateWIB, daysUntil } from "@/lib/dates";
 import { FAQ_ITEMS } from "@/content/faq";
 import { Suspense } from "react";
@@ -20,6 +21,7 @@ export default async function HomePage() {
     getActiveSeason(),
     getSettings(),
   ]);
+  const ratings = await ratingMap([...ranks, ...kits].map((product) => product.id));
   const kitItems = await getKitItemsForProducts(kits.map((k) => k.id));
   const itemsByProduct = new Map<string, typeof kitItems>();
   for (const item of kitItems) {
@@ -156,6 +158,7 @@ export default async function HomePage() {
               product={rank}
               season={season ? { name: season.name, endAt: season.endAt } : null}
               highlighted={rank.tier === 2}
+              rating={ratings.get(rank.id)}
             />
           ))}
         </div>
@@ -190,6 +193,7 @@ export default async function HomePage() {
                 product={kit}
                 items={itemsByProduct.get(kit.id) ?? []}
                 season={season ? { name: season.name, endAt: season.endAt } : null}
+                rating={ratings.get(kit.id)}
               />
             ))}
           </div>

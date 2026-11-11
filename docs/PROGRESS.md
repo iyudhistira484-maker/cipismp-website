@@ -123,6 +123,12 @@ Dimulai dari **admin lanjutan** (dipilih pengguna).
   (iron/gold/diamond/amber). Pratinjau tautan di Discord/WhatsApp kini menampilkan produk,
   bukan hanya banner toko.
 
+- **Penyempurnaan pasca-Wave 2**: rating bintang tampil di kartu katalog (`/`, `/rank`,
+  `/kit`), admin diberi notifikasi `SYSTEM` + banner jumlah ulasan menunggu moderasi di
+  Ringkasan, detail pesanan admin menampilkan asal hadiah, dan `/admin/pengaturan` kini juga
+  mengatur identitas situs (nama, tagline, email bantuan, Discord, banner pengumuman) serta
+  parameter pengiriman.
+
 ### Berikutnya
 1. Kupon bertingkat (minimum belanja bertingkat / kupon eksklusif season).
 2. Ilustrasi raster per produk untuk kartu katalog (opsional; sprite + OG sudah ada).

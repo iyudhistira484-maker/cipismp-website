@@ -8,15 +8,18 @@ import { ItemTooltip } from "@/components/ui/tooltip";
 import { formatRp } from "@/lib/money";
 import { activeUntilLabel } from "@/lib/seasons";
 import { cn } from "@/lib/utils";
+import { RatingInline } from "@/components/ui/stars";
 
 export function RankCard({
   product,
   season,
   highlighted = false,
+  rating,
 }: {
   product: Product;
   season: { name: string; endAt: Date } | null;
   highlighted?: boolean;
+  rating?: { count: number; average: number };
 }) {
   return (
     <article
@@ -41,6 +44,11 @@ export function RankCard({
         <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={62} />
         <h3 className="mt-4 font-display text-[22px] leading-tight text-ink">{product.name}</h3>
         <p className="mt-1.5 min-h-[40px] text-pretty text-[13px] leading-relaxed text-muted">{product.tagline}</p>
+        {rating && rating.count > 0 ? (
+          <div className="mt-2">
+            <RatingInline count={rating.count} average={rating.average} />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-1 flex-col p-5">
@@ -83,10 +91,12 @@ export function KitCard({
   product,
   items,
   season,
+  rating,
 }: {
   product: Product;
   items: KitItem[];
   season: { name: string; endAt: Date } | null;
+  rating?: { count: number; average: number };
 }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong">
@@ -114,6 +124,11 @@ export function KitCard({
           </Badge>
         </div>
         <p className="mt-1.5 text-pretty text-[13px] leading-relaxed text-muted">{product.tagline}</p>
+        {rating && rating.count > 0 ? (
+          <div className="mt-2">
+            <RatingInline count={rating.count} average={rating.average} />
+          </div>
+        ) : null}
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {items.slice(0, 3).map((item) => (
