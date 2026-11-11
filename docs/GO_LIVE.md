@@ -67,7 +67,7 @@ sebagai catatan audit. Centang setiap baris; jangan meluncurkan sebelum semuanya
 
 ## 6. Server Minecraft & plugin
 
-- [ ] `cd plugin && ./gradlew build` sukses (JDK 17).
+- [ ] `cd plugin && gradle build` sukses (JDK 21 + Gradle 8.10).
 - [ ] JAR terpasang di `plugins/`, `config.yml` berisi URL website + secret + port.
 - [ ] Log server menampilkan "CipiSMP Store API mendengarkan di ...".
 - [ ] `/admin/server` → "Uji plugin" hijau. "Uji RCON" hijau (bila memakai fallback).

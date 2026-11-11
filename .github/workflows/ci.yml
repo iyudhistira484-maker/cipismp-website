@@ -74,9 +74,11 @@ jobs:
           --health-retries 12
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cipismp
-      OWNER_EMAIL: owner@cipismp.test
-      OWNER_USERNAME: owner
-      OWNER_PASSWORD: OwnerPassword123
+      APP_URL: http://127.0.0.1:3100
+      E2E_PORT: "3100"
+      SEED_OWNER_EMAIL: owner@cipismp.test
+      SEED_OWNER_USERNAME: owner
+      SEED_OWNER_PASSWORD: OwnerPassword123
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,12 +93,21 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          npx playwright install --with-deps chromium 2>&1 | tee playwright-install.log
-      - name: Laporkan error instalasi browser (annotation)
-        if: steps.pwinstall.outcome == 'failure'
+          npx playwright install chromium 2>&1 | tee playwright-install.log
+      - name: Dependensi sistem untuk Chromium
+        id: pwdeps
+        continue-on-error: true
         run: |
-          tail -n 10 playwright-install.log | awk '{ print "::error::" $0 }'
-      # Instalasi browser gagal tidak memblokir job; kegagalan nyata akan muncul di test:e2e.
+          set -o pipefail
+          npx playwright install-deps chromium 2>&1 | tee playwright-deps.log
+      - name: Laporkan error instalasi browser (annotation)
+        if: steps.pwinstall.outcome == 'failure' || steps.pwdeps.outcome == 'failure'
+        run: |
+          tail -n 8 playwright-install.log | awk '{ print "::error::" $0 }'
+          tail -n 8 playwright-deps.log 2>/dev/null | awk '{ print "::error::" $0 }'
+      - name: Hentikan bila browser tidak terpasang
+        if: steps.pwinstall.outcome == 'failure'
+        run: exit 1
 
       - run: npm run build
       - name: Jalankan e2e
@@ -130,14 +141,14 @@ jobs:
           retention-days: 7
 
   plugin:
-    name: Plugin Paper (Java 17)
+    name: Plugin Paper (Java 21)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"

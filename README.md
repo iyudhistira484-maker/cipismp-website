@@ -95,7 +95,7 @@ src/app/dashboard dashboard pemain
 src/app/admin     panel admin (pesanan, produk, season, kupon, pembayaran, server, staf, audit)
 src/app/actions   server actions (auth, akun, keranjang, checkout, admin)
 src/server        domain: pricing, orders, payments, delivery, seasons, auth, jobs
-plugin/           plugin Paper (Gradle, Java 17)
+plugin/           plugin Paper (Gradle, Java 21)
 drizzle/          migrasi SQL
 tests/            unit, integrasi, e2e, load
 docs/             arsitektur, asumsi, progres, go-live, runbook, panduan admin
@@ -105,7 +105,7 @@ docs/             arsitektur, asumsi, progres, go-live, runbook, panduan admin
 
 ```bash
 cd plugin
-./gradlew build          # butuh JDK 17 + Gradle
+gradle build             # butuh JDK 21 + Gradle 8.10
 cp build/libs/cipismp-store-companion-1.0.0.jar <server>/plugins/
 # isi plugins/CipiStoreCompanion/config.yml: website-url, shared-secret, http.port
 ```
