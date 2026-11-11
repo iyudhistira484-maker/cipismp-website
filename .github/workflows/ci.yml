@@ -17,7 +17,7 @@ env:
   PAYMENT_DEFAULT_PROVIDER: FAKE
   MINECRAFT_LOOKUP_MODE: mock
   TURNSTILE_ENABLED: "0"
-  CRON_SECRET: ci-cron-secret
+  CRON_SECRET: ci-cron-secret-0123456789
 
 jobs:
   quality:
@@ -97,3 +97,42 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  plugin:
+    name: Plugin Paper (Java 17)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Kompilasi plugin
+        working-directory: plugin
+        run: gradle build --no-daemon --stacktrace
+      - name: Simpan JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: cipismp-companion-jar
+          path: plugin/build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+  docker:
+    name: Docker image & compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Validasi docker-compose.yml
+        run: docker compose config --quiet
+      - name: Build image produksi
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: cipismp-store:ci
