@@ -8,6 +8,7 @@ import { CheckboxField, Field, Input, Select, Textarea } from "@/components/ui/f
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toJakartaInput } from "@/lib/form-datetime";
 import type { CouponTier } from "@/lib/pricing";
+import type { PaymentMethodOption } from "@/lib/payment-methods";
 import {
   adminCancelOrderAction,
   adminDeleteProductAction,
@@ -21,6 +22,7 @@ import {
   adminRunTransitionAction,
   adminSaveCouponAction,
   adminSaveOrderNoteAction,
+  adminSavePaymentMethodsAction,
   adminSaveProductAction,
   adminSaveProviderAction,
   adminSaveSeasonAction,
@@ -663,6 +665,63 @@ export function TestProvidersButton() {
     <form action={action} className="space-y-2">
       <StateAlert state={state} />
       <SubmitButton size="sm" variant="secondary">Uji gateway siap pakai</SubmitButton>
+    </form>
+  );
+}
+
+export function PaymentMethodsForm({
+  tripayMethods,
+  midtransMethods,
+  tripayOptions,
+  midtransOptions,
+}: {
+  tripayMethods: string[];
+  midtransMethods: string[];
+  tripayOptions: readonly PaymentMethodOption[];
+  midtransOptions: readonly PaymentMethodOption[];
+}) {
+  const [state, action] = useActionState(adminSavePaymentMethodsAction, empty);
+
+  return (
+    <form action={action} className="space-y-4">
+      <StateAlert state={state} />
+      <div className="grid gap-4 xl:grid-cols-2">
+        {([
+          { id: "tripay", label: "Tripay", name: "tripayMethods", options: tripayOptions, selected: tripayMethods },
+          { id: "midtrans", label: "Midtrans", name: "midtransMethods", options: midtransOptions, selected: midtransMethods },
+        ] as const).map((provider) => (
+          <fieldset key={provider.id} className="rounded-md border border-line bg-surface/40 p-3">
+            <legend className="px-1 text-[13px] font-medium text-ink">{provider.label}</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {provider.options.map((option) => (
+                <label
+                  key={option.code}
+                  htmlFor={`payment-method-${provider.id}-${option.code}`}
+                  className="flex cursor-pointer items-start gap-2.5 rounded-md border border-line/70 bg-bg/40 p-2.5 text-[12.5px] text-muted hover:border-line-strong"
+                >
+                  <input
+                    id={`payment-method-${provider.id}-${option.code}`}
+                    type="checkbox"
+                    name={provider.name}
+                    value={option.code}
+                    defaultChecked={provider.selected.includes(option.code)}
+                    className="mt-0.5 size-4 shrink-0 accent-accent"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-ink">{option.label}</span>
+                    <span className="text-2xs text-muted-2">{option.group}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      <p className="text-2xs leading-relaxed text-muted-2">
+        Hanya metode Tripay/Midtrans yang dicentang akan ditawarkan saat checkout. Jika semua metode satu gateway dimatikan,
+        gateway itu tidak muncul untuk pembeli. Simulasi hanya tersedia di development; ketersediaan gateway tetap mengikuti akun penyedia pembayaran.
+      </p>
+      <SubmitButton size="sm">Simpan metode pembayaran</SubmitButton>
     </form>
   );
 }

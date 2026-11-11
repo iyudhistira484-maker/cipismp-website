@@ -8,6 +8,7 @@ import {
   type WebhookResult,
 } from "./types";
 import { logger } from "../logger";
+import { TRIPAY_METHODS } from "@/lib/payment-methods";
 
 interface TripayConfig {
   apiKey: string;
@@ -139,16 +140,7 @@ export class TripayAdapter implements PaymentAdapter {
   }
 
   async availableMethods() {
-    return [
-      { code: "QRIS", label: "QRIS (semua e-wallet & m-banking)", group: "QRIS" },
-      { code: "BRIVA", label: "BRI Virtual Account", group: "Virtual Account" },
-      { code: "BNIVA", label: "BNI Virtual Account", group: "Virtual Account" },
-      { code: "BSIVA", label: "BSI Virtual Account", group: "Virtual Account" },
-      { code: "GOPAY", label: "GoPay", group: "E-Wallet" },
-      { code: "OVO", label: "OVO", group: "E-Wallet" },
-      { code: "DANA", label: "DANA", group: "E-Wallet" },
-      { code: "SHOPEEPAY", label: "ShopeePay", group: "E-Wallet" },
-    ];
+    return [...TRIPAY_METHODS];
   }
 
   private async request<T>(path: string, init: { method: string; body?: string }): Promise<T> {

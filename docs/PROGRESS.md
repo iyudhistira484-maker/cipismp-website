@@ -19,14 +19,14 @@ Diperbarui setiap akhir langkah. Status: ✅ selesai · 🚧 sedang dikerjakan �
 ## Test
 
 ```
-npm test                          # 93 unit; integrasi di-skip tanpa database
-TEST_DATABASE_URL=... npm test    # 114 test (93 unit + 21 integrasi)
+npm test                          # 96 unit; integrasi di-skip tanpa database
+TEST_DATABASE_URL=... npm test    # 118 test (96 unit + 22 integrasi)
 npm run test:e2e                  # Playwright smoke (butuh browser)
 ```
 
 Integration: validasi & idempotensi webhook, pembuatan order server-side (no-refund,
-snapshot legal, upgrade selisih, blokir rank dimiliki, hadiah ke UUID penerima),
-ulasan pembeli (kelayakan, edit oleh pemilik, moderasi, dan feed publik), serta tier/season kupon.
+snapshot legal, upgrade selisih, blokir rank dimiliki, hadiah ke UUID penerima, validasi metode
+pembayaran), ulasan pembeli (kelayakan, edit oleh pemilik, moderasi, dan feed publik), serta kupon.
 
 ## Log
 
@@ -146,5 +146,5 @@ dicentang saat go-live di `docs/GO_LIVE.md`.
 - [x] Kupon bertingkat: tier dasar + dua ambang tambahan, tier tertinggi tercapai dipakai;
   kupon opsional dibatasi ke season dan ditegakkan lagi saat preview/checkout.
 - [x] Halaman publik `/ulasan` (feed dimoderasi, ringkasan rating, pagination) dan edit ulasan milik sendiri; perubahan kembali ke antrean moderasi.
-- [ ] UI admin untuk mengelola metode pembayaran (QRIS / VA / e-wallet).
+- [x] UI admin untuk mengelola metode pembayaran QRIS / VA / e-wallet per Tripay/Midtrans; checkout memfilter dan memvalidasi pilihan di server.
 - [ ] Ilustrasi raster yang berbeda pada setiap kartu produk katalog.

@@ -9,7 +9,8 @@ import { formatDateTimeWIB } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/feedback";
 import { AdminPageHeader, Card, Table, Td } from "@/components/admin/shell";
-import { ProviderForm, TestProvidersButton } from "@/components/admin/admin-forms";
+import { PaymentMethodsForm, ProviderForm, TestProvidersButton } from "@/components/admin/admin-forms";
+import { MIDTRANS_METHODS, TRIPAY_METHODS } from "@/lib/payment-methods";
 
 export const metadata = { title: "Pembayaran" };
 
@@ -43,6 +44,15 @@ export default async function AdminPaymentsPage() {
         Toko ini tidak menyediakan refund. Tidak ada tombol atau endpoint refund di panel ini; sengketa ditandai DISPUTED
         dan ditangani manual tanpa mengembalikan dana lewat sistem.
       </Alert>
+
+      <Card className="mt-4" title="Metode yang ditawarkan" description="Pilih QRIS, virtual account, dan e-wallet yang akan terlihat di checkout. Admin dapat mengatur metode; kredensial gateway tetap Owner-only.">
+        <PaymentMethodsForm
+          tripayMethods={settings.payments.tripayMethods}
+          midtransMethods={settings.payments.midtransMethods}
+          tripayOptions={TRIPAY_METHODS}
+          midtransOptions={MIDTRANS_METHODS}
+        />
+      </Card>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         {records.map(({ provider, record }) => {

@@ -49,6 +49,8 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 
 ## 4. Pembayaran
 
+- [ ] Di `/admin/pembayaran`, pilih metode QRIS/VA/e-wallet yang benar-benar aktif di akun
+      Tripay/Midtrans; checkout hanya menampilkan metode yang dicentang.
 - [ ] Kredensial Tripay/Midtrans diisi di `/admin/pembayaran` dengan mode **live**.
 - [ ] URL webhook terdaftar di dashboard gateway:
       `https://<domain>/api/webhooks/tripay` atau `/api/webhooks/midtrans`.

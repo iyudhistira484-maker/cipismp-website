@@ -26,7 +26,7 @@ import { priceCart, type CouponInput, type PriceableProduct } from "@/lib/pricin
 import { canPurchase } from "@/lib/seasons";
 import { addMinutes } from "@/lib/dates";
 import { generateOrderNumber, randomId } from "@/lib/utils";
-import { getAdapter, ProviderUnavailableError, type ProviderId } from "./payments";
+import { getAdapter, getAvailableProviders, ProviderUnavailableError, type ProviderId } from "./payments";
 
 export class CheckoutError extends Error {
   constructor(
@@ -87,6 +87,13 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
   if (!settings.store.checkoutEnabled) throw new CheckoutError("Checkout sedang dinonaktifkan sementara.");
   if (input.couponCode?.trim() && !settings.features.coupons) {
     throw new CheckoutError("Kupon sedang dinonaktifkan oleh admin.");
+  }
+
+  const availableProvider = (await getAvailableProviders()).find((provider) => provider.id === input.provider);
+  if (!availableProvider) throw new CheckoutError("Gateway pembayaran yang dipilih tidak aktif atau belum siap.");
+  const method = input.method?.trim() || availableProvider.methods[0]?.code;
+  if (!method || !availableProvider.methods.some((option) => option.code === method)) {
+    throw new CheckoutError("Metode pembayaran yang dipilih tidak aktif. Muat ulang checkout lalu pilih metode lain.");
   }
 
   const player = await resolvePlayer(input.mcName);
@@ -280,7 +287,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
       customerEmail: input.email,
       description: `${season.name} — ${pricing.lines.map((l) => l.name).join(", ")}`.slice(0, 120),
       items: pricing.lines.map((l) => ({ name: l.name, priceIdr: l.unitPriceIdr, quantity: l.quantity })),
-      method: input.method ?? null,
+      method,
       returnUrl: `${process.env.APP_URL}/pesanan/${publicToken}`,
       expiresInMinutes: settings.store.orderExpiryMinutes,
     });

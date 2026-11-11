@@ -101,11 +101,18 @@ export function mergeSettings(base: StoreSettings, patch: DeepPartial<StoreSetti
   for (const section of Object.keys(base) as (keyof StoreSettings)[]) {
     const patchSection = patch[section];
     if (!patchSection) continue;
-    // Satu level merge: setiap section adalah objek datar berisi nilai primitif/objek kecil.
-    (out[section] as Record<string, unknown>) = {
+    const merged = {
       ...(base[section] as unknown as Record<string, unknown>),
       ...(patchSection as unknown as Record<string, unknown>),
     } as unknown as StoreSettings[typeof section];
+    if (section === "payments") {
+      const paymentPatch = patch.payments;
+      (merged as StoreSettings["payments"]).enabled = {
+        ...base.payments.enabled,
+        ...(paymentPatch?.enabled ?? {}),
+      };
+    }
+    (out[section] as StoreSettings[typeof section]) = merged;
   }
   return out;
 }

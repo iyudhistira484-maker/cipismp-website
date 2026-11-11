@@ -108,7 +108,11 @@ season berakhir.
 ## Pembayaran
 
 - Gateway menampilkan status aktif, mode (sandbox/live), dan URL webhook.
-- **Hanya Owner** yang boleh melihat/mengubah kredensial.
+- Di bagian **Metode yang ditawarkan**, Admin/Owner dapat memilih QRIS, tiap bank Virtual
+  Account, dan e-wallet untuk Tripay/Midtrans. Metode yang tidak dicentang tidak muncul di
+  checkout; gateway tanpa metode terpilih juga disembunyikan. Simulasi hanya ada di dev.
+- **Hanya Owner** yang boleh melihat/mengubah kredensial. Pengaturan metode cukup memakai
+  izin `settings.write`, jadi Admin tidak perlu melihat rahasia gateway.
 - Daftar **Pembayaran menunggu** menyorot `UNDERPAID` (dana kurang). Verifikasi di dashboard
   gateway: bila pembeli memang kurang bayar, hubungi pembeli lewat email; jangan tandai lunas.
 - **Webhook terakhir** menunjukkan apakah signature valid. Banyak `invalid` berarti
@@ -209,9 +213,9 @@ masuk dengan password dulu — bukan membuat akun baru.
 
 Setiap tindakan penting tercatat: siapa (email), apa (aksi), pada apa (order/produk/season),
 alasan, dan IP. Gunakan filter untuk mencari, misalnya `season.transition` atau
-`order.manual-paid`. Aksi fitur baru juga tercatat: `review.submitted`, `review.edited`,
-`review.approved`, `review.hidden`, `account.login-discord`, `account.discord-linked`,
-`account.discord-unlinked`.
+`order.manual-paid`. Aksi fitur baru juga tercatat: `payments.provider-saved`,
+`payments.methods-saved`, `review.submitted`, `review.edited`, `review.approved`,
+`review.hidden`, `account.login-discord`, `account.discord-linked`, `account.discord-unlinked`.
 Log tidak bisa dihapus dari panel.
 
 ## Aturan yang tidak boleh dilanggar

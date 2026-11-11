@@ -5,6 +5,7 @@ import { env } from "../env";
 import { decryptSecret, encryptSecret } from "../crypto";
 import { ids } from "../ids";
 import { getSettings } from "../settings";
+import { filterPaymentMethods } from "@/lib/payment-methods";
 import { TripayAdapter } from "./tripay";
 import { MidtransAdapter } from "./midtrans";
 import { FakeAdapter } from "./fake";
@@ -145,7 +146,15 @@ export async function getAvailableProviders(): Promise<AvailableProvider[]> {
     if (id === "FAKE" && env.NODE_ENV === "production") continue;
     try {
       const adapter = await getAdapter(id);
-      out.push({ id, label: PROVIDER_LABEL[id], mode: adapter.mode, methods: await adapter.availableMethods() });
+      const availableMethods = await adapter.availableMethods();
+      const methods =
+        id === "TRIPAY"
+          ? filterPaymentMethods(availableMethods, settings.payments.tripayMethods)
+          : id === "MIDTRANS"
+            ? filterPaymentMethods(availableMethods, settings.payments.midtransMethods)
+            : availableMethods;
+      if (methods.length === 0) continue;
+      out.push({ id, label: PROVIDER_LABEL[id], mode: adapter.mode, methods });
     } catch (error) {
       if (!(error instanceof ProviderUnavailableError)) throw error;
     }

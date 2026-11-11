@@ -25,6 +25,7 @@ import { testPluginEndpoint, testRcon } from "@/server/admin/server-test";
 import { parseIdr } from "@/lib/money";
 import { fromJakartaInput } from "@/lib/form-datetime";
 import type { CouponTier } from "@/lib/pricing";
+import { MIDTRANS_METHODS, TRIPAY_METHODS } from "@/lib/payment-methods";
 import { STAFF_ROLES, type Role } from "@/server/rbac";
 
 export interface AdminState {
@@ -727,6 +728,49 @@ export async function adminSaveDeliverySettingsAction(_prev: AdminState, formDat
   }
 }
 
+function selectedMethodCodes(formData: FormData, field: string, options: readonly { code: string }[]): string[] | null {
+  const allowed = new Set(options.map((option) => option.code));
+  const values = formData.getAll(field);
+  if (values.some((value) => typeof value !== "string" || !allowed.has(value))) return null;
+  const selected = new Set(values as string[]);
+  return options.filter((option) => selected.has(option.code)).map((option) => option.code);
+}
+
+export async function adminSavePaymentMethodsAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("settings.write");
+
+    const tripayMethods = selectedMethodCodes(formData, "tripayMethods", TRIPAY_METHODS);
+    const midtransMethods = selectedMethodCodes(formData, "midtransMethods", MIDTRANS_METHODS);
+    if (tripayMethods === null || midtransMethods === null) {
+      return { error: "Daftar metode pembayaran tidak valid. Muat ulang halaman lalu coba lagi." };
+    }
+
+    const before = await getSettings();
+    const patch = { payments: { tripayMethods, midtransMethods } };
+    await updateSettings(patch, actor.id);
+    await writeAudit({
+      actor,
+      action: "payments.methods-saved",
+      targetType: "settings",
+      targetId: "payments",
+      before: {
+        tripayMethods: before.payments.tripayMethods,
+        midtransMethods: before.payments.midtransMethods,
+      },
+      after: patch.payments,
+      ip,
+    });
+    revalidatePath("/admin/pembayaran");
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/checkout");
+    return { success: "Metode pembayaran yang ditawarkan berhasil diperbarui." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 const PROVIDERS: ProviderId[] = ["TRIPAY", "MIDTRANS", "FAKE"];
 
 export async function adminSaveProviderAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
@@ -754,15 +798,17 @@ export async function adminSaveProviderAction(_prev: AdminState, formData: FormD
     }
 
     const mode = String(formData.get("mode") ?? "sandbox") === "live" ? "live" : "sandbox";
+    const enabled = formData.get("enabled") !== null;
+    const settingsBefore = await getSettings();
     await saveProviderConfig({
       provider,
       config,
       mode,
-      enabled: formData.get("enabled") !== null,
+      enabled,
       updatedBy: actor.id,
     });
     await updateSettings(
-      { payments: { enabled: { [provider]: formData.get("enabled") !== null } as Record<string, boolean> } },
+      { payments: { enabled: { ...settingsBefore.payments.enabled, [provider]: enabled } } },
       actor.id,
     );
     await writeAudit({
@@ -770,10 +816,12 @@ export async function adminSaveProviderAction(_prev: AdminState, formData: FormD
       action: "payments.provider-saved",
       targetType: "payment_provider",
       targetId: provider,
-      after: { mode, enabled: formData.get("enabled") !== null, fields: Object.keys(config) },
+      after: { mode, enabled, fields: Object.keys(config) },
       ip,
     });
     revalidatePath("/admin/pembayaran");
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/checkout");
     return { success: `Konfigurasi ${PROVIDER_LABEL[provider]} disimpan (${mode}).` };
   } catch (error) {
     return fail(error);

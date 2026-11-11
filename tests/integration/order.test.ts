@@ -93,6 +93,12 @@ describe.skipIf(!enabled)("pembuatan order (server-side totals)", () => {
     ).rejects.toBeInstanceOf(CheckoutError);
   });
 
+  it("menolak metode pembayaran yang tidak ditawarkan provider", async () => {
+    await expect(
+      createOrder({ ...baseInput, items: [{ productId: rank1 }], method: "NOT_A_PAYMENT_METHOD" }),
+    ).rejects.toThrow(/metode pembayaran yang dipilih tidak aktif/i);
+  });
+
   it("membuat order PENDING dengan total dari server dan payment row", async () => {
     const created = await createOrder({ ...baseInput, items: [{ productId: rank1 }] });
     expect(created.totalIdr).toBe(25_000);

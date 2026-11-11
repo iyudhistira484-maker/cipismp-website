@@ -9,6 +9,7 @@ import {
 } from "./types";
 import { safeCompare } from "./tripay";
 import { logger } from "../logger";
+import { MIDTRANS_METHODS } from "@/lib/payment-methods";
 
 interface MidtransConfig {
   serverKey: string;
@@ -147,14 +148,7 @@ export class MidtransAdapter implements PaymentAdapter {
   }
 
   async availableMethods() {
-    return [
-      { code: "qris", label: "QRIS", group: "QRIS" },
-      { code: "bca_va", label: "BCA Virtual Account", group: "Virtual Account" },
-      { code: "bni_va", label: "BNI Virtual Account", group: "Virtual Account" },
-      { code: "bri_va", label: "BRI Virtual Account", group: "Virtual Account" },
-      { code: "gopay", label: "GoPay", group: "E-Wallet" },
-      { code: "shopeepay", label: "ShopeePay", group: "E-Wallet" },
-    ];
+    return [...MIDTRANS_METHODS];
   }
 }
 

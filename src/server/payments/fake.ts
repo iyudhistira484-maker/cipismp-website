@@ -5,6 +5,7 @@ import {
   type StatusCheckResult,
   type WebhookResult,
 } from "./types";
+import { FAKE_METHODS } from "@/lib/payment-methods";
 
 /**
  * Provider palsu untuk development & test: membuat halaman pembayaran lokal yang
@@ -66,10 +67,7 @@ export class FakeAdapter implements PaymentAdapter {
   }
 
   async availableMethods() {
-    return [
-      { code: "QRIS", label: "QRIS (simulasi)", group: "QRIS" },
-      { code: "VA", label: "Virtual Account (simulasi)", group: "Virtual Account" },
-    ];
+    return [...FAKE_METHODS];
   }
 
   /** Body webhook contoh yang ditandatangani dengan secret yang sama. */
