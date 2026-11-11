@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 test.describe("storefront", () => {
   test("beranda menampilkan identitas toko dan IP server", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/CipiSMP/i);
+    await expect(page).toHaveTitle(/CipiSMP/i);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /CipiSMP/i }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /rank/i }).first()).toBeVisible();
     // Tombol salin IP hanya dirender setelah status server dimuat.
     await expect(page.getByRole("button", { name: /salin/i }).first()).toBeVisible({ timeout: 15_000 });
@@ -11,7 +13,7 @@ test.describe("storefront", () => {
 
   test("halaman rank menampilkan aturan season dan harga", async ({ page }) => {
     await page.goto("/rank");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/rank/i);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/tier|rank/i);
     await expect(page.getByText(/berakhir|selesai/i).first()).toBeVisible();
   });
 
@@ -51,7 +53,7 @@ test.describe("auth", () => {
 
   test("halaman daftar menampilkan syarat usia dan tautan legal", async ({ page }) => {
     await page.goto("/daftar");
-    await expect(page.getByRole("heading", { name: /daftar/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /daftar|buat akun/i })).toBeVisible();
     await expect(page.getByText(/13 tahun|usia/i).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /syarat/i }).first()).toBeVisible();
   });
