@@ -18,7 +18,8 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npx next start -H 127.0.0.1 -p ${PORT}`,
+        // Match production's standalone output while binding only to loopback.
+        command: `BIND_HOST=127.0.0.1 PORT=${PORT} node scripts/start-standalone.mjs`,
         url: `http://127.0.0.1:${PORT}/api/health`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

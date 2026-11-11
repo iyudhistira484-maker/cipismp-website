@@ -35,7 +35,7 @@ const id = {
   "checkout.title": "Pembayaran",
   "order.pending": "Menunggu pembayaran",
   "order.delivered": "Selesai",
-  "footer.disclaimer": "Tidak berafiliasi dengan Mojang AB atau Microsoft.",
+  "footer.disclaimer": "All rights reserved.",
   "footer.noRefund": "Semua pembelian bersifat final dan tidak dapat direfund.",
   "error.generic": "Terjadi kesalahan. Coba lagi sebentar lagi.",
 } as const;

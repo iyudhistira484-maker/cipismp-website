@@ -9,7 +9,10 @@ import {
   deliveryAttempts,
   entitlements,
   kitItems,
+  minecraftProfiles,
   orders,
+  orderItems,
+  paymentEvents,
   payments,
   products,
   seasons,
@@ -18,6 +21,8 @@ import {
   users,
 } from "../db/schema";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-state";
+import { jakartaDateKey, MS_DAY, startOfWibDay } from "@/lib/dates";
+import { entitlementsForUser } from "../entitlements";
 
 const PAID_STATUSES: OrderStatus[] = ["PAID", "DELIVERING", "DELIVERED", "DISPUTED"];
 
@@ -41,8 +46,12 @@ function idr(value: unknown): number {
   return Number(value);
 }
 
-export async function analyticsSummary(now = new Date()): Promise<AnalyticsSummary> {
-  const dayStart = new Date(now.getTime() - 24 * 3_600_000);
+export async function analyticsSummary(
+  now = new Date(),
+  options: { includeDeliveryMetrics?: boolean } = {},
+): Promise<AnalyticsSummary> {
+  const dayStart = startOfWibDay(now);
+  const includeDeliveryMetrics = options.includeDeliveryMetrics ?? false;
 
   const [totals] = await db
     .select({
@@ -63,14 +72,17 @@ export async function analyticsSummary(now = new Date()): Promise<AnalyticsSumma
   const orderCounts: Record<string, number> = Object.fromEntries(ORDER_STATUSES.map((status) => [status, 0]));
   for (const row of statusRows) orderCounts[row.status] = Number(row.total);
 
-  const [customerRow] = await db.select({ total: count() }).from(users).where(eq(users.role, "CUSTOMER"));
-  const [deadRow] = await db.select({ total: count() }).from(deliveries).where(eq(deliveries.status, "DEAD"));
-  const [failedRow] = await db.select({ total: count() }).from(orders).where(eq(orders.status, "FAILED"));
-
-  const activeSeason = await db.query.seasons.findFirst({
-    where: eq(seasons.status, "ACTIVE"),
-    orderBy: [desc(seasons.startAt)],
-  });
+  const [[customerRow], [deadRow], [failedRow], activeSeason] = await Promise.all([
+    db.select({ total: count() }).from(users).where(eq(users.role, "CUSTOMER")),
+    includeDeliveryMetrics
+      ? db.select({ total: count() }).from(deliveries).where(eq(deliveries.status, "DEAD"))
+      : Promise.resolve([]),
+    db.select({ total: count() }).from(orders).where(eq(orders.status, "FAILED")),
+    db.query.seasons.findFirst({
+      where: eq(seasons.status, "ACTIVE"),
+      orderBy: [desc(seasons.startAt)],
+    }),
+  ]);
 
   return {
     revenueAllIdr: idr(totals?.all),
@@ -96,7 +108,8 @@ export interface RevenuePoint {
 
 /** Pendapatan per hari (WIB) dari order yang sudah dibayar. */
 export async function revenueTrend(days = 30, now = new Date()): Promise<RevenuePoint[]> {
-  const from = new Date(now.getTime() - (days - 1) * 86_400_000);
+  const todayStart = startOfWibDay(now);
+  const from = new Date(todayStart.getTime() - (days - 1) * MS_DAY);
   const rows = await db
     .select({
       day: sql<string>`to_char((${orders.paidAt} AT TIME ZONE 'Asia/Jakarta')::date, 'YYYY-MM-DD')`,
@@ -111,8 +124,8 @@ export async function revenueTrend(days = 30, now = new Date()): Promise<Revenue
   const map = new Map(rows.map((row) => [row.day, { revenueIdr: idr(row.revenue), orders: Number(row.total) }]));
   const out: RevenuePoint[] = [];
   for (let index = days - 1; index >= 0; index -= 1) {
-    const date = new Date(now.getTime() - index * 86_400_000 + 7 * 3_600_000);
-    const key = date.toISOString().slice(0, 10);
+    const date = new Date(todayStart.getTime() - index * MS_DAY);
+    const key = jakartaDateKey(date);
     const entry = map.get(key);
     out.push({ day: key, revenueIdr: entry?.revenueIdr ?? 0, orders: entry?.orders ?? 0 });
   }
@@ -198,6 +211,86 @@ export async function listOrders(filters: OrderFilters = {}) {
     .limit(filters.limit ?? 50);
 }
 
+/** Detail order untuk staf dengan proyeksi minimum; sengaja tanpa metadata pembayaran mentah, IP/UA, atau perintah delivery. */
+export async function adminOrderDetail(orderId: string) {
+  const [order] = await db
+    .select({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      publicToken: orders.publicToken,
+      email: orders.email,
+      mcName: orders.mcName,
+      provider: orders.provider,
+      status: orders.status,
+      subtotalIdr: orders.subtotalIdr,
+      discountIdr: orders.discountIdr,
+      taxIdr: orders.taxIdr,
+      feeIdr: orders.feeIdr,
+      totalIdr: orders.totalIdr,
+      adminNote: orders.adminNote,
+      createdAt: orders.createdAt,
+      expiresAt: orders.expiresAt,
+    })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  if (!order) return null;
+
+  const [items, paymentRows, deliveryRows, seasonRows] = await Promise.all([
+    db
+      .select({
+        id: orderItems.id,
+        nameSnapshot: orderItems.nameSnapshot,
+        targetName: orderItems.targetName,
+        unitPriceIdr: orderItems.unitPriceIdr,
+        quantity: orderItems.quantity,
+        lineTotalIdr: orderItems.lineTotalIdr,
+        giftFromName: sql<string | null>`${orderItems.meta} ->> 'giftFromName'`,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId)),
+    db
+      .select({
+        id: payments.id,
+        provider: payments.provider,
+        providerRef: payments.providerRef,
+        status: payments.status,
+        amountIdr: payments.amountIdr,
+        createdAt: payments.createdAt,
+      })
+      .from(payments)
+      .where(eq(payments.orderId, orderId))
+      .orderBy(desc(payments.createdAt)),
+    db
+      .select({
+        id: deliveries.id,
+        playerName: deliveries.playerName,
+        status: deliveries.status,
+        method: deliveries.method,
+        attempts: deliveries.attempts,
+        lastError: deliveries.lastError,
+      })
+      .from(deliveries)
+      .where(eq(deliveries.orderId, orderId)),
+    db
+      .select({ name: seasons.name })
+      .from(seasons)
+      .innerJoin(orders, eq(seasons.id, orders.seasonId))
+      .where(eq(orders.id, orderId))
+      .limit(1),
+  ]);
+
+  return { order, items, payments: paymentRows, deliveries: deliveryRows, season: seasonRows[0] ?? null };
+}
+
+export async function listPublishedProductsForComp() {
+  return db
+    .select({ id: products.id, name: products.name, type: products.type })
+    .from(products)
+    .where(and(eq(products.status, "PUBLISHED"), isNull(products.deletedAt)))
+    .orderBy(products.type, products.tier);
+}
+
 export async function listProductsForAdmin() {
   const rows = await db
     .select({
@@ -256,20 +349,18 @@ export async function listCustomers(query?: string, limit = 50) {
   const q = query?.trim();
   const pattern = `%${q ?? ""}%`;
   const clause = q ? or(ilike(users.email, pattern), ilike(users.username, pattern)) : undefined;
+  const conditions: SQL[] = [eq(users.role, "CUSTOMER")];
+  if (clause) conditions.push(clause);
 
   const rows = await db
     .select({
       id: users.id,
       email: users.email,
       username: users.username,
-      role: users.role,
-      emailVerifiedAt: users.emailVerifiedAt,
-      totpEnabledAt: users.totpEnabledAt,
       createdAt: users.createdAt,
-      lastLoginAt: users.lastLoginAt,
     })
     .from(users)
-    .where(clause)
+    .where(and(...conditions))
     .orderBy(desc(users.createdAt))
     .limit(limit);
 
@@ -285,6 +376,48 @@ export async function listCustomers(query?: string, limit = 50) {
     totalSpentIdr: spendMap.get(row.id)?.totalIdr ?? 0,
     paidOrderCount: spendMap.get(row.id)?.orderCount ?? 0,
   }));
+}
+
+/** Ringkasan aman untuk halaman detail pelanggan; tidak memilih hash/secret autentikasi. */
+export async function customerDetail(
+  userId: string,
+  options: { includeOrders?: boolean; includeEntitlements?: boolean } = {},
+) {
+  const [customer] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      username: users.username,
+      role: users.role,
+      emailVerifiedAt: users.emailVerifiedAt,
+      totpEnabledAt: users.totpEnabledAt,
+      createdAt: users.createdAt,
+      lastLoginAt: users.lastLoginAt,
+      deletedAt: users.deletedAt,
+    })
+    .from(users)
+    .where(and(eq(users.id, userId), eq(users.role, "CUSTOMER")))
+    .limit(1);
+  if (!customer) return null;
+
+  const [profiles, customerOrders, customerEntitlements] = await Promise.all([
+    db
+      .select({ uuid: minecraftProfiles.uuid, edition: minecraftProfiles.edition, displayName: minecraftProfiles.displayName, verifiedAt: minecraftProfiles.verifiedAt, lastSyncedAt: minecraftProfiles.lastSyncedAt })
+      .from(minecraftProfiles)
+      .where(eq(minecraftProfiles.userId, userId))
+      .orderBy(desc(minecraftProfiles.updatedAt)),
+    options.includeOrders === false
+      ? Promise.resolve([])
+      : db
+          .select({ id: orders.id, orderNumber: orders.orderNumber, mcName: orders.mcName, status: orders.status, totalIdr: orders.totalIdr, createdAt: orders.createdAt, paidAt: orders.paidAt })
+          .from(orders)
+          .where(eq(orders.userId, userId))
+          .orderBy(desc(orders.createdAt))
+          .limit(50),
+    options.includeEntitlements === false ? Promise.resolve([]) : entitlementsForUser(userId),
+  ]);
+
+  return { customer, profiles, orders: customerOrders, entitlements: customerEntitlements };
 }
 
 export async function listCouponsForAdmin() {
@@ -325,6 +458,28 @@ export async function listAuditTrail(filters: { action?: string; limit?: number 
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(auditLogs.createdAt))
     .limit(filters.limit ?? 100);
+}
+
+/** Ringkasan dashboard tanpa error, referensi order, atau detail percobaan. */
+export async function deliveryOverview(limit = 8) {
+  const [rows, counts] = await Promise.all([
+    db
+      .select({
+        id: deliveries.id,
+        playerName: deliveries.playerName,
+        status: deliveries.status,
+        attempts: deliveries.attempts,
+      })
+      .from(deliveries)
+      .orderBy(desc(deliveries.updatedAt))
+      .limit(limit),
+    db.select({ status: deliveries.status, total: count() }).from(deliveries).groupBy(deliveries.status),
+  ]);
+
+  const stats = { QUEUED: 0, SENT: 0, DELIVERED: 0, FAILED: 0, DEAD: 0 } as Record<string, number>;
+  for (const row of counts) stats[row.status] = Number(row.total);
+
+  return { rows, stats };
 }
 
 export async function deliveryMonitor(limit = 100) {
@@ -373,11 +528,9 @@ export async function pendingPaymentRows(limit = 20) {
   return db
     .select({
       id: payments.id,
-      orderId: payments.orderId,
       provider: payments.provider,
       status: payments.status,
       amountIdr: payments.amountIdr,
-      providerRef: payments.providerRef,
       createdAt: payments.createdAt,
       orderNumber: orders.orderNumber,
     })
@@ -388,9 +541,18 @@ export async function pendingPaymentRows(limit = 20) {
     .limit(limit);
 }
 
+/** Ringkasan webhook; raw payload, header, IP, dan dedupe key tidak dimuat ke panel. */
 export async function recentWebhookEvents(limit = 20) {
-  return db.query.paymentEvents.findMany({
-    orderBy: (table, { desc: descFn }) => [descFn(table.receivedAt)],
-    limit,
-  });
+  return db
+    .select({
+      id: paymentEvents.id,
+      provider: paymentEvents.provider,
+      eventType: paymentEvents.eventType,
+      signatureValid: paymentEvents.signatureValid,
+      receivedAt: paymentEvents.receivedAt,
+      result: paymentEvents.result,
+    })
+    .from(paymentEvents)
+    .orderBy(desc(paymentEvents.receivedAt))
+    .limit(limit);
 }

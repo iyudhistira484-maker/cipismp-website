@@ -85,14 +85,14 @@ export function ServerStatusPanel({ initial }: { initial: Status }) {
         <div className="flex items-center justify-between gap-3">
           <dt className="text-[13px] text-muted">Java Edition</dt>
           <dd className="flex items-center gap-2">
-            <code className="font-pixel text-[11px] tracking-wide text-ink">{javaAddress}</code>
+            <code className="font-mono text-[11px] tracking-wide text-ink">{javaAddress}</code>
             <CopyButton value={javaAddress} label="Salin" compact />
           </dd>
         </div>
         <div className="flex items-center justify-between gap-3">
           <dt className="text-[13px] text-muted">Bedrock Edition</dt>
           <dd className="flex items-center gap-2">
-            <code className="font-pixel text-[11px] tracking-wide text-ink">{bedrockAddress}</code>
+            <code className="font-mono text-[11px] tracking-wide text-ink">{bedrockAddress}</code>
             <CopyButton value={bedrockAddress} label="Salin" compact />
           </dd>
         </div>

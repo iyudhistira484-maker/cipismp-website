@@ -1,19 +1,19 @@
 import { and, eq, lte, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { deliveries, deliveryAttempts, orders, servers, seasons, type Delivery } from "../db/schema";
+import { deliveries, deliveryAttempts, orders, servers, type Delivery } from "../db/schema";
 import { ids } from "../ids";
 import { logger } from "../logger";
 import { enqueue } from "../queue";
 import { decryptSecret } from "../crypto";
 import { getSettings } from "../settings";
 import { alertStaff } from "../notifications";
-import { sendToPlugin } from "./plugin-client";
 import { execRconCommands } from "./rcon";
 
 export interface DeliveryOutcome {
   ok: boolean;
   error?: string;
   queuedForNextJoin?: boolean;
+  queuedForPluginPoll?: boolean;
 }
 
 async function defaultServer() {
@@ -23,15 +23,12 @@ async function defaultServer() {
 }
 
 /** Eksekusi satu baris delivery. Idempoten: delivery yang sudah DELIVERED dilewati. */
-export async function processDelivery(deliveryId: string, options: { manual?: boolean } = {}): Promise<DeliveryOutcome> {
+export async function processDelivery(deliveryId: string): Promise<DeliveryOutcome> {
   const delivery = await db.query.deliveries.findFirst({ where: eq(deliveries.id, deliveryId) });
   if (!delivery) return { ok: false, error: "Delivery tidak ditemukan" };
   if (delivery.status === "DELIVERED") return { ok: true };
 
   const settings = await getSettings();
-  const season = delivery.seasonId
-    ? await db.query.seasons.findFirst({ where: eq(seasons.id, delivery.seasonId) })
-    : null;
   const server = await defaultServer();
   const started = Date.now();
   const commands = (delivery.commands as string[]) ?? [];
@@ -41,26 +38,20 @@ export async function processDelivery(deliveryId: string, options: { manual?: bo
     return { ok: false, error: "Tidak ada perintah" };
   }
 
+  if (server.deliveryMode === "PLUGIN") {
+    // Plugin-hosted Minecraft servers poll the website over outbound HTTPS.
+    // Leave the durable delivery QUEUED until the plugin claims and ACKs it.
+    await db.update(deliveries).set({ method: "PLUGIN", updatedAt: new Date() }).where(eq(deliveries.id, delivery.id));
+    if (delivery.orderId) await markOrderDeliveredIfComplete(delivery.orderId);
+    logger.info("delivery_waiting_for_plugin_poll", { deliveryId: delivery.id });
+    return { ok: true, queuedForPluginPoll: true };
+  }
+
   let outcome: DeliveryOutcome = { ok: false, error: "Metode pengiriman tidak tersedia" };
-  let method: "PLUGIN" | "RCON" = server.deliveryMode;
+  const method: "PLUGIN" | "RCON" = "RCON";
 
   try {
-    if (server.deliveryMode === "PLUGIN" && server.pluginBaseUrl) {
-      const secret = decryptSecret(server.pluginSecret) ?? process.env.PLUGIN_SHARED_SECRET;
-      if (!secret) throw new Error("Secret plugin belum diatur");
-      const response = await sendToPlugin({
-        baseUrl: server.pluginBaseUrl,
-        secret,
-        deliveryId: delivery.id,
-        uuid: delivery.uuid,
-        playerName: delivery.playerName,
-        commands,
-        reason: options.manual ? "REDELIVER" : season?.status === "ENDED" ? "SEASON_END" : "PURCHASE",
-      });
-      if (!response.ok) throw new Error(response.message ?? "Plugin melaporkan kegagalan");
-      outcome = { ok: true, queuedForNextJoin: response.applied === 0 };
-    } else if (server.rconHost && server.rconPort) {
-      method = "RCON";
+    if (server.rconHost && server.rconPort) {
       const password = decryptSecret(server.rconPassword);
       if (!password) throw new Error("Password RCON belum diatur");
       await execRconCommands(
@@ -69,7 +60,7 @@ export async function processDelivery(deliveryId: string, options: { manual?: bo
       );
       outcome = { ok: true };
     } else {
-      throw new Error("Server belum punya plugin URL atau kredensial RCON");
+      throw new Error("Host/port/password RCON belum dikonfigurasi");
     }
   } catch (error) {
     outcome = { ok: false, error: (error as Error).message };
@@ -95,6 +86,7 @@ export async function processDelivery(deliveryId: string, options: { manual?: bo
         status: "DELIVERED",
         deliveredAt: new Date(),
         attempts: attemptNumber,
+        leaseToken: null,
         method,
         lastError: null,
         updatedAt: new Date(),
@@ -133,6 +125,7 @@ async function finalizeFailure(
     .set({
       status: dead ? "DEAD" : "FAILED",
       attempts,
+      leaseToken: null,
       method,
       lastError: error.slice(0, 1000),
       nextAttemptAt: new Date(Date.now() + delayMs),
@@ -220,11 +213,11 @@ export async function deliveryStats() {
   return map;
 }
 
-/** Kirim ulang manual dari panel admin (reset status dan langsung proses). */
+/** Reset manual dari panel admin; plugin mode akan diambil saat polling berikutnya. */
 export async function redeliver(deliveryId: string): Promise<DeliveryOutcome> {
   await db
     .update(deliveries)
-    .set({ status: "QUEUED", nextAttemptAt: new Date(), updatedAt: new Date() })
+    .set({ status: "QUEUED", attempts: 0, leaseToken: null, nextAttemptAt: new Date(), lastError: null, updatedAt: new Date() })
     .where(eq(deliveries.id, deliveryId));
-  return processDelivery(deliveryId, { manual: true });
+  return processDelivery(deliveryId);
 }

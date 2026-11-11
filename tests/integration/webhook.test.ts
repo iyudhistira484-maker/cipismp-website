@@ -53,7 +53,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
       await db.delete(orderItems).where(eq(orderItems.orderId, stale.id));
       await db.delete(orders).where(eq(orders.id, stale.id));
     }
-    await db.delete(commandTemplates).where(like(commandTemplates.id, "cmd_%"));
+    // Product deletion cascades only its own command templates; do not wipe the seeded catalog.
     await db.delete(products).where(like(products.slug, "rank-uji-%"));
     await db.delete(seasons).where(like(seasons.slug, "season-uji-%"));
   }
@@ -89,7 +89,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
       id: `cmd_${suffix}`,
       productId,
       kind: "GRANT",
-      template: "lp user {player} parent add uji",
+      template: "lp user {player} parent set vip",
     });
     await db.insert(orders).values({
       id: orderId,
@@ -181,6 +181,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
     const payment = await db.query.payments.findFirst({ where: eq(payments.providerRef, providerRef) });
     expect(payment?.status).toBe("UNDERPAID");
     expect(payment?.amountIdr).toBe(5_000);
+    expect(await db.query.deliveries.findMany({ where: eq(deliveries.orderId, orderId) })).toHaveLength(0);
   });
 
   it("memenuhi order sekali dan mengabaikan replay event yang sama", async () => {
@@ -205,6 +206,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
 
     const queued = await db.query.deliveries.findMany({ where: eq(deliveries.orderId, orderId) });
     expect(queued.length).toBeGreaterThan(0);
+    expect(queued.flatMap((delivery) => delivery.commands)).toContain("lp user CipiTest parent set vip");
 
     const replay = await handleProviderWebhook("FAKE", body, headers, "127.0.0.1");
     expect(replay.result).toBe("duplicate-event-ignored");

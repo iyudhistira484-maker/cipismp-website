@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "CipiSMP Store — rank dan kit per season";
+export const alt = "Toko resmi CipiSMP — rank dan kit survival untuk Java dan Bedrock";
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -14,44 +14,57 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#15130f",
-          padding: "72px 80px",
-          color: "#f5f2ec",
+          background: "#fefbfd",
+          padding: "68px 80px",
+          color: "#342732",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div
             style={{
-              width: 56,
-              height: 56,
+              width: 54,
+              height: 54,
               borderRadius: 14,
-              border: "3px solid #e0a34a",
+              border: "2px solid #eddde7",
+              background: "#fff7fb",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#e0a34a",
-              fontSize: 26,
+              color: "#a02b64",
+              fontSize: 25,
               fontWeight: 700,
             }}
           >
             C
           </div>
-          <div style={{ fontSize: 26, letterSpacing: 2, color: "#a69e8f" }}>CIPISMP.MY.ID</div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ fontSize: 78, fontWeight: 700, lineHeight: 1.05, letterSpacing: -1.5 }}>
-            Rank dan kit yang berlaku sepanjang season.
-          </div>
-          <div style={{ fontSize: 30, color: "#a69e8f", lineHeight: 1.4 }}>
-            Bayar sekali, tanpa langganan, tanpa perpanjangan. Season baru berarti mulai baru.
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <span style={{ fontSize: 25, fontWeight: 700 }}>CipiSMP Store</span>
+            <span style={{ fontSize: 15, color: "#695865", letterSpacing: 1 }}>TOKO RESMI SERVER SURVIVAL</span>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, color: "#a69e8f" }}>
-          <span>Java · Bedrock</span>
-          <span style={{ color: "#e0a34a" }}>Store resmi CipiSMP</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ fontSize: 70, fontWeight: 700, lineHeight: 1.06, letterSpacing: -1.2 }}>
+            Rank dan kit untuk server survival CipiSMP.
+          </div>
+          <div style={{ fontSize: 27, color: "#695865", lineHeight: 1.35 }}>
+            Informasi harga, masa aktif, dan isi tersedia sebelum checkout.
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            borderTop: "1px solid #eddde7",
+            paddingTop: 20,
+            fontSize: 20,
+            color: "#695865",
+          }}
+        >
+          <span>Java Edition · Bedrock Edition</span>
+          <span style={{ color: "#a02b64", fontWeight: 600 }}>cipismp.my.id</span>
         </div>
       </div>
     ),

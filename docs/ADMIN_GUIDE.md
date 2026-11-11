@@ -14,9 +14,13 @@ tindakan tidak bisa dibatalkan.
    Pembayaran, Server, Staf, Audit log. Menu yang tidak muncul berarti role-mu tidak berhak.
 
 Role:
-- **Support** — melihat pesanan/pelanggan, mengirim ulang pengiriman, memberi comp.
-- **Admin** — semua di atas + menandai lunas manual, mengubah produk/season/kupon, pengaturan.
-- **Owner** — semua + kredensial gateway dan mengubah role staf.
+- **Support** — melihat pesanan, pelanggan, pengiriman, dan audit; mengirim ulang pengiriman;
+  memberi comp serta mencabut entitlement.
+- **Admin** — semua di atas + ringkasan pendapatan, menandai lunas manual, mengelola produk,
+  season, kupon, ulasan, metode pembayaran, server, dan pengaturan toko. Kesiapan gateway,
+  daftar pembayaran menunggu, serta ringkasan webhook hanya tersedia untuk Owner.
+- **Owner** — semua + melihat/mengubah kredensial, menguji kesiapan gateway, melihat daftar
+  pembayaran menunggu/ringkasan webhook, mengelola role dan sesi staf.
 
 ## Halaman Ringkasan
 
@@ -47,13 +51,13 @@ Buka **Pesanan**, cari dengan nomor order, email, atau nama pemain.
 4. **Catatan internal** — untuk tim, tidak terlihat pembeli. Pakai untuk mencatat hasil
    pengecekan gateway, nomor tiket, atau keputusan sengketa.
 
-## Kalau item belum masuk
+## Kalau akses atau reward belum masuk
 
 1. Buka detail pesanan → bagian **Pengiriman**.
 2. Baca kolom error: biasanya plugin server mati atau RCON salah.
 3. Setelah masalah server diperbaiki, tekan **Kirim ulang**.
-4. Bila pemain sedang offline, plugin akan mengantre dan mengirim saat pemain login.
-   Beri tahu pemain: "rank akan masuk otomatis saat kamu login berikutnya".
+4. Bila pemain sedang offline, plugin akan mengantre dan menjalankan perintah saat pemain login.
+   Untuk kit PlayerKits, pastikan grant permission berhasil; isi reward dan cooldown 5 jam dikonfigurasi di PlayerKits server.
 5. Kalau sudah 3× gagal, eskalasi ke Admin/Owner; jangan memberi comp sebagai pengganti
    kecuali Owner memutuskan.
 
@@ -64,10 +68,13 @@ Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diteri
 
 **Produk** menampilkan rank dan kit beserta harga, status, dan jumlah terjual.
 
-- Rank awal katalog: **Star Cipi**, **Milk Cipi**, **Pop Cipi**, dan **Cute Cipi**. Harga/keuntungan seed adalah nilai awal dan bisa disesuaikan di dashboard sebelum penjualan.
+- Katalog rank dan urutannya: **Cute Cipi Rp10.000** (`vip`), **Pop Cipi Rp30.000** (`mvp`), **Milk Cipi Rp60.000** (`elite`), lalu **Star Cipi Rp100.000** (`legend`). Tier 1–4 mengikuti urutan ini agar pembelian rank berikutnya diperlakukan sebagai upgrade.
+- Keuntungan katalog mengikuti daftar pemilik: prefix tiap rank, limit auction, jumlah/baris AxVaults, command Essentials, BetterRTP, dan kit PlayerKits. Permission serta prefix group sudah dikonfigurasi pada LuckPerms server; katalog hanya menampilkan benefit dan sistem toko memasang group setelah pembayaran terverifikasi.
 - Form produk mengatur nama, slug, status, harga, tier/urutan, batas/cooldown, warna badge, ilustrasi lokal, tagline, deskripsi, keuntungan, dan apakah pengiriman perintah server dipakai.
-- Untuk rank, atur juga template perintah **grant/revoke**. Placeholder yang tersedia: `{player}`, `{uuid}`, `{season}`, `{rank}`, `{kitname}`. Star/Milk/Pop mempertahankan group LuckPerms lama (`iron`, `gold`, `diamond`); Cute Cipi memakai `cute-cipi` sebagai nilai awal. Pastikan group benar-benar ada di server dan uji pengiriman sebelum produk ditayangkan.
+- Template GRANT rank memakai format yang diminta, `lp user {player} parent set <group>`, untuk group `vip`, `mvp`, `elite`, atau `legend`. REVOKE memakai `lp user {player} parent set default`; keduanya dijalankan oleh webhook pembayaran/worker, dan plugin mengantrekan perintah sampai pemain online. Karena `parent set` dapat mengganti parent group pemain, uji upgrade/revoke pada akun staging yang juga memiliki group lain (mis. staf) sebelum go-live. Jangan ubah otomatisasi ke format lain tanpa keputusan pemilik. Pastikan group tujuan sudah tersedia di LuckPerms.
 - Untuk kit, isi daftar item satu per baris dengan format `item_key | nama | jumlah | enchantment1,enchantment2 | lore1,lore2`. Kit tayang wajib punya minimal satu item.
+- Katalog kit saat ini: **CipiPrime** (Rp35.000, permission `playerkits.kits.cipiprime`) dan **Cipi++** (Rp75.000, permission `playerkits.kits.cipi++`). Pembelian membuka akses satu kali per pemain setiap season; template REVOKE mencabut permission saat season berakhir.
+- Cooldown klaim 5 jam dikelola oleh plugin **PlayerKits** di server, bukan oleh field cooldown toko. Pastikan reward dan cooldown di PlayerKits cocok dengan daftar item di halaman produk. Field admin `Cooldown pembelian ulang (jam)` harus tetap 0 untuk kedua kit.
 - Menambah produk: isi formulir di kanan, simpan sebagai **Draft** dulu, cek tampilan di
   `/rank` atau `/kit`, uji template pengiriman, lalu ubah ke **Published**.
 - Menyembunyikan produk: tombol tempat sampah (soft delete). Riwayat order tetap utuh.
@@ -104,32 +111,48 @@ season berakhir.
 ## Pelanggan
 
 - Pencarian berdasarkan email/username.
-- Kolom **Total belanja** = jumlah order yang dibayar (bukan termasuk yang gagal/batal).
-- **Email terverifikasi** harus "Ya" untuk pembelian dengan akun. Pembeli tamu tetap
-  dilayani lewat tautan pesanan publik.
+- Daftar menampilkan email, username, total belanja, jumlah order dibayar yang tertaut ke
+  akun, dan tanggal pendaftaran. Status verifikasi email/2FA ada di detail akun.
+- Pembeli tamu tetap dilayani lewat tautan pesanan publik dan tidak dihitung sebagai order
+  akun hanya karena memakai alamat email yang sama.
+- Akun staf tidak muncul di daftar pelanggan. Klik email untuk melihat profil Minecraft
+  tertaut, pesanan akun, dan entitlement rank/kit.
+- **Cabut** menonaktifkan entitlement dengan alasan wajib. Bila ada template REVOKE, perintah
+  diantrekan ke monitor pengiriman; cek hasilnya di `/admin/pengiriman`. Tanpa template,
+  akses di server harus dicabut manual. Ini bukan refund.
 - Akun yang dihapus tetap menyisakan order untuk pembukuan; ini normal.
 
 ## Pembayaran
 
-- Gateway menampilkan status aktif, mode (sandbox/live), dan URL webhook.
+- URL webhook dan status toggle aktif/nonaktif terlihat di halaman ini. Mode sandbox/live,
+  kesiapan gateway, dan tombol uji hanya terlihat untuk Owner.
 - Di bagian **Metode yang ditawarkan**, Admin/Owner dapat memilih QRIS, tiap bank Virtual
   Account, dan e-wallet untuk Tripay/Midtrans. Metode yang tidak dicentang tidak muncul di
   checkout; gateway tanpa metode terpilih juga disembunyikan. Simulasi hanya ada di dev.
-- **Hanya Owner** yang boleh melihat/mengubah kredensial. Pengaturan metode cukup memakai
-  izin `settings.write`, jadi Admin tidak perlu melihat rahasia gateway.
-- Daftar **Pembayaran menunggu** menyorot `UNDERPAID` (dana kurang). Verifikasi di dashboard
-  gateway: bila pembeli memang kurang bayar, hubungi pembeli lewat email; jangan tandai lunas.
-- **Webhook terakhir** menunjukkan apakah signature valid. Banyak `invalid` berarti
-  kredensial gateway tidak cocok dengan yang tersimpan.
+- **Hanya Owner** yang boleh melihat/mengubah kredensial gateway. Admin dapat mengatur metode
+  checkout, tetapi tidak membaca rahasia atau hasil uji provider.
+- Rincian **Pembayaran menunggu** dan ringkasan **Webhook terakhir** hanya tersedia untuk
+  Owner. Tampilan webhook dibatasi pada status signature dan hasil proses; payload mentah,
+  header, dan IP tidak ditampilkan di panel.
+- Status/referensi pembayaran untuk satu order tetap terlihat di detail Pesanan sesuai izin
+  `orders.read`; akses itu tidak membuka daftar rekonsiliasi atau payload webhook mentah. Detail
+  order hanya memilih field operasional yang dipakai panel—tanpa respons gateway mentah, URL checkout,
+  kode bayar, IP/UA order, metadata item penuh, atau perintah delivery.
+- `UNDERPAID` berarti dana kurang. Owner memverifikasi di dashboard gateway; bila pembeli
+  memang kurang bayar, hubungi pembeli lewat email dan jangan tandai lunas.
 - **Tidak ada tombol refund.** Jangan menjanjikan pengembalian dana kepada pembeli.
 
 ## Server & plugin
 
-- Isi host/port Java dan Bedrock, URL plugin, secret, dan kredensial RCON.
-- **Uji plugin** dan **Uji RCON** harus hijau setelah setiap perubahan.
-- Mengganti secret plugin harus dilakukan bersama pemilik server Minecraft (nilai yang
-  sama di `.env` dan `config.yml`), lalu restart keduanya.
-- Panduan pemasangan plugin ada di halaman yang sama.
+- Isi host/port Java dan Bedrock serta kredensial RCON bila menggunakan fallback. Metode
+  plugin memakai polling HTTPS keluar; URL plugin publik/port inbound tidak diperlukan.
+- **Cek status plugin** di `/admin/server` harus menunjukkan check-in kurang dari 60 detik.
+  **Uji RCON** dijalankan bila fallback RCON dipakai.
+- Secret plugin disimpan sebagai `PLUGIN_SHARED_SECRET` di environment website dan
+  `shared-secret` pada `plugins/CipiStoreCompanion/config.yml`; rotasi dikoordinasikan
+  bersama pemilik server lalu restart web dan plugin.
+- Pastikan hosting Minecraft mengizinkan DNS dan koneksi keluar HTTPS ke `APP_URL`.
+  Panduan pemasangan plugin ada di halaman yang sama.
 
 ## Staf
 
@@ -144,8 +167,9 @@ season berakhir.
 
 - **Pesanan → Ekspor CSV (100 hari)** mengunduh order 100 hari terakhir: nomor, waktu,
   status, email, pemain, UUID, gateway, rincian uang, kupon, dan catatan admin.
-- **Pelanggan → Ekspor CSV** mengunduh daftar akun beserta total belanja dan jumlah order
-  yang sudah dibayar.
+- **Pelanggan → Ekspor CSV** hanya memuat akun ber-role Pelanggan: email, username, tanggal
+  pendaftaran, serta total/jumlah order dibayar yang tertaut langsung ke akun. CSV ini tidak
+  memuat status verifikasi, 2FA, atau waktu login.
 - Berkas memakai pemisah koma, encoding UTF-8 (aman dibuka di Excel), dan teks yang mirip
   formula otomatis dinetralkan.
 - Setiap ekspor tercatat di audit log (`data.export`) beserta jumlah baris dan rentang

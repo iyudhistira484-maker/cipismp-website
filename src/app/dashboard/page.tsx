@@ -112,7 +112,7 @@ export default async function DashboardPage() {
                 {orders.map((order) => (
                   <tr key={order.id} className="border-t border-line/70">
                     <td className="px-4 py-3">
-                      <span className="font-pixel text-[10.5px] text-ink">{order.orderNumber}</span>
+                      <span className="font-mono text-[10.5px] text-ink">{order.orderNumber}</span>
                       <span className="block text-2xs text-muted-2">{order.mcName}</span>
                     </td>
                     <td className="hidden px-4 py-3 text-muted sm:table-cell">{formatDateTimeWIB(order.createdAt)}</td>

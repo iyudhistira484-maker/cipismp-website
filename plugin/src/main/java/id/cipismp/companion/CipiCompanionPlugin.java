@@ -3,23 +3,15 @@ package id.cipismp.companion;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.IOException;
+import java.net.URI;
 import java.util.List;
-import java.util.logging.Level;
 
-/**
- * Titik masuk plugin companion CipiSMP Store.
- *
- * Plugin ini punya dua peran:
- * 1. Menerima pengiriman rank/kit dari website (HMAC + timestamp + nonce) dan
- *    mengeksekusinya lewat LuckPerms/ konsol, dengan antrean lokal untuk pemain offline.
- * 2. Meneruskan `/verify <kode>` ke website agar akun Minecraft bisa dihubungkan.
- */
+/** Companion plugin: polls the store over HTTPS, delivers rank/kit commands, and handles /verify. */
 public final class CipiCompanionPlugin extends JavaPlugin {
     private static final List<String> PLACEHOLDER_SECRETS = List.of(
             "", "ganti-dengan-PLUGIN_SHARED_SECRET", "changeme");
 
-    private HttpApi api;
+    private DeliveryPoller poller;
     private QueueStore queue;
     private DeliveryService deliveries;
 
@@ -29,24 +21,26 @@ public final class CipiCompanionPlugin extends JavaPlugin {
         reloadConfig();
 
         String secret = getConfig().getString("shared-secret", "").trim();
-        String websiteUrl = getConfig().getString("website-url", "http://127.0.0.1:3000");
-        int maxSkew = getConfig().getInt("http.max-skew-seconds", 300);
-        String host = getConfig().getString("http.host", "127.0.0.1");
-        int port = getConfig().getInt("http.port", 8081);
+        String websiteUrl = getConfig().getString("website-url", "https://cipismp.my.id").trim();
 
         queue = new QueueStore(this,
                 getConfig().getString("queue.file", "pending-deliveries.yml"),
                 getConfig().getInt("queue.max-per-player", 20));
         LuckPermsHook luckPerms = getConfig().getBoolean("luckperms.use-api", true) ? LuckPermsHook.tryHook(getLogger()) : null;
         deliveries = new DeliveryService(this, queue, luckPerms);
-
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this, deliveries), this);
 
         boolean secretValid = secret.length() >= 16 && !PLACEHOLDER_SECRETS.contains(secret);
         if (!secretValid) {
-            getLogger().severe("shared-secret belum diisi (minimal 16 karakter). Endpoint pengiriman dan "
+            getLogger().severe("shared-secret belum diisi (minimal 16 karakter). Polling pengiriman dan "
                     + "/verify dinonaktifkan sampai config.yml diperbaiki. Nilai ini harus sama dengan "
-                    + "PLUGIN_SHARED_SECRET di .env website.");
+                    + "PLUGIN_SHARED_SECRET di environment website.");
+            disableManagementCommands();
+            return;
+        }
+        if (!isSecureWebsiteUrl(websiteUrl)) {
+            getLogger().severe("website-url harus HTTPS untuk host publik (HTTP hanya diizinkan ke localhost). "
+                    + "Polling dinonaktifkan untuk melindungi shared-secret.");
             disableManagementCommands();
             return;
         }
@@ -55,28 +49,47 @@ public final class CipiCompanionPlugin extends JavaPlugin {
         registerCommand("verify", new VerifyCommand(this, verifyService));
         registerCommand("cipistore", new AdminCommand(this, queue, deliveries));
 
-        if (port <= 0) {
-            getLogger().severe("http.port tidak valid; endpoint pengiriman tidak dijalankan.");
-            return;
-        }
-        api = new HttpApi(this, secret, maxSkew, new NonceCache(maxSkew * 1000L), deliveries);
-        try {
-            api.start(host, port);
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Gagal membuka port " + host + ":" + port
-                    + " — kemungkinan dipakai plugin lain atau firewall.", e);
+        if (getConfig().getBoolean("polling.enabled", true)) {
+            poller = new DeliveryPoller(
+                    this,
+                    websiteUrl,
+                    secret,
+                    deliveries,
+                    getConfig().getInt("polling.interval-seconds", 10),
+                    getConfig().getInt("polling.batch-size", 5),
+                    getConfig().getInt("polling.timeout-seconds", 15));
+            poller.start();
+        } else {
+            getLogger().warning("polling.enabled=false; pengiriman dari toko tidak akan diambil plugin.");
         }
 
         if (luckPerms != null) getLogger().info("LuckPerms terhubung lewat API.");
         else getLogger().info("LuckPerms tidak terdeteksi; perintah rank dijalankan sebagai perintah konsol.");
         getLogger().info("CipiSMP Store Companion aktif. Website: " + websiteUrl
-                + ", antrean tertunda: " + queue.totalPending());
+                + ", antrean pemain offline: " + queue.totalPending());
     }
 
     @Override
     public void onDisable() {
-        if (api != null) api.stop();
+        if (poller != null) poller.stop();
         getLogger().info("CipiSMP Store Companion berhenti.");
+    }
+
+    private static boolean isSecureWebsiteUrl(String rawUrl) {
+        try {
+            URI uri = URI.create(rawUrl);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (host == null) return false;
+            if ("https".equalsIgnoreCase(scheme)) return true;
+            return "http".equalsIgnoreCase(scheme)
+                    && ("localhost".equalsIgnoreCase(host)
+                    || "127.0.0.1".equals(host)
+                    || "::1".equalsIgnoreCase(host)
+                    || "[::1]".equalsIgnoreCase(host));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private void registerCommand(String name, org.bukkit.command.CommandExecutor executor) {
@@ -92,7 +105,7 @@ public final class CipiCompanionPlugin extends JavaPlugin {
         PluginCommand verify = getCommand("verify");
         if (verify != null) {
             verify.setExecutor((sender, command, label, args) -> {
-                sender.sendMessage("Verifikasi akun belum aktif: admin server harus mengisi shared-secret plugin.");
+                sender.sendMessage("Verifikasi akun belum aktif: admin server harus mengatur website-url dan shared-secret plugin.");
                 return true;
             });
         }

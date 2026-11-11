@@ -31,7 +31,7 @@ export default async function FakeCheckoutPage({ params }: { params: Promise<{ r
         <dl className="mt-6 space-y-2 rounded-lg border border-line bg-surface p-4 text-[13px]">
           <div className="flex justify-between gap-3">
             <dt className="text-muted">Order</dt>
-            <dd className="font-pixel text-[11px] text-ink">{order.orderNumber}</dd>
+            <dd className="font-mono text-[11px] text-ink">{order.orderNumber}</dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-muted">Total</dt>

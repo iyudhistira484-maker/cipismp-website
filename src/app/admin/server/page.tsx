@@ -3,18 +3,21 @@ import { defaultServerRow } from "@/server/admin/queries";
 import { getSettings } from "@/server/settings";
 import { AdminPageHeader, Card } from "@/components/admin/shell";
 import { ServerSettingsForm, TestServerButton } from "@/components/admin/admin-forms";
+import { Badge } from "@/components/ui/badge";
+import { formatDateTimeWIB } from "@/lib/dates";
 
 export const metadata = { title: "Server & plugin" };
 
 export default async function AdminServerPage() {
   await requireStaff("settings.read");
   const [server, settings] = await Promise.all([defaultServerRow(), getSettings()]);
+  const pluginOnline = Boolean(server?.pluginLastSeenAt && Date.now() - server.pluginLastSeenAt.getTime() <= 60_000);
 
   return (
     <>
       <AdminPageHeader
         title="Server & plugin"
-        description="Plugin companion menerima perintah bertanda tangan HMAC. RCON dipakai sebagai cadangan bila plugin tidak merespons."
+        description="Plugin companion mengambil pengiriman dari website melalui polling HTTPS keluar. RCON tetap tersedia sebagai alternatif."
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
@@ -29,8 +32,6 @@ export default async function AdminServerPage() {
                     bedrockHost: server.bedrockHost,
                     bedrockPort: server.bedrockPort,
                     deliveryMode: server.deliveryMode,
-                    pluginBaseUrl: server.pluginBaseUrl,
-                    pluginSecretSet: Boolean(server.pluginSecret),
                     rconHost: server.rconHost,
                     rconPort: server.rconPort,
                     rconPasswordSet: Boolean(server.rconPassword),
@@ -42,23 +43,32 @@ export default async function AdminServerPage() {
         </Card>
 
         <div className="space-y-4">
-          <Card title="Uji koneksi">
-            <div className="flex flex-wrap gap-2">
-              <TestServerButton target="plugin" label="Uji plugin" />
+          <Card title="Status plugin">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={pluginOnline ? "success" : "warning"}>
+                {pluginOnline ? "Terhubung" : "Belum terhubung"}
+              </Badge>
+              {server?.pluginVersion ? <span className="text-2xs text-muted">v{server.pluginVersion}</span> : null}
+            </div>
+            <p className="mt-2 text-2xs leading-relaxed text-muted-2">
+              {server?.pluginLastSeenAt
+                ? `Check-in terakhir ${formatDateTimeWIB(server.pluginLastSeenAt)} WIB.`
+                : "Belum ada check-in. Pastikan plugin terpasang, website-url benar, dan shared-secret cocok."}
+              {" "}Plugin dianggap offline bila tidak check-in selama 60 detik.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <TestServerButton target="plugin" label="Cek status plugin" />
               <TestServerButton target="rcon" label="Uji RCON (list)" />
             </div>
-            <p className="mt-3 text-2xs leading-relaxed text-muted-2">
-              Uji plugin memanggil <span className="font-mono">/cipismp/health</span> dengan signature. Uji RCON menjalankan
-              perintah <span className="font-mono">list</span> untuk memastikan kredensial benar.
-            </p>
           </Card>
 
           <Card title="Pemasangan plugin">
             <ol className="list-decimal space-y-1.5 pl-4 text-[12.5px] leading-relaxed text-muted">
               <li>Build plugin: <span className="font-mono text-2xs">cd plugin &amp;&amp; ./gradlew build</span>.</li>
-              <li>Salin JAR dari <span className="font-mono text-2xs">plugin/build/libs</span> ke <span className="font-mono text-2xs">plugins/</span>.</li>
-              <li>Isi <span className="font-mono text-2xs">plugins/CipiStoreCompanion/config.yml</span>: website-url, shared-secret (sama dengan PLUGIN_SHARED_SECRET), http.port.</li>
-              <li>Restart server, lalu uji koneksi di panel ini.</li>
+              <li>Salin JAR dari <span className="font-mono text-2xs">plugin/build/libs</span> ke folder <span className="font-mono text-2xs">plugins/</span>.</li>
+              <li>Atur <span className="font-mono text-2xs">website-url</span> ke URL publik HTTPS toko dan <span className="font-mono text-2xs">shared-secret</span> sama dengan <span className="font-mono text-2xs">PLUGIN_SHARED_SECRET</span>.</li>
+              <li>Plugin membuat koneksi keluar ke website; tidak perlu membuka port HTTP masuk di hosting Minecraft.</li>
+              <li>Restart server, tunggu check-in, lalu periksa status plugin di panel ini.</li>
               <li>Pemain menghubungkan akun dengan <span className="font-mono text-2xs">/verify KODE</span> dari dashboard.</li>
             </ol>
           </Card>

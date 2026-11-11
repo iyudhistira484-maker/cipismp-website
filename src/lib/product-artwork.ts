@@ -6,9 +6,6 @@ export const PRODUCT_ARTWORK_CHOICES = [
   { value: "/images/products/iron.jpg", label: "Iron (arsip)" },
   { value: "/images/products/gold.jpg", label: "Gold (arsip)" },
   { value: "/images/products/diamond.jpg", label: "Diamond (arsip)" },
-  { value: "/images/products/starter.jpg", label: "Starter Kit" },
-  { value: "/images/products/builder.jpg", label: "Builder Kit" },
-  { value: "/images/products/explorer.jpg", label: "Explorer Kit" },
 ] as const;
 
 export const PRODUCT_ACCENT_CHOICES = [
@@ -30,14 +27,11 @@ const PRODUCT_ARTWORK_BY_SLUG: Record<string, string> = {
   iron: "/images/products/iron.jpg",
   gold: "/images/products/gold.jpg",
   diamond: "/images/products/diamond.jpg",
-  starter: "/images/products/starter.jpg",
-  builder: "/images/products/builder.jpg",
-  explorer: "/images/products/explorer.jpg",
 };
 
 const VALID_ARTWORK = new Set<string>(PRODUCT_ARTWORK_CHOICES.map((choice) => choice.value));
 
-/** DB-selected artwork wins; known slugs keep a local fallback for older products. */
+/** Rank artwork may be selected by the admin; kits use their actual Minecraft item sprites. */
 export function getProductArtwork(slug: string, artwork?: string | null): string | null {
   if (artwork && VALID_ARTWORK.has(artwork)) return artwork;
   return PRODUCT_ARTWORK_BY_SLUG[slug] ?? null;

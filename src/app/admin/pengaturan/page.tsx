@@ -1,6 +1,7 @@
 import { requireStaff } from "@/server/auth/guard";
 import { getSettings } from "@/server/settings";
-import { getAvailableProviders, PROVIDER_LABEL } from "@/server/payments";
+import { getAvailableProviders, PROVIDER_LABEL, type ProviderId } from "@/server/payments";
+import { hasPermission } from "@/server/rbac";
 import { env } from "@/server/env";
 import { AdminPageHeader, Card } from "@/components/admin/shell";
 import {
@@ -13,11 +14,15 @@ import { Alert } from "@/components/ui/feedback";
 export const metadata = { title: "Pengaturan toko" };
 
 export default async function AdminStoreSettingsPage() {
-  await requireStaff("settings.write");
+  const viewer = await requireStaff("settings.write");
+  const canSeeProviderReadiness = hasPermission(viewer.user.role, "payments.secrets");
   const [settings, providers] = await Promise.all([
     getSettings(),
-    getAvailableProviders(),
+    canSeeProviderReadiness ? getAvailableProviders() : Promise.resolve(null),
   ]);
+  const enabledProviders: ProviderId[] = (["TRIPAY", "MIDTRANS", "FAKE"] as ProviderId[]).filter(
+    (provider) => settings.payments.enabled[provider] && (provider !== "FAKE" || env.NODE_ENV !== "production"),
+  );
 
   return (
     <>
@@ -65,22 +70,29 @@ export default async function AdminStoreSettingsPage() {
             <DeliverySettingsForm settings={settings.delivery} />
           </Card>
 
-          <Card title="Gateway siap pakai">
-            {providers.length === 0 ? (
+          <Card title={providers === null ? "Gateway diaktifkan" : "Gateway siap pakai"}>
+            {providers === null ? (
+              enabledProviders.length === 0 ? (
+                <Alert tone="warning">Belum ada gateway yang diaktifkan.</Alert>
+              ) : (
+                <ul className="space-y-1.5 text-[12.5px] text-muted">
+                  {enabledProviders.map((provider) => (
+                    <li key={provider} className="flex items-center justify-between gap-2">
+                      <span className="text-ink">{PROVIDER_LABEL[provider]}</span>
+                      <span className="text-2xs text-muted-2">diaktifkan</span>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : providers.length === 0 ? (
               <Alert tone="warning">
-                Belum ada gateway aktif. Checkout tidak akan bisa membuat
-                pembayaran.
+                Belum ada gateway yang siap dipakai. Periksa kredensial dan status aktif.
               </Alert>
             ) : (
               <ul className="space-y-1.5 text-[12.5px] text-muted">
                 {providers.map((provider) => (
-                  <li
-                    key={provider.id}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="text-ink">
-                      {PROVIDER_LABEL[provider.id]}
-                    </span>
+                  <li key={provider.id} className="flex items-center justify-between gap-2">
+                    <span className="text-ink">{PROVIDER_LABEL[provider.id]}</span>
                     <span className="text-2xs text-muted-2">
                       {provider.mode} · {provider.methods.length} metode
                     </span>
@@ -89,9 +101,9 @@ export default async function AdminStoreSettingsPage() {
               </ul>
             )}
             <p className="mt-3 text-2xs leading-relaxed text-muted-2">
-              Kredensial diatur di halaman Pembayaran. Mode{" "}
-              <span className="font-mono">live</span> mengirim transaksi
-              sungguhan — uji dulu dengan nominal kecil.
+              {providers === null
+                ? "Status ini hanya menunjukkan toggle. Owner dapat menguji kesiapan gateway di halaman Pembayaran; kredensial tetap Owner-only."
+                : <>Kredensial diatur di halaman Pembayaran. Mode <span className="font-mono">live</span> mengirim transaksi sungguhan — uji dulu dengan nominal kecil.</>}
             </p>
           </Card>
 

@@ -28,7 +28,7 @@ export function RankCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg border bg-gradient-to-b from-surface-2 to-surface transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong",
+        "group premium-card-3d relative flex flex-col overflow-hidden rounded-xl border bg-white hover:border-accent/40",
         highlighted ? "border-accent/40" : "border-line",
       )}
     >
@@ -110,43 +110,22 @@ export function KitCard({
   season: { name: string; endAt: Date } | null;
   rating?: { count: number; average: number };
 }) {
-  const artwork = getProductArtwork(product.slug, product.artwork);
-  const itemPreviewCount = artwork ? 4 : 8;
+  const itemPreviewCount = 8;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong">
-      {artwork ? (
-        <div className="relative aspect-[16/10] overflow-hidden border-b border-line/70 bg-bg">
-          <Image
-            src={artwork}
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 via-transparent to-transparent" />
-        </div>
-      ) : null}
-      <div className={cn("border-b border-line/70 bg-bg/40", artwork ? "px-3 py-2.5" : "p-4")}>
-        <div className={cn("gap-2", artwork ? "flex items-center" : "grid grid-cols-4")} aria-hidden>
+    <article className="group premium-card-3d flex flex-col overflow-hidden rounded-xl border border-line bg-white hover:border-accent/40">
+      <div className="border-b border-line/70 bg-bg/40 p-4">
+        <div className="grid grid-cols-4 gap-2" aria-hidden>
           {items.slice(0, itemPreviewCount).map((item) => (
             <div
               key={item.id}
-              className={cn(
-                "grid place-items-center rounded-[6px] transition-colors group-hover:border-line-strong",
-                artwork
-                  ? "size-10 shrink-0 border border-transparent bg-transparent"
-                  : "aspect-square border border-line/80 bg-surface-2/60",
-              )}
+              className="grid aspect-square place-items-center rounded-[6px] border border-line/80 bg-surface-2/60 transition-colors group-hover:border-line-strong"
             >
               <ItemArt itemKey={item.itemKey} className="size-7" title={item.name} />
             </div>
           ))}
-          {artwork && items.length > itemPreviewCount ? (
-            <span className="ml-auto text-2xs text-muted-2">+{items.length - itemPreviewCount} item lain</span>
-          ) : null}
         </div>
-        {!artwork && items.length > itemPreviewCount ? (
+        {items.length > itemPreviewCount ? (
           <p className="mt-2 text-2xs text-muted-2">+{items.length - itemPreviewCount} item lain</p>
         ) : null}
       </div>
@@ -155,7 +134,7 @@ export function KitCard({
           <h3 className="font-display text-[19px] leading-tight text-ink">{product.name}</h3>
           <Badge tone="neutral" className="mt-0.5 shrink-0">
             <Layers className="size-2.5" aria-hidden />
-            {product.maxPerSeason}/season
+            {product.maxPerSeason}× beli/season
           </Badge>
         </div>
         <p className="mt-1.5 text-pretty text-[13px] leading-relaxed text-muted">{product.tagline}</p>

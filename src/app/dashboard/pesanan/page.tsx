@@ -46,7 +46,7 @@ export default async function OrdersPage() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface/60 p-4 transition-colors hover:border-line-strong"
             >
               <div>
-                <p className="font-pixel text-[11px] text-ink">{order.orderNumber}</p>
+                <p className="font-mono text-[11px] text-ink">{order.orderNumber}</p>
                 <p className="mt-1 text-2xs text-muted-2">
                   {formatDateTimeWIB(order.createdAt)} WIB · {order.mcName} · {seasons.get(order.seasonId)}
                 </p>

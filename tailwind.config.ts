@@ -33,7 +33,6 @@ const config: Config = {
       fontFamily: {
         display: ["var(--font-display)", "Bricolage Grotesque", "Georgia", "serif"],
         sans: ["var(--font-sans)", "Instrument Sans", "system-ui", "sans-serif"],
-        pixel: ["var(--font-pixel)", "Silkscreen", "monospace"],
       },
       fontSize: {
         "2xs": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0.02em" }],
@@ -56,10 +55,10 @@ const config: Config = {
         "2xl": "28px",
       },
       boxShadow: {
-        raise: "0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6)",
-        card: "0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 20px 40px -32px rgb(0 0 0 / 0.9)",
-        focus: "0 0 0 3px rgb(var(--accent) / 0.35)",
-        pop: "0 24px 60px -24px rgb(0 0 0 / 0.85)",
+        raise: "0 1px 0 0 rgb(255 255 255 / 0.8) inset, 0 8px 24px -12px rgb(52 39 50 / 0.14)",
+        card: "0 1px 2px rgb(52 39 50 / 0.04), 0 16px 32px -24px rgb(80 42 64 / 0.18)",
+        focus: "0 0 0 3px rgb(var(--accent) / 0.2)",
+        pop: "0 16px 36px -24px rgb(52 39 50 / 0.28)",
       },
       transitionTimingFunction: {
         out: "cubic-bezier(0.22, 1, 0.36, 1)",
@@ -68,12 +67,6 @@ const config: Config = {
         "150": "150ms",
         "200": "200ms",
         "250": "250ms",
-      },
-      backgroundImage: {
-        grid: "radial-gradient(rgb(var(--line) / 0.55) 1px, transparent 1px)",
-      },
-      backgroundSize: {
-        grid: "22px 22px",
       },
       keyframes: {
         "fade-in": {

@@ -87,7 +87,7 @@ export function TotpPanel({ enabled, isStaff }: { enabled: boolean; isStaff: boo
       if (result.data?.uri) {
         setSetup({ uri: result.data.uri, secret: result.data.secret ?? "" });
         const QRCode = (await import("qrcode")).default;
-        const dataUrl = await QRCode.toDataURL(result.data.uri, { margin: 1, width: 220, color: { dark: "#15130f", light: "#f5f2ec" } });
+        const dataUrl = await QRCode.toDataURL(result.data.uri, { margin: 1, width: 220, color: { dark: "#342732", light: "#ffffff" } });
         setQr(dataUrl);
       }
     });
@@ -141,12 +141,12 @@ export function TotpPanel({ enabled, isStaff }: { enabled: boolean; isStaff: boo
             <div className="mt-2 grid gap-4 sm:grid-cols-[auto_1fr]">
               {qr ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={qr} alt="Kode QR 2FA" width={150} height={150} className="rounded-md border border-line bg-[#f5f2ec] p-1" />
+                <img src={qr} alt="Kode QR 2FA" width={150} height={150} className="rounded-md border border-line bg-white p-1" />
               ) : null}
               <div>
                 <p className="text-2xs text-muted-2">Kode manual</p>
                 <p className="mt-1 flex items-center gap-2">
-                  <code className="break-all font-pixel text-[10px] text-ink">{setup.secret}</code>
+                  <code className="break-all font-mono text-[10px] text-ink">{setup.secret}</code>
                   <button
                     type="button"
                     onClick={() => void navigator.clipboard.writeText(setup.secret)}
@@ -163,7 +163,7 @@ export function TotpPanel({ enabled, isStaff }: { enabled: boolean; isStaff: boo
                       inputMode="numeric"
                       maxLength={6}
                       required
-                      className="text-center font-pixel text-[16px] tracking-[0.3em]"
+                      className="text-center font-mono text-[16px] tracking-[0.3em]"
                       placeholder="000000"
                     />
                   </Field>
@@ -221,10 +221,10 @@ export function MinecraftPanel() {
       {state.data?.code ? (
         <div className="mt-4 rounded-md border border-accent/30 bg-accent/[0.06] p-3.5">
           <p className="text-2xs uppercase tracking-wider text-accent">Kode verifikasi</p>
-          <p className="mt-1 select-all font-pixel text-[20px] tracking-[0.25em] text-ink">{state.data.code}</p>
+          <p className="mt-1 select-all font-mono text-[20px] tracking-[0.25em] text-ink">{state.data.code}</p>
           <p className="mt-2 text-2xs leading-relaxed text-muted">
             Masuk ke server sebagai <span className="text-ink">{state.data.playerName}</span>, lalu ketik{" "}
-            <span className="font-pixel text-[10px] text-ink">/verify {state.data.code}</span>. Kode berlaku 15 menit
+            <span className="font-mono text-[10px] text-ink">/verify {state.data.code}</span>. Kode berlaku 15 menit
             dan hanya bisa dipakai sekali.
           </p>
           <div className="mt-2 flex gap-2">

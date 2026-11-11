@@ -265,8 +265,12 @@ export const servers = pgTable("servers", {
   bedrockHost: text("bedrock_host").notNull(),
   bedrockPort: integer("bedrock_port").notNull().default(19202),
   deliveryMode: deliveryMethodEnum("delivery_mode").notNull().default("PLUGIN"),
+  // Retained for existing installations during the push-to-poll transition; polling reads
+  // the shared HMAC secret from environment and never makes a request to this URL.
   pluginBaseUrl: text("plugin_base_url"),
   pluginSecret: text("plugin_secret"),
+  pluginLastSeenAt: ts("plugin_last_seen_at"),
+  pluginVersion: text("plugin_version"),
   rconHost: text("rcon_host"),
   rconPort: integer("rcon_port").default(25575),
   rconPassword: text("rcon_password"),
@@ -490,6 +494,7 @@ export const deliveries = pgTable(
     method: deliveryMethodEnum("method").notNull().default("PLUGIN"),
     status: deliveryStatusEnum("status").notNull().default("QUEUED"),
     attempts: integer("attempts").notNull().default(0),
+    leaseToken: text("lease_token"),
     nextAttemptAt: ts("next_attempt_at").notNull().defaultNow(),
     commands: jsonb("commands").$type<string[]>().notNull(),
     lastError: text("last_error"),

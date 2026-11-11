@@ -37,7 +37,7 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
       ref={ref}
       className={cn(
         "h-11 w-full appearance-none rounded-md border border-line bg-bg/60 px-3.5 pr-9 text-[15px] text-ink transition-colors",
-        "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%228%22%3E%3Cpath%20fill%3D%22%23a69e8f%22%20d%3D%22M6%208L0%200h12z%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_14px_center] bg-no-repeat",
+        "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%228%22%3E%3Cpath%20fill%3D%22%23897786%22%20d%3D%22M6%208L0%200h12z%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_14px_center] bg-no-repeat",
         "hover:border-line-strong focus:border-accent/70 focus:outline-none focus:ring-2 focus:ring-accent/25",
         className,
       )}
@@ -108,7 +108,7 @@ export function CheckboxField({
       <label className="flex cursor-pointer items-start gap-3 text-[13.5px] leading-relaxed text-muted">
         <input
           type="checkbox"
-          className="mt-0.5 size-4 shrink-0 cursor-pointer appearance-none rounded-[4px] border border-line-strong bg-bg checked:border-accent checked:bg-accent checked:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20fill%3D%22%231a1409%22%20d%3D%22M6.5%2011.2L3.3%208l1.1-1.1%202.1%202.1%205-5L12.6%205z%22/%3E%3C/svg%3E')] checked:bg-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 aria-[invalid=true]:border-danger"
+          className="mt-0.5 size-4 shrink-0 cursor-pointer appearance-none rounded-[4px] border border-line-strong bg-bg checked:border-accent checked:bg-accent checked:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M6.5%2011.2L3.3%208l1.1-1.1%202.1%202.1%205-5L12.6%205z%22/%3E%3C/svg%3E')] checked:bg-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 aria-[invalid=true]:border-danger"
           {...props}
         />
         <span>{label}</span>

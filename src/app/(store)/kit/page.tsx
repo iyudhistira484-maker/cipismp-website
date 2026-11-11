@@ -12,7 +12,7 @@ import { formatDateWIB } from "@/lib/dates";
 export const metadata: Metadata = {
   title: "Kit",
   description:
-    "Kit musiman CipiSMP: Starter, Builder, dan Explorer. Satu kali per pemain setiap season, berlaku sampai akhir season.",
+    "CipiPrime dan Cipi++: akses PlayerKits satu season, dibeli sekali per pemain dan dapat diklaim dengan cooldown 5 jam.",
   alternates: { canonical: "/kit" },
 };
 
@@ -47,16 +47,18 @@ export default async function KitListPage({ searchParams }: { searchParams: Prom
           Isi kit yang jelas, tanpa kotak misterius.
         </h1>
         <p className="mt-3 text-pretty text-[15px] leading-relaxed text-muted">
-          Setiap kit menampilkan isinya secara lengkap. Semua kit dibatasi satu kali per pemain setiap
-          season dan berakhir bersama season.
+          Pilih <strong className="font-medium text-ink">CipiPrime</strong> atau{" "}
+          <strong className="font-medium text-ink">Cipi++</strong> dan lihat semua reward sebelum membeli.
+          Setiap kit dibeli satu kali per pemain per season, lalu akses PlayerKits berlaku sampai
+          season berakhir. Klaim ulang memiliki cooldown 5 jam yang diatur di server.
           {season ? ` Season ini berakhir ${formatDateWIB(season.endAt)}.` : ""}
         </p>
       </div>
 
       {frozen && season ? (
         <Alert tone="warning" className="mt-6 max-w-2xl" title="Pembelian sedang ditutup">
-          Pembelian ditutup pada {season.freezeDays} hari terakhir season. Kit yang sudah dimiliki tetap
-          bisa diambil sampai season berakhir.
+          Pembelian ditutup pada {season.freezeDays} hari terakhir season. Akses kit yang sudah dibeli
+          tetap aktif dan dapat diklaim melalui PlayerKits sampai season berakhir.
         </Alert>
       ) : null}
 

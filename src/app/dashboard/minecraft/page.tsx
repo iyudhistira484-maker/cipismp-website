@@ -41,7 +41,7 @@ export default async function MinecraftPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-[13.5px] text-ink">{profile.displayName}</p>
-                      <p className="mt-0.5 font-pixel text-[9.5px] text-muted-2">{profile.uuid}</p>
+                      <p className="mt-0.5 font-mono text-[9.5px] text-muted-2">{profile.uuid}</p>
                       <p className="mt-1 text-2xs text-muted-2">
                         {profile.edition === "BEDROCK" ? "Bedrock" : "Java"}
                         {profile.verifiedAt
@@ -68,7 +68,7 @@ export default async function MinecraftPage() {
             <p className="text-[12px] font-medium text-ink">Cara verifikasi</p>
             <ol className="mt-1.5 list-decimal space-y-1 pl-4">
               <li>Masukkan username Minecraft, lalu tekan Buat kode.</li>
-              <li>Masuk ke server dan ketik <span className="font-pixel text-[10px] text-ink">/verify KODE</span>.</li>
+              <li>Masuk ke server dan ketik <span className="font-mono text-[10px] text-ink">/verify KODE</span>.</li>
               <li>Server mengirim konfirmasi ke toko; halaman ini berubah otomatis setelah diperbarui.</li>
             </ol>
           </div>

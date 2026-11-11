@@ -38,7 +38,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
       <h1 className="mt-4 font-display text-h1 text-ink">{found.title}</h1>
       <p className="mt-3 text-pretty text-[14.5px] leading-relaxed text-muted">{found.summary}</p>
       <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-1 border-y border-line py-3 text-2xs text-muted-2">
-        <div className="flex gap-1.5"><dt>Versi</dt><dd className="font-pixel text-[10px] text-muted">{version}</dd></div>
+        <div className="flex gap-1.5"><dt>Versi</dt><dd className="font-mono text-[10px] text-muted">{version}</dd></div>
         <div className="flex gap-1.5"><dt>Berlaku sejak</dt><dd className="text-muted">{formatDateWIB(new Date(`${settings.legal.updatedAt}T00:00:00+07:00`))}</dd></div>
         <div className="flex gap-1.5"><dt>Bahasa</dt><dd className="text-muted">Indonesia</dd></div>
       </dl>

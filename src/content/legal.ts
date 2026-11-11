@@ -30,7 +30,8 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: "1. Layanan yang kami sediakan",
         paragraphs: [
           "CipiSMP Store adalah toko resmi untuk membeli rank dan kit yang berlaku di server Minecraft CipiSMP (Java dan Bedrock, terhubung melalui Geyser/Floodgate). Toko menjual barang virtual yang tidak dapat dipindahkan ke server lain.",
-          "Rank dan kit adalah barang digital yang langsung dikirim ke akun Minecraft setelah pembayaran terverifikasi. Rank dan kit tidak memberi keuntungan tempur; semuanya bersifat kenyamanan dan kosmetik.",
+          "Rank dan akses PlayerKits adalah barang digital yang diaktifkan di akun Minecraft setelah pembayaran terverifikasi. Untuk CipiPrime dan Cipi++, pembelian mengaktifkan permission untuk season berjalan; reward diklaim melalui PlayerKits dengan cooldown 5 jam yang dikelola server.",
+          "Isi kit adalah reward dalam game; daftar yang ditampilkan di halaman produk menjadi acuan sebelum pembayaran. Akses berakhir saat season berjalan berakhir.",
         ],
       },
       {
@@ -55,7 +56,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       {
         heading: "4. Ketersediaan layanan",
         paragraphs: [
-          "Kami berusaha menjaga server tetap online, tetapi pemeliharaan, gangguan hosting, atau pembaruan versi Minecraft dapat menyebabkan downtime. Downtime tidak membuat pembelian batal; item yang belum terkirim dikirim setelah server kembali normal.",
+          "Kami berusaha menjaga server tetap online, tetapi pemeliharaan, gangguan hosting, atau pembaruan versi Minecraft dapat menyebabkan downtime. Downtime tidak membatalkan pembelian; permission atau reward yang belum terkirim akan diproses setelah server kembali normal.",
         ],
       },
       {
@@ -145,7 +146,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
     slug: "syarat-penjualan",
     title: "Syarat Penjualan",
     summary:
-      "Ketentuan pembelian: masa aktif per season, kebijakan tanpa refund, dan cara penyelesaian bila item gagal dikirim.",
+      "Ketentuan pembelian: masa aktif per season, kebijakan tanpa refund, dan cara penyelesaian bila akses atau reward gagal dikirim.",
     versionKey: "salesVersion",
     updatedKey: "updatedAt",
     sections: [
@@ -159,7 +160,8 @@ export const LEGAL_DOCS: LegalDoc[] = [
       {
         heading: "2. Masa aktif mengikuti season",
         paragraphs: [
-          "Rank dan kit berlaku sejak dikirim sampai season berjalan berakhir. Tidak ada perpanjangan otomatis dan tidak ada diskon pembelian ulang. Saat season baru dimulai, semua rank dan kit harus dibeli kembali.",
+          "Rank dan akses kit berlaku sampai season berjalan berakhir. Tidak ada perpanjangan otomatis dan tidak ada diskon pembelian ulang. Saat season baru dimulai, semua rank dan kit harus dibeli kembali.",
+          "CipiPrime dan Cipi++ dibeli satu kali per pemain per season. Pembelian memberi permission PlayerKits; klaim reward dapat diulang dengan cooldown 5 jam yang dikelola di server.",
           "Tanggal berakhir season ditampilkan pada halaman produk, keranjang, checkout, dan kuitansi. Pembelian ditutup pada tiga hari terakhir season.",
         ],
       },
@@ -178,16 +180,16 @@ export const LEGAL_DOCS: LegalDoc[] = [
         ],
       },
       {
-        heading: "5. Bila item gagal dikirim",
+        heading: "5. Bila akses atau reward gagal dikirim",
         paragraphs: [
-          "Kalau pembayaran sudah terverifikasi tetapi item belum masuk, kami akan mengirim ulang. Pengiriman ulang adalah satu-satunya solusi dan tidak dianggap sebagai pembatalan pembelian.",
+          "Kalau pembayaran sudah terverifikasi tetapi permission atau reward belum masuk, kami akan mengirim ulang perintah aktivasi. Pengiriman ulang adalah satu-satunya solusi dan tidak dianggap sebagai pembatalan pembelian.",
           "Hubungi bantuan dengan nomor order. Kami tidak akan meminta pembayaran kedua dengan alasan apa pun.",
         ],
       },
       {
         heading: "6. Pembayaran ganda dan sengketa",
         paragraphs: [
-          "Bila terjadi pembayaran ganda, item tetap dikirim satu kali. Kelebihan pembayaran ditinjau admin dan, bila tervalidasi, dapat diberikan sebagai item tambahan (comp) sesuai kebijakan kami — bukan sebagai refund tunai.",
+          "Bila terjadi pembayaran ganda, akses atau reward diproses satu kali. Kelebihan pembayaran ditinjau admin dan, bila tervalidasi, dapat diberikan sebagai kompensasi sesuai kebijakan kami — bukan sebagai refund tunai.",
           "Chargeback atau sengketa dari gateway menyebabkan pesanan ditandai DISPUTED. Kami dapat mencabut item dan membatasi akun bila sengketa terbukti tidak berdasar.",
         ],
       },

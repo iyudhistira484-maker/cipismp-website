@@ -20,18 +20,18 @@ export async function SiteHeader() {
   const [viewer, cartCount, settings] = await Promise.all([getViewer(), getCartCount(), getSettings()]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line/80 bg-bg/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur-md">
       {settings.site.announcement ? (
-        <div className="border-b border-line/60 bg-accent/10">
-          <p className="container-page py-2 text-center text-[12.5px] text-accent">{settings.site.announcement}</p>
+        <div className="border-b border-line bg-surface-2">
+          <p className="container-page py-2 text-center text-[12.5px] font-medium text-accent-strong">{settings.site.announcement}</p>
         </div>
       ) : null}
-      <div className="container-page flex h-16 items-center justify-between gap-4">
+      <div className="container-page flex h-[72px] items-center justify-between gap-4">
         <div className="flex items-center gap-8">
           <Link href="/" aria-label="CipiSMP Store — beranda" className="transition-opacity hover:opacity-90">
             <Logo />
           </Link>
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-1 md:flex">
+          <nav aria-label="Navigasi utama" className="hidden items-center gap-1 lg:flex">
             {NAV.map((item) => (
               <Link
                 key={item.href}

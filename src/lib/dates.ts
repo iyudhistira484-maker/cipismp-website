@@ -64,6 +64,11 @@ export function jakartaDateKey(date: Date): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/** Awal hari kalender WIB sebagai instant UTC. */
+export function startOfWibDay(date: Date = new Date()): Date {
+  return new Date(`${jakartaDateKey(date)}T00:00:00.000+07:00`);
+}
+
 /** "3 hari lagi" / "hari ini" / "sudah lewat" — dipakai di UI season. */
 export function daysUntil(target: Date, now: Date = new Date()): number {
   return Math.ceil((target.getTime() - now.getTime()) / MS_DAY);

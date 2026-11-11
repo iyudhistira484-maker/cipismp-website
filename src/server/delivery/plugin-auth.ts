@@ -7,7 +7,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const PLUGIN_MAX_SKEW_SECONDS = 300;
 
 export function pluginSharedSecret(): string | null {
-  return process.env.PLUGIN_SHARED_SECRET ?? null;
+  return process.env.PLUGIN_SHARED_SECRET?.trim() || null;
 }
 
 export function computePluginSignature(input: {

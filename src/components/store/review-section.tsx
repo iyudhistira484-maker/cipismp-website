@@ -90,7 +90,7 @@ function RatingBadge({ summary }: { summary: RatingSummary }) {
   }
   return (
     <div className="flex items-center gap-3 rounded-md border border-line bg-surface/40 px-3 py-2">
-      <span className="font-pixel text-xl text-ink">{summary.average.toFixed(1)}</span>
+      <span className="font-mono text-xl text-ink">{summary.average.toFixed(1)}</span>
       <div className="space-y-0.5">
         <Stars value={summary.average} />
         <p className="text-2xs text-muted-2">{summary.count} ulasan</p>

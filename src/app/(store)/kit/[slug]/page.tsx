@@ -54,7 +54,7 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
           <div className="mt-6 flex flex-wrap gap-2">
             <Badge tone="neutral">
               <Layers className="size-2.5" aria-hidden />
-              {product.maxPerSeason}× per pemain setiap season
+              {product.maxPerSeason}× pembelian per pemain setiap season
             </Badge>
             {season ? <Badge tone="accent">{season.name}</Badge> : null}
           </div>
@@ -99,9 +99,9 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
           <section className="mt-9 rounded-lg border border-line bg-surface/50 p-5">
             <h2 className="font-display text-[15px] text-ink">Cara pengambilan</h2>
             <ol className="mt-3 space-y-2 text-[13.5px] leading-relaxed text-muted">
-              <li>1. Setelah pembayaran terverifikasi, kit dikirim otomatis ke akunmu.</li>
-              <li>2. Kalau kamu offline, kit dikirim saat login berikutnya.</li>
-              <li>3. Batas pembelian direset saat season baru dimulai.</li>
+              <li>1. Setelah pembayaran terverifikasi, permission PlayerKits untuk kit ini aktif otomatis.</li>
+              <li>2. Klaim reward di server lewat PlayerKits; cooldown klaim 5 jam diatur di server.</li>
+              <li>3. Akses berakhir saat season ini berakhir. Kit dapat dibeli lagi di season berikutnya.</li>
             </ol>
           </section>
         </div>
@@ -110,7 +110,7 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
           <div className="surface-card p-5">
             <p className="text-2xs uppercase tracking-wider text-muted-2">Harga</p>
             <p className="mt-1 font-display text-[34px] leading-none text-ink">{formatRp(product.priceIdr)}</p>
-            <p className="mt-1 text-[12.5px] text-muted">Satu kali per pemain setiap season.</p>
+            <p className="mt-1 text-[12.5px] text-muted">Sekali beli memberi akses PlayerKits sampai season berakhir.</p>
 
             {season ? (
               <p className="mt-4 flex items-start gap-2 border-t border-line pt-3 text-[12.5px] leading-relaxed text-muted">

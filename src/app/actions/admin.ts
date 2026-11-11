@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { commandTemplates, coupons, deliveries, kitItems, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
+import { commandTemplates, coupons, deliveries, entitlements, kitItems, minecraftProfiles, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
 import { requireStaff, requirePermissionApi } from "@/server/auth/guard";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -14,15 +14,16 @@ import { ids } from "@/server/ids";
 import { logger } from "@/server/logger";
 import { fulfillPaidOrder, cancelOrder } from "@/server/orders";
 import { redeliver } from "@/server/delivery";
-import { buildGrantCommands, validateTemplate } from "@/server/delivery/commands";
+import { buildGrantCommands, buildRevokeCommands, validateTemplate } from "@/server/delivery/commands";
 import { grantEntitlement } from "@/server/entitlements";
 import { previewTransition, runSeasonTransition } from "@/server/seasons/transition";
 import { enqueue } from "@/server/queue";
 import { getSettings, updateSettings } from "@/server/settings";
 import { saveProviderConfig, getAvailableProviders, PROVIDER_LABEL, type ProviderId } from "@/server/payments";
 import { encryptSecret, decryptSecret } from "@/server/crypto";
-import { testPluginEndpoint, testRcon } from "@/server/admin/server-test";
+import { testRcon } from "@/server/admin/server-test";
 import { parseIdr } from "@/lib/money";
+import { formatDateTimeWIB } from "@/lib/dates";
 import { fromJakartaInput } from "@/lib/form-datetime";
 import type { CouponTier } from "@/lib/pricing";
 import { MIDTRANS_METHODS, TRIPAY_METHODS } from "@/lib/payment-methods";
@@ -159,7 +160,11 @@ export async function adminRedeliverAction(_prev: AdminState, formData: FormData
       targetType: "delivery",
       targetId: deliveryId,
       before: { status: delivery.status, attempts: delivery.attempts },
-      after: { ok: outcome.ok, queuedForNextJoin: outcome.queuedForNextJoin ?? false },
+      after: {
+        ok: outcome.ok,
+        queuedForNextJoin: outcome.queuedForNextJoin ?? false,
+        queuedForPluginPoll: outcome.queuedForPluginPoll ?? false,
+      },
       ip,
     });
     revalidatePath("/admin/pengiriman");
@@ -167,7 +172,9 @@ export async function adminRedeliverAction(_prev: AdminState, formData: FormData
     return {
       success: outcome.queuedForNextJoin
         ? "Perintah diantrekan plugin sampai pemain login berikutnya."
-        : "Pengiriman berhasil dikirim ulang.",
+        : outcome.queuedForPluginPoll
+          ? "Pengiriman masuk antrean website; plugin Minecraft akan mengambilnya saat polling berikutnya."
+          : "Pengiriman berhasil dikirim ulang.",
     };
   } catch (error) {
     return fail(error);
@@ -227,6 +234,14 @@ const productSchema = z.object({
   grantTemplate: z.string().max(4000),
   revokeTemplate: z.string().max(4000),
   kitItems: z.array(kitItemSchema).max(32),
+}).superRefine((data, context) => {
+  if (data.type === "KIT" && data.artwork) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["artwork"],
+      message: "Kit menggunakan ikon item Minecraft; ilustrasi khusus hanya untuk rank.",
+    });
+  }
 });
 
 async function saveProductAutomation(
@@ -336,6 +351,19 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
     if (data.id) {
       const existing = await db.query.products.findFirst({ where: eq(products.id, data.id) });
       if (!existing) return { error: "Produk tidak ditemukan." };
+      const [commandsBefore, kitItemsBefore] = await Promise.all([
+        db
+          .select({ kind: commandTemplates.kind, template: commandTemplates.template })
+          .from(commandTemplates)
+          .where(eq(commandTemplates.productId, data.id)),
+        db
+          .select({ slot: kitItems.slot, itemKey: kitItems.itemKey, name: kitItems.name, quantity: kitItems.quantity, enchantments: kitItems.enchantments, lore: kitItems.lore })
+          .from(kitItems)
+          .where(eq(kitItems.productId, data.id))
+          .orderBy(kitItems.slot),
+      ]);
+      const grantBefore = commandsBefore.find((command) => command.kind === "GRANT")?.template ?? "";
+      const revokeBefore = commandsBefore.find((command) => command.kind === "REVOKE")?.template ?? "";
       await db
         .update(products)
         .set({
@@ -367,28 +395,41 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
           name: existing.name,
           slug: existing.slug,
           type: existing.type,
+          tagline: existing.tagline,
+          description: existing.description,
           priceIdr: existing.priceIdr,
           tier: existing.tier,
+          maxPerSeason: existing.maxPerSeason,
+          cooldownHours: existing.cooldownHours,
           status: existing.status,
           sortOrder: existing.sortOrder,
           accent: existing.accent,
           artwork: existing.artwork,
           perks: existing.perks,
           useServerCommands: existing.useServerCommands,
+          grantTemplate: grantBefore,
+          revokeTemplate: revokeBefore,
+          kitItems: kitItemsBefore,
         },
         after: {
           name: data.name,
           slug: data.slug,
           type: data.type,
+          tagline: data.tagline,
+          description: data.description,
           priceIdr: data.priceIdr,
           tier: data.tier,
+          maxPerSeason: data.maxPerSeason,
+          cooldownHours: data.cooldownHours,
           status: data.status,
           sortOrder: data.sortOrder,
           accent: data.accent,
           artwork: data.artwork || null,
           perks: data.perks,
           useServerCommands: data.useServerCommands,
-          kitItemCount: data.kitItems.length,
+          grantTemplate: data.grantTemplate,
+          revokeTemplate: data.revokeTemplate,
+          kitItems: data.kitItems.map((item, slot) => ({ slot, ...item })),
         },
         ip,
       });
@@ -432,14 +473,21 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
         name: data.name,
         slug: data.slug,
         type: data.type,
+        tagline: data.tagline,
+        description: data.description,
         priceIdr: data.priceIdr,
         tier: data.tier,
+        maxPerSeason: data.maxPerSeason,
+        cooldownHours: data.cooldownHours,
         status: data.status,
+        sortOrder: data.sortOrder,
         accent: data.accent,
         artwork: data.artwork || null,
         perks: data.perks,
         useServerCommands: data.useServerCommands,
-        kitItemCount: data.kitItems.length,
+        grantTemplate: data.grantTemplate,
+        revokeTemplate: data.revokeTemplate,
+        kitItems: data.kitItems.map((item, slot) => ({ slot, ...item })),
       },
       ip,
     });
@@ -604,6 +652,7 @@ export async function adminSaveSeasonAction(_prev: AdminState, formData: FormDat
 
 export async function adminPreviewTransitionAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
   try {
+    await guard();
     await requirePermissionApi("seasons.write");
     const seasonId = String(formData.get("seasonId") ?? "");
     const preview = await previewTransition(seasonId);
@@ -1037,7 +1086,8 @@ export async function adminSaveProviderAction(_prev: AdminState, formData: FormD
 
 export async function adminTestProvidersAction(_prev: AdminState): Promise<AdminState> {
   try {
-    await requirePermissionApi("settings.read");
+    await guard();
+    await requirePermissionApi("payments.secrets");
     const available = await getAvailableProviders();
     if (available.length === 0) {
       return { error: "Tidak ada gateway yang siap dipakai. Periksa kredensial dan status aktif." };
@@ -1062,8 +1112,6 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
         bedrockHost: z.string().min(3).max(120),
         bedrockPort: z.number().int().min(1).max(65535),
         deliveryMode: z.enum(["PLUGIN", "RCON"]),
-        pluginBaseUrl: z.string().url().optional(),
-        pluginSecret: z.string().optional(),
         rconHost: z.string().optional(),
         rconPort: z.number().int().min(1).max(65535).optional(),
         rconPassword: z.string().optional(),
@@ -1076,8 +1124,6 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
         bedrockHost: String(formData.get("bedrockHost") ?? "").trim(),
         bedrockPort: Number(formData.get("bedrockPort") ?? 19202),
         deliveryMode: String(formData.get("deliveryMode") ?? "PLUGIN"),
-        pluginBaseUrl: String(formData.get("pluginBaseUrl") ?? "").trim() || undefined,
-        pluginSecret: String(formData.get("pluginSecret") ?? "").trim() || undefined,
         rconHost: String(formData.get("rconHost") ?? "").trim() || undefined,
         rconPort: Number(formData.get("rconPort") ?? 0) || undefined,
         rconPassword: String(formData.get("rconPassword") ?? "").trim() || undefined,
@@ -1087,7 +1133,6 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
     const data = parsed.data;
 
     const existing = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
-    const encryptedPluginSecret = data.pluginSecret ? encryptSecret(data.pluginSecret) : existing?.pluginSecret ?? null;
     const encryptedRcon = data.rconPassword ? encryptSecret(data.rconPassword) : existing?.rconPassword ?? null;
 
     if (existing) {
@@ -1100,8 +1145,6 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
           bedrockHost: data.bedrockHost,
           bedrockPort: data.bedrockPort,
           deliveryMode: data.deliveryMode,
-          pluginBaseUrl: data.pluginBaseUrl ?? null,
-          pluginSecret: encryptedPluginSecret,
           rconHost: data.rconHost ?? null,
           rconPort: data.rconPort ?? null,
           rconPassword: encryptedRcon,
@@ -1119,8 +1162,6 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
         bedrockHost: data.bedrockHost,
         bedrockPort: data.bedrockPort,
         deliveryMode: data.deliveryMode,
-        pluginBaseUrl: data.pluginBaseUrl ?? null,
-        pluginSecret: encryptedPluginSecret,
         rconHost: data.rconHost ?? null,
         rconPort: data.rconPort ?? null,
         rconPassword: encryptedRcon,
@@ -1137,8 +1178,6 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
         java: `${data.javaHost}:${data.javaPort}`,
         bedrock: `${data.bedrockHost}:${data.bedrockPort}`,
         deliveryMode: data.deliveryMode,
-        pluginBaseUrl: data.pluginBaseUrl ?? null,
-        secretRotated: Boolean(data.pluginSecret),
       },
       ip,
     });
@@ -1152,17 +1191,24 @@ export async function adminSaveServerAction(_prev: AdminState, formData: FormDat
 
 export async function adminTestServerAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
   try {
+    await guard();
     await requirePermissionApi("settings.read");
     const target = String(formData.get("target") ?? "plugin");
+    if (target !== "plugin" && target !== "rcon") return { error: "Target uji koneksi tidak dikenal." };
     const row = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
     if (!row) return { error: "Belum ada server default. Simpan pengaturan server dulu." };
 
     if (target === "plugin") {
-      if (!row.pluginBaseUrl) return { error: "URL plugin belum diisi." };
-      const secret = decryptSecret(row.pluginSecret) ?? process.env.PLUGIN_SHARED_SECRET;
-      if (!secret) return { error: "Secret plugin belum diatur." };
-      const result = await testPluginEndpoint(row.pluginBaseUrl, secret);
-      return result.ok ? { success: result.message } : { error: result.message };
+      if (!row.pluginLastSeenAt) {
+        return { error: "Plugin belum check-in. Pastikan PLUGIN_SHARED_SECRET dan website-url di config plugin cocok." };
+      }
+      const lastSeen = row.pluginLastSeenAt;
+      if (Date.now() - lastSeen.getTime() > 60_000) {
+        return { error: `Plugin tidak aktif. Check-in terakhir ${formatDateTimeWIB(lastSeen)} WIB.` };
+      }
+      return {
+        success: `Plugin polling aktif${row.pluginVersion ? ` (v${row.pluginVersion})` : ""}; check-in ${formatDateTimeWIB(lastSeen)} WIB.`,
+      };
     }
 
     if (!row.rconHost || !row.rconPort) return { error: "Host/port RCON belum diisi." };
@@ -1356,37 +1402,79 @@ export async function adminRevokeEntitlementAction(_prev: AdminState, formData: 
     await requirePermissionApi("grants.write");
     const entitlementId = String(formData.get("entitlementId") ?? "");
     const reason = String(formData.get("reason") ?? "").trim();
+    if (!entitlementId) return { error: "Entitlement tidak ditemukan." };
     if (reason.length < 5) return { error: "Alasan minimal 5 karakter." };
 
-    const { revokeEntitlement } = await import("@/server/entitlements");
-    await revokeEntitlement(entitlementId, reason);
+    const entitlement = await db.query.entitlements.findFirst({ where: eq(entitlements.id, entitlementId) });
+    if (!entitlement) return { error: "Entitlement tidak ditemukan." };
+    if (!entitlement.active) return { error: "Entitlement ini sudah tidak aktif." };
+    const [product, season, profile] = await Promise.all([
+      db.query.products.findFirst({ where: eq(products.id, entitlement.productId) }),
+      db.query.seasons.findFirst({ where: eq(seasons.id, entitlement.seasonId) }),
+      db.query.minecraftProfiles.findFirst({ where: eq(minecraftProfiles.uuid, entitlement.uuid) }),
+    ]);
+    if (!product || !season) return { error: "Produk atau season entitlement tidak ditemukan." };
+
+    const playerName = entitlement.playerName ?? profile?.displayName ?? entitlement.uuid;
+    const commands = await buildRevokeCommands({
+      productId: product.id,
+      player: playerName,
+      uuid: entitlement.uuid,
+      seasonSlug: season.slug,
+    });
+    const deliveryId = commands.length > 0 ? ids.delivery() : null;
+    const revokedAt = new Date();
+
+    const updated = await db.transaction(async (tx) => {
+      const rows = await tx
+        .update(entitlements)
+        .set({ active: false, revokedAt, reason, updatedAt: revokedAt })
+        .where(and(eq(entitlements.id, entitlementId), eq(entitlements.active, true)))
+        .returning({ id: entitlements.id });
+      if (rows.length === 0) return false;
+      if (deliveryId) {
+        await tx.insert(deliveries).values({
+          id: deliveryId,
+          orderId: null,
+          seasonId: season.id,
+          uuid: entitlement.uuid,
+          playerName,
+          productId: product.id,
+          status: "QUEUED",
+          commands,
+        });
+      }
+      return true;
+    });
+    if (!updated) return { error: "Entitlement sudah berubah; muat ulang halaman." };
+
+    if (deliveryId) {
+      await enqueue("delivery.process", { deliveryId }, { dedupeKey: `deliver:${deliveryId}` });
+    }
     await writeAudit({
       actor,
       action: "entitlement.revoked",
       targetType: "entitlement",
       targetId: entitlementId,
+      before: {
+        active: true,
+        playerName,
+        product: product.name,
+        season: season.name,
+        previousReason: entitlement.reason,
+      },
+      after: { active: false, deliveryId, revokeCommandCount: commands.length },
       reason,
       ip,
     });
     revalidatePath("/admin/pelanggan");
-    return { success: "Entitlement dicabut. Jalankan pengiriman ulang bila perintah server perlu dicabut juga." };
+    if (profile?.userId) revalidatePath(`/admin/pelanggan/${profile.userId}`);
+    return {
+      success: deliveryId
+        ? `Entitlement dicabut dan ${commands.length} perintah REVOKE diantrekan.`
+        : "Entitlement dinonaktifkan; tidak ada template REVOKE aktif, jadi periksa/cabut akses di server secara manual.",
+    };
   } catch (error) {
     return fail(error);
   }
-}
-
-/** Dipakai halaman detail order untuk memastikan order memang ada sebelum render aksi. */
-export async function adminOrderExists(orderId: string): Promise<boolean> {
-  const rows = await db.select({ id: orders.id }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  return rows.length > 0;
-}
-
-/** Daftar produk aktif untuk form comp. */
-export async function adminActiveProducts(): Promise<Array<{ id: string; name: string; type: string }>> {
-  const rows = await db
-    .select({ id: products.id, name: products.name, type: products.type })
-    .from(products)
-    .where(and(inArray(products.status, ["PUBLISHED"])))
-    .orderBy(products.type, products.tier);
-  return rows;
 }

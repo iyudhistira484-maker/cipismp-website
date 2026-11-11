@@ -25,7 +25,40 @@ const cache = new Map<string, CacheEntry>();
 const TTL_MS = 45_000;
 
 async function defaultServer() {
-  return db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
+  // Public status only needs these legacy connection fields. Avoid selecting the
+  // full server row so an unapplied plugin-polling migration cannot take down
+  // the storefront status widget.
+  const [server] = await db
+    .select({
+      javaHost: servers.javaHost,
+      javaPort: servers.javaPort,
+      bedrockHost: servers.bedrockHost,
+      bedrockPort: servers.bedrockPort,
+      statusApiUrl: servers.statusApiUrl,
+    })
+    .from(servers)
+    .where(eq(servers.isDefault, true))
+    .limit(1);
+  return server;
+}
+
+export interface ServerConnectionInfo {
+  javaHost: string;
+  javaPort: number;
+  bedrockHost: string;
+  bedrockPort: number;
+}
+
+/** Connection details for joining; does not call the public status API. */
+export async function getServerConnectionInfo(): Promise<ServerConnectionInfo> {
+  const server = await defaultServer();
+  const javaHost = server?.javaHost ?? "cipismp.my.id";
+  return {
+    javaHost,
+    javaPort: server?.javaPort ?? 25565,
+    bedrockHost: server?.bedrockHost ?? javaHost,
+    bedrockPort: server?.bedrockPort ?? 19202,
+  };
 }
 
 /**

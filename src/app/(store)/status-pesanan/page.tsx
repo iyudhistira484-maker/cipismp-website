@@ -12,7 +12,7 @@ export default function OrderLookupPage() {
       <p className="eyebrow">Status pesanan</p>
       <h1 className="mt-2 font-display text-h1 text-ink">Cari pesananmu</h1>
       <p className="mt-3 text-pretty text-[14.5px] leading-relaxed text-muted">
-        Masukkan nomor order (format <span className="font-pixel text-[11px] text-ink">CIPS-XXXXXXXX</span>) dan
+        Masukkan nomor order (format <span className="font-mono text-[11px] text-ink">CIPS-XXXXXXXX</span>) dan
         email yang dipakai saat membeli. Kami tidak mengirim nomor order lewat halaman ini, jadi hanya
         pemilik email yang bisa membuka pesanan.
       </p>

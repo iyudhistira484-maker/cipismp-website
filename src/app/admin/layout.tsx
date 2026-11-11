@@ -83,7 +83,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             ))}
           </nav>
           <p className="hidden px-4 pb-6 text-2xs leading-relaxed text-muted-2 lg:block">
-            Semua aksi admin tercatat di audit log beserta IP dan alasannya.
+            Perubahan penting dicatat di audit log beserta pelaku, IP, dan alasan bila diperlukan.
           </p>
         </aside>
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>

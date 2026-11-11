@@ -61,7 +61,7 @@ export function MfaForm({ next }: { next: string }) {
           required
           autoFocus
           autoComplete="one-time-code"
-          className="text-center font-pixel text-[18px] tracking-[0.35em]"
+          className="text-center font-mono text-[18px] tracking-[0.35em]"
           placeholder="000000"
         />
       </Field>

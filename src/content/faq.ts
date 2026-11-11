@@ -25,9 +25,9 @@ export const FAQ_ITEMS: FaqEntry[] = [
   },
   {
     id: "pengiriman",
-    question: "Berapa lama item masuk setelah saya bayar?",
+    question: "Berapa lama akses rank atau kit aktif setelah saya bayar?",
     answer:
-      "Biasanya di bawah satu menit setelah pembayaran terverifikasi gateway. Kalau server sedang restart atau kamu sedang offline, perintah diantrekan dan dijalankan otomatis saat server siap atau saat kamu login berikutnya.",
+      "Biasanya di bawah satu menit setelah pembayaran terverifikasi gateway. Permission rank atau PlayerKits dikirim otomatis ke server; kalau server sedang restart atau kamu sedang offline, perintah diantrekan. CipiPrime dan Cipi++ diklaim lewat PlayerKits dengan cooldown 5 jam yang dikelola server.",
   },
   {
     id: "refund",
@@ -37,9 +37,9 @@ export const FAQ_ITEMS: FaqEntry[] = [
   },
   {
     id: "gagal",
-    question: "Sudah bayar tapi item belum masuk. Apa yang harus saya lakukan?",
+    question: "Sudah bayar tapi akses atau reward belum aktif. Apa yang harus saya lakukan?",
     answer:
-      "Buka halaman status pesanan dari tautan di email. Kalau status sudah PAID tetapi item belum masuk, tekan Laporan di halaman itu atau kirim nomor order ke email bantuan. Kami tidak akan meminta pembayaran kedua; solusinya selalu pengiriman ulang.",
+      "Buka halaman status pesanan dari tautan di email. Kalau status sudah PAID tetapi permission belum aktif, tekan Laporan di halaman itu atau kirim nomor order ke email bantuan. Kami tidak akan meminta pembayaran kedua; staf dapat mengirim ulang perintah aktivasi.",
   },
   {
     id: "hadiah",

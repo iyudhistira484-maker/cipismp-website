@@ -9,14 +9,14 @@ import { CopyButton } from "@/components/ui/copy-button";
 export const metadata: Metadata = {
   title: "Cara kerja",
   description:
-    "Alur pembelian rank dan kit CipiSMP: validasi akun Minecraft, pembayaran lewat gateway, sampai pengiriman otomatis ke server.",
+    "Alur pembelian rank dan kit CipiSMP: verifikasi akun, pembayaran, aktivasi akses PlayerKits, dan pengiriman otomatis ke server.",
   alternates: { canonical: "/cara-kerja" },
 };
 
 const STEPS = [
   {
     title: "Pilih produk dan periksa masa aktif",
-    body: "Setiap halaman rank dan kit menampilkan nama season serta tanggal berakhirnya. Rank dan kit tidak dijual per bulan: sekali beli, aktif sampai season selesai.",
+    body: "Setiap halaman rank dan kit menampilkan nama season serta tanggal berakhirnya. Kit dibeli satu kali per pemain per season; akses PlayerKits aktif sampai season selesai dan klaim mengikuti cooldown server.",
   },
   {
     title: "Tulis username Minecraft",
@@ -27,8 +27,9 @@ const STEPS = [
     body: "Transaksi dibuat di Tripay atau Midtrans. Total dihitung ulang di server, termasuk diskon dan upgrade. Halaman redirect gateway tidak pernah mengubah status pesanan.",
   },
   {
-    title: "Item dikirim otomatis",
-    body: "Setelah webhook terverifikasi, perintah dijalankan ke server. Pemain offline mendapatkannya saat login berikutnya. Semua usaha pengiriman tercatat dan bisa dikirim ulang oleh staf.",
+    title: "Akses server diaktifkan otomatis",
+    body: "Setelah pembayaran terverifikasi, permission rank atau PlayerKits dikirim ke server. Pemain offline mendapatkannya saat login. CipiPrime dan Cipi++ diklaim di PlayerKits dengan cooldown 5 jam yang dikelola server.",
+
   },
 ];
 
@@ -42,7 +43,7 @@ export default async function HowItWorksPage() {
       <div className="max-w-2xl">
         <p className="eyebrow">Cara kerja</p>
         <h1 className="mt-2 text-balance font-display text-h1 text-ink">
-          Dari keranjang sampai item masuk, semuanya otomatis.
+          Dari keranjang sampai akses server aktif, semuanya otomatis.
         </h1>
         <p className="mt-3 text-pretty text-[15px] leading-relaxed text-muted">
           Tidak perlu membuat tiket atau menunggu admin online. Yang kami minta hanya dua hal: username
@@ -53,7 +54,7 @@ export default async function HowItWorksPage() {
       <ol className="mt-10 space-y-px overflow-hidden rounded-lg border border-line bg-line">
         {STEPS.map((step, index) => (
           <li key={step.title} className="grid gap-3 bg-surface p-5 sm:grid-cols-[auto_1fr] sm:gap-6 sm:p-6">
-            <span className="font-pixel text-[12px] text-accent">{String(index + 1).padStart(2, "0")}</span>
+            <span className="font-mono text-[12px] text-accent">{String(index + 1).padStart(2, "0")}</span>
             <div>
               <h2 className="text-[15.5px] font-medium text-ink">{step.title}</h2>
               <p className="mt-1.5 max-w-2xl text-pretty text-[13.5px] leading-relaxed text-muted">{step.body}</p>
@@ -69,14 +70,14 @@ export default async function HowItWorksPage() {
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted">Java Edition</dt>
               <dd className="flex items-center gap-2">
-                <code className="font-pixel text-[11px] text-ink">{javaAddress}</code>
+                <code className="font-mono text-[11px] text-ink">{javaAddress}</code>
                 <CopyButton value={javaAddress} compact />
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted">Bedrock Edition</dt>
               <dd className="flex items-center gap-2">
-                <code className="font-pixel text-[11px] text-ink">{bedrockAddress}</code>
+                <code className="font-mono text-[11px] text-ink">{bedrockAddress}</code>
                 <CopyButton value={bedrockAddress} compact />
               </dd>
             </div>
@@ -107,7 +108,7 @@ export default async function HowItWorksPage() {
         <p className="font-medium text-ink">Ada masalah setelah membayar?</p>
         <p className="mt-1.5">
           Buka <Link href="/status-pesanan" className="text-accent hover:underline">status pesanan</Link>{" "}
-          lalu periksa bagian pengiriman. Kalau status sudah selesai tetapi item belum masuk, kirim nomor
+          lalu periksa bagian pengiriman. Kalau status sudah selesai tetapi akses belum aktif, kirim nomor
           order ke{" "}
           <a href={`mailto:${settings.site.supportEmail}`} className="text-accent hover:underline">
             {settings.site.supportEmail}

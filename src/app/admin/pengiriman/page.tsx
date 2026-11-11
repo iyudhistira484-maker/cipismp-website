@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/server/auth/guard";
 import { deliveryMonitor } from "@/server/admin/queries";
+import { hasPermission } from "@/server/rbac";
 import { DELIVERY_STATUS_LABEL } from "@/lib/order-state";
 import { formatDateTimeWIB } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,8 @@ import { RedeliverButton } from "@/components/admin/admin-forms";
 export const metadata = { title: "Pengiriman" };
 
 export default async function AdminDeliveryPage() {
-  await requireStaff("delivery.read");
+  const viewer = await requireStaff("delivery.read");
+  const canRedeliver = hasPermission(viewer.user.role, "orders.redeliver");
   const { rows, stats } = await deliveryMonitor(150);
 
   return (
@@ -51,7 +53,13 @@ export default async function AdminDeliveryPage() {
             <Td className="max-w-64 text-2xs text-danger">{row.lastError ?? "—"}</Td>
             <Td>{formatDateTimeWIB(row.updatedAt)}</Td>
             <Td>
-              {row.status !== "DELIVERED" ? <RedeliverButton deliveryId={row.id} /> : <span className="text-2xs text-success">Selesai</span>}
+              {row.status === "DELIVERED" ? (
+                <span className="text-2xs text-success">Selesai</span>
+              ) : canRedeliver ? (
+                <RedeliverButton deliveryId={row.id} />
+              ) : (
+                <span className="text-2xs text-muted-2">Tidak ada izin kirim ulang</span>
+              )}
             </Td>
           </tr>
         ))}

@@ -50,6 +50,27 @@
       "when": 1794372258552,
       "tag": "0006_product_artwork",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794381068691,
+      "tag": "0007_cipi_kits",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794388055529,
+      "tag": "0008_cipi_rank_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794389565922,
+      "tag": "0009_plugin_polling",
+      "breakpoints": true
     }
   ]
 }

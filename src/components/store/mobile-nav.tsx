@@ -30,15 +30,15 @@ export function MobileNav({
       <Dialog.Trigger asChild>
         <button
           type="button"
-          className="inline-flex size-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 md:hidden"
+          className="inline-flex size-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 lg:hidden"
           aria-label="Buka menu"
         >
           <Menu className="size-5" />
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-fade-in md:hidden" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-[86%] max-w-sm flex-col border-l border-line bg-surface p-5 data-[state=open]:animate-slide-in md:hidden">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-fade-in lg:hidden" />
+        <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-[86%] max-w-sm flex-col border-l border-line bg-surface p-5 data-[state=open]:animate-slide-in lg:hidden">
           <div className="flex items-center justify-between">
             <Dialog.Title className="font-display text-lg">Menu</Dialog.Title>
             <Dialog.Close className="rounded-md p-2 text-muted hover:bg-surface-2 hover:text-ink" aria-label="Tutup menu">

@@ -21,7 +21,8 @@ Prinsip yang tidak pernah dilanggar:
 4. **Validitas = season.** Tidak ada expiry per pembelian, tidak ada renewal, semua
    entitlement gugur saat season berakhir.
 5. **Tidak ada refund.** Tidak ada state `REFUNDED`, tidak ada pemanggilan refund gateway.
-6. **Semua aksi admin diaudit** (sebelum/sesudah, alasan, IP, user agent).
+6. **Mutasi admin yang mengubah uang, akses, katalog, atau pengaturan diaudit** dengan
+   nilai sebelum/sesudah dan IP; halaman baca serta pratinjau tidak dianggap sebagai mutasi.
 
 ## 2. Stack
 
@@ -147,17 +148,28 @@ State machine ada di `src/lib/order-state.ts` dan diuji di
 
 Dua jalur, dipilih dari pengaturan server (`deliveryMode`):
 
-1. **Plugin Paper** (`plugin/`) — store mengirim `POST /cipismp/deliver` dengan header
-   `X-Cipi-Timestamp`, `X-Cipi-Nonce`, `X-Cipi-Signature` (HMAC-SHA256 atas
-   `timestamp.nonce.body`). Plugin menolak timestamp > 5 menit, nonce yang pernah dipakai,
-   dan signature salah. Plugin menyimpan antrean ke `plugins/CipiSMPStore/queue.json`
-   sehingga perintah tidak hilang saat restart, lalu meng-ACK setelah semua perintah
-   dieksekusi. Endpoint `POST /api/plugin/deliveries/{id}/ack` menerima ACK.
-2. **RCON** — fallback untuk setup sederhana; client RCON minimal ada di
-   `src/server/delivery/rcon.ts`.
+1. **Plugin Paper** (`plugin/`) — plugin memulai koneksi keluar melalui HTTPS ke
+   `POST /api/plugin/deliveries/poll`; website tidak membuka koneksi ke hosting Minecraft.
+   Request poll, ACK, dan `/api/plugin/verify` memakai header `X-Cipi-Timestamp`,
+   `X-Cipi-Nonce`, `X-Cipi-Signature` (HMAC-SHA256 atas `timestamp.nonce.body`). Server
+   menolak timestamp dengan selisih > 5 menit, nonce yang pernah dipakai, dan signature
+   salah. Claim dilakukan dalam transaksi dengan `SELECT ... FOR UPDATE SKIP LOCKED`;
+   delivery menjadi `SENT` dengan lease 3 menit dan token unik. Plugin menjalankan perintah
+   di main thread, menyimpan ID delivery yang telah dijalankan untuk mencegah eksekusi ganda
+   saat ACK hilang, lalu mengirim token + hasil ke `POST /api/plugin/deliveries/ack`. ACK
+   untuk lease yang sama idempoten; ACK lama ditolak setelah claim baru. Delivery pemain
+   offline baru di-ACK setelah antrean lokal berhasil
+   disimpan; antrean penuh atau gagal tulis disk menghasilkan kegagalan, bukan sukses palsu.
+   ACK gagal atau lease kedaluwarsa dijadwalkan ulang dengan exponential backoff; setelah
+   batas percobaan, delivery menjadi `DEAD` dan menimbulkan alert staf.
+2. **RCON** — fallback; client RCON minimal ada di `src/server/delivery/rcon.ts`.
 
-Retry memakai backoff eksponensial (job queue), kegagalan permanen masuk dead-letter dan
-muncul di `/admin/pengiriman` dengan tombol "Kirim ulang".
+Webhook pembayaran tetap divalidasi website lebih dulu dan hanya membuat delivery `QUEUED`;
+plugin tidak menerima webhook gateway. Worker tetap memproses job awal/retry RCON, sedangkan
+mode plugin meninggalkan delivery di antrean database sampai plugin mengambilnya melalui poll.
+Delivery permanen gagal muncul di `/admin/pengiriman` dengan tombol "Kirim ulang".
+
+Urutan empat rank publik tidak bergantung pada nilai `products.sort_order`: Cute → Pop → Milk → Star.
 
 ## 7. Season
 
@@ -177,12 +189,13 @@ muncul di `/admin/pengiriman` dengan tombol "Kirim ulang".
 | 2FA | TOTP RFC 6238, anti-replay per time-step, wajib untuk staf |
 | CSRF | Validasi Origin/Sec-Fetch-Site untuk semua mutasi + SameSite |
 | CSP | Nonce per request di middleware, `frame-ancestors 'none'`, HSTS di produksi |
-| Otorisasi | Cek role & permission di setiap halaman/aksi admin (`requireStaff(permission)`) — bukan hanya menyembunyikan UI |
+| Otorisasi | Cek role & permission di setiap halaman/aksi admin (`requireStaff(permission)`); query sensitif juga baru dijalankan untuk izin terkait, bukan hanya disembunyikan di UI |
+| Minimisasi order | Lookup token publik hanya memilih ID; detail pembeli/admin memakai proyeksi per-tampilan, tanpa IP/UA, respons gateway mentah, metadata item penuh, atau perintah delivery. Panel admin juga tidak mengambil URL checkout/kode bayar; status/referensi yang dibutuhkan operasional tetap tersedia. |
 | Rate limit | Auth, checkout, lookup username, webhook, plugin (Redis atau in-memory) |
-| Webhook | Signature wajib, raw payload disimpan, `dedupeKey` unik |
+| Webhook | Signature wajib, raw payload disimpan untuk pemrosesan/audit; panel admin hanya memilih ringkasan, tanpa raw payload/header/IP, `dedupeKey` unik |
 | Plugin | HMAC + timestamp + nonce anti-replay |
 | Secret | Kredensial gateway/RCON/TOTP dienkripsi AES-256-GCM |
-| Audit | `audit_logs` untuk semua aksi staf, termasuk comp grant & perubahan pengaturan |
+| Audit | `audit_logs` untuk mutasi penting staf, termasuk comp grant, perubahan konfigurasi, dan transisi season |
 | Header | CSP, HSTS, nosniff, Referrer-Policy, Permissions-Policy, X-Frame-Options |
 
 ## 9. Design token
@@ -191,23 +204,24 @@ Nilai ada di `src/app/globals.css` dan dipetakan ke Tailwind di `tailwind.config
 
 | Token | Nilai | Pemakaian |
 | --- | --- | --- |
-| `--bg` | `14 13 11` | latar utama |
-| `--surface` / `-2` / `-3` | `21 19 15` / `28 25 21` / `36 32 26` | kartu, panel, hover |
-| `--line` / `-strong` | `45 40 33` / `60 53 43` | border 1px |
-| `--ink` | `242 236 225` | teks utama (kontras 12.9:1 di bg) |
-| `--muted` | `166 158 143` | teks sekunder (kontras 6.8:1) |
-| `--muted-2` | `125 118 106` | teks tersier (kontras 3.9:1, hanya untuk label besar) |
-| `--accent` | `224 168 78` | CTA, fokus, aksen tunggal |
-| `--success` / `--danger` / `--info` | hijau/merah/biru redup | status saja |
-| Tier | star `246 207 95`, milk `229 241 237`, pop `255 152 124`, cute `239 154 214` | badge rank |
+| `--bg` | `254 251 253` | latar utama putih hangat |
+| `--surface` / `-2` / `-3` | `255 255 255` / `255 247 251` / `250 237 245` | kartu, panel, hover |
+| `--line` / `-strong` | `237 226 234` / `215 196 208` | border 1px bernuansa rose |
+| `--ink` | `52 39 50` | teks utama |
+| `--muted` | `105 88 101` | teks sekunder |
+| `--muted-2` | `137 119 133` | teks tersier |
+| `--accent` / `--accent-strong` | `190 66 126` / `160 43 100` | CTA dan fokus; rose tua untuk teks |
+| `--success` / `--danger` / `--info` | `42 117 82` / `164 49 62` / `57 101 139` | status saja |
+| Badge rank | star `#f1c5dc`, milk `#fff8fc`, pop `#df8db5`, cute `#d5c3ed` | palet pink, putih, dan lavender |
 
-Spasi kelipatan 8px (`4`, `8`, `12`, ...), radius 6/10/14/20/28, durasi transisi
-150–250ms dengan easing `cubic-bezier(0.22, 1, 0.36, 1)`. Semua animasi dimatikan pada
-`prefers-reduced-motion`.
+Spasi berbasis kelipatan 4/8px, radius 6/10/14/20/28, transisi UI 150–250ms dan
+interaksi 3D kartu 360–420ms dengan easing lembut. Marquee dua lajur dan kubus dekoratif
+menggunakan CSS ringan; semua gerak dihentikan atau disederhanakan saat
+`prefers-reduced-motion` aktif.
 
-Tipografi: **Bricolage Grotesque** (display, OFL) + **Instrument Sans** (UI, OFL) +
-**Silkscreen** (aksen piksel hanya di logo/eyebrow, OFL). Semua di-self-host lewat
-`@fontsource`, jadi tidak ada permintaan ke Google Fonts.
+Tipografi: **Bricolage Grotesque** (display, OFL) + **Instrument Sans** (UI, OFL),
+keduanya di-self-host lewat `@fontsource`. Data teknis memakai stack monospace sistem;
+tidak ada permintaan font ke Google Fonts saat runtime.
 
 ## 10. Peta feature flag
 
@@ -216,12 +230,13 @@ Flag disimpan di `settings.features` dan dibaca dari server:
 | Flag | Default | Isi |
 | --- | --- | --- |
 | `coupons` | aktif | kupon persen/nominal |
-| `gifting` | **nonaktif** | hadiah ke pemain lain (aturan harga sudah ada di mesin harga) |
-| `discordLogin` | **nonaktif** | OAuth Discord (Wave 2) |
-| `reviews` | **nonaktif** | ulasan terverifikasi (Wave 3) |
+| `gifting` | aktif | hadiah ke pemain lain; entitlement diberikan ke penerima |
+| `discordLogin` | **nonaktif** | OAuth Discord; perlu kredensial dan redirect URI publik |
+| `reviews` | aktif | ulasan pembeli terverifikasi dengan moderasi staf |
 
-Fitur Wave 2/3 tidak diimplementasikan di MVP, tetapi titik ekstensinya disiapkan
-(adapter pembayaran baru, `targetUuid` pada keranjang, tipe job baru).
+Gifting dan ulasan sudah memiliki UI, aksi server, dan pengaturan admin. Login Discord
+sudah terimplementasi tetapi tetap mati sampai konfigurasi OAuth disiapkan. Tiket dukungan,
+bot, dan fitur lain di luar scope saat ini belum dibangun.
 
 ## 11. Job & proses
 

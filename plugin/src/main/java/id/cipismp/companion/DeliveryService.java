@@ -49,6 +49,13 @@ public final class DeliveryService {
     }
 
     public Result deliver(Delivery delivery) {
+        Integer completed = queue.completedApplied(delivery.deliveryId());
+        if (completed != null) {
+            return queue.markCompleted(delivery.deliveryId(), completed)
+                    ? Result.ok(completed)
+                    : Result.error("Pengiriman sudah dijalankan tetapi status idempoten gagal disimpan ke disk.");
+        }
+
         UUID uuid;
         try {
             uuid = UUID.fromString(delivery.uuid());
@@ -57,11 +64,15 @@ public final class DeliveryService {
         }
         Player player = Bukkit.getPlayer(uuid);
         if (player == null || !player.isOnline()) {
-            queue.enqueue(delivery);
+            if (!queue.enqueue(delivery)) return Result.error("Antrean lokal plugin penuh; pengiriman akan dicoba lagi.");
             plugin.getLogger().info("Pengiriman " + delivery.deliveryId() + " diantrekan untuk " + delivery.player() + ".");
             return Result.queued();
         }
-        return runOnMainThread(delivery, player);
+        Result result = runOnMainThread(delivery, player);
+        if (result.ok() && !queue.markCompleted(delivery.deliveryId(), result.applied())) {
+            return Result.error("Perintah dijalankan tetapi status idempoten gagal disimpan ke disk.");
+        }
+        return result;
     }
 
     /** Kirim semua pengiriman tertunda untuk pemain yang baru login. */
@@ -71,7 +82,14 @@ public final class DeliveryService {
         plugin.getLogger().info("Mengirim " + pending.size() + " pengiriman tertunda untuk " + player.getName() + ".");
         for (Delivery delivery : pending) {
             Result result = runOnMainThread(delivery, player);
-            if (!result.ok()) {
+            if (result.ok()) {
+                if (!queue.markCompleted(delivery.deliveryId(), result.applied())) {
+                    plugin.getLogger().severe("Status idempoten " + delivery.deliveryId()
+                            + " gagal disimpan; pengiriman dikembalikan ke antrean.");
+                    queue.forgetCompleted(delivery.deliveryId());
+                    queue.enqueue(delivery);
+                }
+            } else {
                 // Kembalikan ke antrean agar dicoba lagi pada login berikutnya.
                 queue.enqueue(delivery);
             }
@@ -80,7 +98,7 @@ public final class DeliveryService {
 
     private Result runOnMainThread(Delivery delivery, Player player) {
         CompletableFuture<Result> future = new CompletableFuture<>();
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Runnable execute = () -> {
             List<Map<String, String>> failures = new ArrayList<>();
             int applied = 0;
             for (String raw : delivery.commands()) {
@@ -103,7 +121,9 @@ public final class DeliveryService {
                 }
             }
             future.complete(new Result(failures.isEmpty(), applied, failures, failures.isEmpty() ? null : "Sebagian perintah gagal"));
-        });
+        };
+        if (Bukkit.isPrimaryThread()) execute.run();
+        else Bukkit.getScheduler().runTask(plugin, execute);
         try {
             return future.get(15, TimeUnit.SECONDS);
         } catch (InterruptedException e) {

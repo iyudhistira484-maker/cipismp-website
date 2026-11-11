@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { assertSameOrigin } from "@/server/csrf";
-import { cancelOrder, getOrderByPublicToken } from "@/server/orders";
+import { cancelOrder, getOrderOwnershipByPublicToken } from "@/server/orders";
 import { getViewer } from "@/server/auth/guard";
 
 export async function cancelOrderAction(formData: FormData): Promise<void> {
@@ -11,7 +11,7 @@ export async function cancelOrderAction(formData: FormData): Promise<void> {
   assertSameOrigin(new Request("http://internal/action", { method: "POST", headers: requestHeaders }));
 
   const token = String(formData.get("token") ?? "");
-  const order = await getOrderByPublicToken(token);
+  const order = await getOrderOwnershipByPublicToken(token);
   if (!order) return;
 
   const viewer = await getViewer();

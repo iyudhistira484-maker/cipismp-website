@@ -2,9 +2,10 @@ import { and, asc, desc, eq, inArray, isNull, lte, gte } from "drizzle-orm";
 import { db } from "./db";
 import { kitItems, products, seasons, type Product, type Season } from "./db/schema";
 import type { PriceableProduct } from "@/lib/pricing";
+import { sortCipiRanks } from "@/lib/cipi-ranks";
 
 export async function getPublishedProducts(type?: "RANK" | "KIT"): Promise<Product[]> {
-  return db
+  const rows = await db
     .select()
     .from(products)
     .where(
@@ -15,13 +16,19 @@ export async function getPublishedProducts(type?: "RANK" | "KIT"): Promise<Produ
       ),
     )
     .orderBy(asc(products.type), asc(products.sortOrder), asc(products.name));
+  // These four public tiers have a fixed price progression; stale DB sort_order values
+  // must not reverse the storefront lineup (including the mixed landing-page catalog).
+  if (type === "KIT") return rows;
+  const sortedRanks = sortCipiRanks(rows.filter((row) => row.type === "RANK"));
+  let rankIndex = 0;
+  return rows.map((row) => (row.type === "RANK" ? sortedRanks[rankIndex++]! : row));
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   const rows = await db
     .select()
     .from(products)
-    .where(and(eq(products.slug, slug), isNull(products.deletedAt)))
+    .where(and(eq(products.slug, slug), eq(products.status, "PUBLISHED"), isNull(products.deletedAt)))
     .limit(1);
   return rows[0] ?? null;
 }

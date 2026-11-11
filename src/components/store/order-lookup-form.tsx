@@ -18,7 +18,7 @@ export function OrderLookupForm() {
           placeholder="CIPS-7K3M9QX2"
           required
           autoComplete="off"
-          className="font-pixel text-[13px] tracking-wide"
+          className="font-mono text-[13px] tracking-wide"
         />
       </Field>
       <Field label="Email pembelian" htmlFor="email" required>

@@ -11,9 +11,6 @@ import { writeAudit } from "@/server/audit";
 import { alertStaff } from "@/server/notifications";
 import { getSettings } from "@/server/settings";
 import { getProductById } from "@/server/catalog";
-import { db } from "@/server/db";
-import { products } from "@/server/db/schema";
-import { eq } from "drizzle-orm";
 
 export interface ReviewState {
   error?: string;
@@ -179,10 +176,4 @@ export async function adminModerateReviewAction(_prev: ReviewState, formData: Fo
   } catch (error) {
     return fail(error, "Moderasi gagal.");
   }
-}
-
-/** Dipakai form ulasan untuk memastikan produk punya slug yang benar. */
-export async function resolveProductSlug(productId: string): Promise<string | null> {
-  const rows = await db.select({ slug: products.slug }).from(products).where(eq(products.id, productId)).limit(1);
-  return rows[0]?.slug ?? null;
 }

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireStaff } from "@/server/auth/guard";
-import { getOrderDetail } from "@/server/orders";
+import { hasPermission } from "@/server/rbac";
+import { adminOrderDetail } from "@/server/admin/queries";
 import { DELIVERY_STATUS_LABEL, ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
 import { formatRp } from "@/lib/money";
 import { formatDateTimeWIB } from "@/lib/dates";
@@ -13,9 +14,11 @@ import { OrderAdminActions, RedeliverButton } from "@/components/admin/admin-for
 export const metadata = { title: "Detail pesanan" };
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff("orders.read");
+  const viewer = await requireStaff("orders.read");
+  const canWriteOrders = hasPermission(viewer.user.role, "orders.write");
+  const canRedeliver = hasPermission(viewer.user.role, "orders.redeliver");
   const { id } = await params;
-  const detail = await getOrderDetail(id);
+  const detail = await adminOrderDetail(id);
   if (!detail) notFound();
   const { order, items, payments, deliveries, season } = detail;
 
@@ -48,8 +51,8 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   <Td className="text-ink">{item.nameSnapshot}</Td>
                   <Td>
                     {item.targetName}
-                    {item.meta?.giftFromName ? (
-                      <span className="block text-2xs text-muted-2">hadiah dari {item.meta.giftFromName}</span>
+                    {item.giftFromName ? (
+                      <span className="block text-2xs text-muted-2">hadiah dari {item.giftFromName}</span>
                     ) : null}
                   </Td>
                   <Td className="tabular-nums">{formatRp(item.unitPriceIdr)}</Td>
@@ -79,7 +82,15 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   <Td>{delivery.method}</Td>
                   <Td className="tabular-nums">{delivery.attempts}</Td>
                   <Td className="max-w-56 text-2xs text-danger">{delivery.lastError ?? "—"}</Td>
-                  <Td>{delivery.status !== "DELIVERED" ? <RedeliverButton deliveryId={delivery.id} /> : <span className="text-2xs text-success">Selesai</span>}</Td>
+                  <Td>
+                    {delivery.status === "DELIVERED" ? (
+                      <span className="text-2xs text-success">Selesai</span>
+                    ) : canRedeliver ? (
+                      <RedeliverButton deliveryId={delivery.id} />
+                    ) : (
+                      <span className="text-2xs text-muted-2">Tidak ada izin kirim ulang</span>
+                    )}
+                  </Td>
                 </tr>
               ))}
             </Table>
@@ -101,9 +112,11 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         </div>
 
         <div className="space-y-4">
-          <Card title="Aksi">
-            <OrderAdminActions orderId={order.id} status={order.status} />
-          </Card>
+          {canWriteOrders ? (
+            <Card title="Aksi">
+              <OrderAdminActions orderId={order.id} status={order.status} />
+            </Card>
+          ) : null}
           {order.adminNote ? (
             <Card title="Catatan admin">
               <p className="whitespace-pre-line text-[12.5px] leading-relaxed text-muted">{order.adminNote}</p>

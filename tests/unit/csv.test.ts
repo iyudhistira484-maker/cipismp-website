@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
+import { parseWibDate } from "@/lib/admin-export-date";
 import { toCsv } from "@/server/admin/export";
+
+describe("filter tanggal ekspor", () => {
+  it("menganggap tanggal kosong sebagai tanpa filter", () => {
+    expect(parseWibDate(null)).toEqual({ valid: true });
+    expect(parseWibDate("")).toEqual({ valid: true });
+  });
+
+  it("mem-parse batas hari WIB dan menyertakan seluruh hari akhir", () => {
+    const from = parseWibDate("2026-11-11");
+    const to = parseWibDate("2026-11-11", true);
+    expect(from.valid && from.date?.toISOString()).toBe("2026-11-10T17:00:00.000Z");
+    expect(to.valid && to.date?.toISOString()).toBe("2026-11-11T16:59:59.999Z");
+  });
+
+  it("menolak format dan tanggal kalender yang tidak valid", () => {
+    expect(parseWibDate("11-11-2026")).toEqual({ valid: false });
+    expect(parseWibDate("2026-02-29")).toEqual({ valid: false });
+    expect(parseWibDate("2026-13-01", true)).toEqual({ valid: false });
+  });
+});
 
 describe("ekspor CSV", () => {
   it("menulis header + baris dengan CRLF dan BOM", () => {

@@ -22,7 +22,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         <Button onClick={reset}>Muat ulang</Button>
         <Link href="/status-pesanan"><Button variant="secondary">Cek pesanan</Button></Link>
       </div>
-      {error.digest ? <p className="mt-4 font-pixel text-[10px] text-muted-2">ID: {error.digest}</p> : null}
+      {error.digest ? <p className="mt-4 font-mono text-[10px] text-muted-2">ID: {error.digest}</p> : null}
     </div>
   );
 }

@@ -71,9 +71,9 @@ enkripsi ulang (prosedur ada di `RUNBOOK.md`).
 ## 8. Kebijakan pembatalan & comp
 
 - Pembeli dapat membatalkan order `PENDING` sendiri; `PAID` dan seterusnya tidak bisa.
-- Tidak ada refund. Bila item gagal dikirim, solusinya pengiriman ulang.
+- Tidak ada refund. Bila akses atau reward gagal dikirim, solusinya mengirim ulang perintah aktivasi.
 - Comp grant (pemberian gratis oleh staf) wajib alasan, tercatat di audit log, dan
-  dibatasi role `OWNER`/`ADMIN`.
+  hanya tersedia bagi role yang punya izin `grants.write` (Support, Admin, Owner).
 - Chargeback: order menjadi `DISPUTED`; staf memutuskan mencabut entitlement. Ban akun
   dilakukan manual di server (di luar scope teknis toko) — toko menandai catatan pelanggan.
 
@@ -94,10 +94,13 @@ enkripsi ulang (prosedur ada di `RUNBOOK.md`).
 
 ## 11. Batas MVP yang disengaja
 
-- Fitur gifting belum tampil di UI (flag `features.gifting = false`), tetapi mesin harga
-  sudah mendukung `targetUuid` berbeda dan diuji — sesuai brief §3.4.
-- Tidak ada season pass, langganan, gacha, multi-currency, atau refund.
-- Wave 2/3 (Discord, tiket, bot, dsb.) tidak dibangun.
+- Gifting dan ulasan sudah tersedia di UI dan dapat dimatikan lewat toggle admin; login
+  Discord tersedia tetapi default-nya nonaktif dan membutuhkan konfigurasi OAuth.
+- Tidak ada season pass, langganan, gacha, multi-currency, refund, tiket dukungan, atau bot.
+- Katalog rank disetujui pemilik pada 11 November 2026: Cute Rp10.000 (`vip`), Pop Rp30.000
+  (`mvp`), Milk Rp60.000 (`elite`), Star Rp100.000 (`legend`). Permission/prefix group sudah
+  diatur pemilik pada LuckPerms server; toko hanya memasang group via template setelah pembayaran
+  terverifikasi. Produk dan template default disinkronkan lewat migrasi `0008_cipi_rank_catalog.sql`.
 
 ## 12. Asumsi produk & operasional
 
@@ -155,7 +158,7 @@ Lingkungan penyusunan tidak memiliki Docker, Java, maupun Redis, sehingga:
 - Uji e2e Playwright ditulis dan dikonfigurasi, tetapi browser tidak bisa diunduh di
   lingkungan ini; jalankan `npx playwright install chromium` lalu `npm run test:e2e`.
 
-## 14. Wave 2: ulasan, gifting, dan login Discord
+## 14. Ulasan, gifting, dan login Discord
 
 **Keputusan:**
 
@@ -179,3 +182,23 @@ Lingkungan penyusunan tidak memiliki Docker, Java, maupun Redis, sehingga:
 **Dampak:** kolom `users.discord_id/discord_username` dan tabel `reviews` datang dari migrasi
 `0004_reviews_discord`; dua variabel `.env` baru (`DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`)
 bersifat opsional dan tidak memblokir start aplikasi.
+
+## 15. Polling plugin Minecraft
+
+**Keputusan:** plugin yang memulai koneksi keluar HTTPS ke website untuk mengambil antrean;
+website tidak menghubungi port HTTP pada hosting Minecraft. Keputusan ini mengakomodasi
+server game dan web yang memakai provider/hosting terpisah. Pembayaran tetap diverifikasi
+oleh webhook di website sebelum delivery dibuat.
+
+**Kontrol keandalan:** request poll, ACK, dan `/verify` memakai HMAC-SHA256, timestamp
+maksimum selisih 5 menit, serta nonce sekali pakai. Website mengklaim delivery dengan row
+lock `SKIP LOCKED`, lease 3 menit, dan token unik; ACK untuk lease sama idempoten dan token
+lama ditolak. ACK gagal dan lease kedaluwarsa memakai retry eksponensial. Plugin menyimpan
+ID yang sudah dijalankan serta antrean pemain offline secara persisten; antrean penuh atau
+gagal simpan disk bukan sukses.
+
+**Dampak operasional:** `PLUGIN_SHARED_SECRET` minimal 16 karakter harus sama dengan
+`shared-secret` pada config plugin. Hosting Minecraft perlu DNS + akses keluar HTTPS saja;
+status check-in/version terlihat di `/admin/server`. Migrasi `0009_plugin_polling.sql` menambah
+heartbeat plugin dan token lease delivery. Sebelum produksi, verifikasi migrasi di salinan
+backup terisolasi seperti langkah go-live.

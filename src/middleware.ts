@@ -27,10 +27,13 @@ function contentSecurityPolicy(nonce: string, isDev: boolean): string {
     `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://mc-heads.net https://crafatar.com",
+    "media-src 'self' https://motionbgs.com",
     "font-src 'self' data:",
     "connect-src 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    isDev
+      ? "frame-ancestors 'self' https://arena.ai https://*.arena.ai https://*.e2b.app"
+      : "frame-ancestors 'none'",
     "base-uri 'self'",
     "object-src 'none'",
     ...(isDev ? [] : ["upgrade-insecure-requests"]),

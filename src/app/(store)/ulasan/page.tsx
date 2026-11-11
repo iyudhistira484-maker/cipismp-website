@@ -203,7 +203,7 @@ function RatingPanel({ count, average, buckets }: { count: number; average: numb
   return (
     <div className="rounded-lg border border-line bg-surface/50 p-4">
       <div className="flex items-center gap-3">
-        <span className="font-pixel text-3xl text-ink">{count ? average.toFixed(1) : "—"}</span>
+        <span className="font-mono text-3xl text-ink">{count ? average.toFixed(1) : "—"}</span>
         <div>
           <Stars value={average} size={14} />
           <p className="mt-1 text-2xs text-muted-2">{count} ulasan disetujui</p>

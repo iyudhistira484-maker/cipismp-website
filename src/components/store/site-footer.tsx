@@ -6,15 +6,15 @@ import { t } from "@/lib/i18n";
 export async function SiteFooter() {
   const settings = await getSettings();
   return (
-    <footer className="mt-24 border-t border-line bg-surface/40">
-      <div className="container-page grid gap-10 py-12 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+    <footer className="mt-24 border-t border-line bg-white">
+      <div className="container-page grid gap-8 py-10 sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr] xl:gap-10 xl:py-12">
         <div>
           <Logo />
           <p className="mt-3 max-w-xs text-pretty text-[13.5px] leading-relaxed text-muted">
-            Toko resmi server survival CipiSMP. Rank dan kit berlaku sampai akhir season, dikirim otomatis
-            setelah pembayaran terverifikasi.
+            Toko resmi server survival CipiSMP. Rank dan akses kit berlaku sampai akhir season,
+            diaktifkan otomatis setelah pembayaran terverifikasi.
           </p>
-          <p className="mt-4 font-pixel text-[10px] uppercase tracking-[0.12em] text-muted-2">
+          <p className="mt-4 font-mono text-[11px] tracking-wide text-muted-2">
             Java cipismp.my.id · Bedrock port 19202
           </p>
         </div>
@@ -54,9 +54,11 @@ export async function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-line/70">
-        <div className="container-page flex flex-col gap-2 py-6 text-2xs text-muted-2 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} CipiSMP. {t("footer.disclaimer")}</p>
-          <p>{t("footer.noRefund")}</p>
+        <div className="container-page flex flex-col gap-2 py-6 text-[12px] text-muted sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-3xl leading-relaxed">
+            © {new Date().getFullYear()} CipiSMP. <strong className="font-semibold text-ink">{t("footer.disclaimer")}</strong>
+          </p>
+          <p className="shrink-0 text-2xs text-muted-2">{t("footer.noRefund")}</p>
         </div>
       </div>
     </footer>

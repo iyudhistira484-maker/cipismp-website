@@ -369,19 +369,91 @@ export async function loadCouponInput(code: string, email: string): Promise<Coup
 }
 
 export async function getOrderByPublicToken(token: string) {
-  return db.query.orders.findFirst({ where: eq(orders.publicToken, token) });
+  return db.query.orders.findFirst({
+    columns: { id: true },
+    where: eq(orders.publicToken, token),
+  });
 }
 
+/** Hanya mutasi pembatalan yang perlu mengetahui keterkaitan akun dari token publik. */
+export async function getOrderOwnershipByPublicToken(token: string) {
+  return db.query.orders.findFirst({
+    columns: { id: true, userId: true },
+    where: eq(orders.publicToken, token),
+  });
+}
+
+/** Detail pesanan untuk pembeli/email; proyeksi ini sengaja tidak memilih log mentah atau perintah server. */
 export async function getOrderDetail(orderId: string) {
-  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
-  if (!order) return null;
-  const [items, paymentRows, deliveryRows, season] = await Promise.all([
-    db.select().from(orderItems).where(eq(orderItems.orderId, orderId)),
-    db.select().from(payments).where(eq(payments.orderId, orderId)).orderBy(desc(payments.createdAt)),
-    db.select().from(deliveries).where(eq(deliveries.orderId, orderId)),
-    db.query.seasons.findFirst({ where: eq(seasons.id, order.seasonId) }),
+  const [orderRow] = await db
+    .select({
+      orderNumber: orders.orderNumber,
+      publicToken: orders.publicToken,
+      userId: orders.userId,
+      email: orders.email,
+      mcUuid: orders.mcUuid,
+      mcName: orders.mcName,
+      edition: orders.edition,
+      seasonId: orders.seasonId,
+      status: orders.status,
+      subtotalIdr: orders.subtotalIdr,
+      discountIdr: orders.discountIdr,
+      taxIdr: orders.taxIdr,
+      feeIdr: orders.feeIdr,
+      totalIdr: orders.totalIdr,
+      createdAt: orders.createdAt,
+      expiresAt: orders.expiresAt,
+      paidAt: orders.paidAt,
+      deliveredAt: orders.deliveredAt,
+    })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  if (!orderRow) return null;
+  const { seasonId, ...order } = orderRow;
+
+  const [items, paymentRows, deliveryRows, seasonRows] = await Promise.all([
+    db
+      .select({
+        id: orderItems.id,
+        type: orderItems.type,
+        nameSnapshot: orderItems.nameSnapshot,
+        targetName: orderItems.targetName,
+        lineTotalIdr: orderItems.lineTotalIdr,
+        meta: sql<OrderItem["meta"]>`case
+          when ${orderItems.meta} is null then null
+          else jsonb_strip_nulls(jsonb_build_object(
+            'upgradeFromName', ${orderItems.meta} ->> 'upgradeFromName',
+            'giftFromName', ${orderItems.meta} ->> 'giftFromName'
+          ))
+        end`,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId)),
+    db
+      .select({
+        provider: payments.provider,
+        providerRef: payments.providerRef,
+        method: payments.method,
+        status: payments.status,
+        checkoutUrl: payments.checkoutUrl,
+        payCode: payments.payCode,
+        paidAt: payments.paidAt,
+      })
+      .from(payments)
+      .where(eq(payments.orderId, orderId))
+      .orderBy(desc(payments.createdAt)),
+    db
+      .select({
+        orderItemId: deliveries.orderItemId,
+        status: deliveries.status,
+        deliveredAt: deliveries.deliveredAt,
+      })
+      .from(deliveries)
+      .where(eq(deliveries.orderId, orderId)),
+    db.select({ name: seasons.name, endAt: seasons.endAt }).from(seasons).where(eq(seasons.id, seasonId)).limit(1),
   ]);
-  return { order, items, payments: paymentRows, deliveries: deliveryRows, season };
+  return { order, items, payments: paymentRows, deliveries: deliveryRows, season: seasonRows[0] ?? null };
 }
 
 export interface PaidOrderResult {

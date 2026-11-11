@@ -20,7 +20,7 @@ export interface AuditInput {
   userAgent?: string | null;
 }
 
-/** Setiap aksi admin wajib tercatat: siapa, apa, nilai sebelum/sesudah, IP. */
+/** Setiap mutasi admin penting dicatat: siapa, apa, nilai sebelum/sesudah, IP. */
 export async function writeAudit(input: AuditInput): Promise<void> {
   try {
     await db.insert(auditLogs).values({

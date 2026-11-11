@@ -6,40 +6,40 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(env.APP_URL),
   title: {
-    default: "CipiSMP Store — Rank & Kit Season 1",
-    template: "%s · CipiSMP Store",
+    default: "CipiSMP Store — Toko Resmi Server Minecraft",
+    template: "%s | CipiSMP Store",
   },
   description:
-    "Toko resmi CipiSMP: rank dan kit untuk server survival Season 1. Cross-play Java & Bedrock, pengiriman otomatis setelah pembayaran terverifikasi.",
+    "Toko resmi server survival CipiSMP. Pilih rank dan kit musiman untuk Java & Bedrock; masa aktif, harga, dan detail tersedia sebelum checkout.",
   applicationName: "CipiSMP Store",
   keywords: ["CipiSMP", "Minecraft Indonesia", "rank Minecraft", "server SMP", "kit Minecraft"],
   openGraph: {
     type: "website",
     locale: "id_ID",
     siteName: "CipiSMP Store",
-    title: "CipiSMP Store — Rank & Kit Season 1",
+    title: "CipiSMP Store — Toko Resmi Server Minecraft",
     description:
-      "Rank dan kit untuk server survival CipiSMP. Berlaku sampai akhir season, dikirim otomatis setelah pembayaran.",
+      "Rank dan kit musiman untuk server survival CipiSMP. Tersedia untuk pemain Java dan Bedrock.",
     url: env.APP_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: "CipiSMP Store — Rank & Kit Season 1",
-    description: "Rank dan kit untuk server survival CipiSMP. Cross-play Java & Bedrock.",
+    title: "CipiSMP Store — Toko Resmi Server Minecraft",
+    description: "Rank dan kit musiman untuk server survival CipiSMP. Tersedia untuk Java dan Bedrock.",
   },
   robots: env.APP_ENV === "production" ? { index: true, follow: true } : { index: false, follow: false },
   alternates: { canonical: "/" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0e0d0b",
+  themeColor: "#fefbfd",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className="dark">
+    <html lang="id">
       <body className="min-h-dvh antialiased">
         <a
           href="#konten"

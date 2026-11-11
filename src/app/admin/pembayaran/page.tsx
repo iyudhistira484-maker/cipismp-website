@@ -23,27 +23,39 @@ const WEBHOOK_PATHS: Record<ProviderId, string> = {
 export default async function AdminPaymentsPage() {
   const viewer = await requireStaff("settings.read");
   const canSeeSecrets = hasPermission(viewer.user.role, "payments.secrets");
-  const [settings, events, pending] = await Promise.all([getSettings(), recentWebhookEvents(10), pendingPaymentRows(10)]);
+  const [settings, events, pending] = await Promise.all([
+    getSettings(),
+    canSeeSecrets ? recentWebhookEvents(10) : Promise.resolve([]),
+    canSeeSecrets ? pendingPaymentRows(10) : Promise.resolve([]),
+  ]);
 
-  const records = await Promise.all(
-    (["TRIPAY", "MIDTRANS", "FAKE"] as ProviderId[]).map(async (provider) => ({
-      provider,
-      record: await loadProviderConfig(provider),
-    })),
-  );
+  // Jangan dekripsi kredensial gateway untuk role yang hanya boleh melihat status.
+  const providers: ProviderId[] = ["TRIPAY", "MIDTRANS", "FAKE"];
+  const records = canSeeSecrets
+    ? await Promise.all(providers.map(async (provider) => ({
+        provider,
+        record: await loadProviderConfig(provider),
+      })))
+    : [];
+  const recordByProvider = new Map(records.map(({ provider, record }) => [provider, record]));
 
   return (
     <>
       <AdminPageHeader
         title="Pembayaran"
         description="Kredensial disimpan terenkripsi di database. Webhook diverifikasi dari payload mentah dan diproses idempoten."
-        actions={<TestProvidersButton />}
+        actions={canSeeSecrets ? <TestProvidersButton /> : undefined}
       />
 
       <Alert tone="info">
         Toko ini tidak menyediakan refund. Tidak ada tombol atau endpoint refund di panel ini; sengketa ditandai DISPUTED
         dan ditangani manual tanpa mengembalikan dana lewat sistem.
       </Alert>
+      {!canSeeSecrets ? (
+        <Alert tone="info" className="mt-3">
+          Rincian pembayaran menunggu, ringkasan webhook, dan uji kesiapan gateway hanya tersedia untuk Owner.
+        </Alert>
+      ) : null}
 
       <Card className="mt-4" title="Metode yang ditawarkan" description="Pilih QRIS, virtual account, dan e-wallet yang akan terlihat di checkout. Admin dapat mengatur metode; kredensial gateway tetap Owner-only.">
         <PaymentMethodsForm
@@ -55,7 +67,8 @@ export default async function AdminPaymentsPage() {
       </Card>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        {records.map(({ provider, record }) => {
+        {providers.map((provider) => {
+          const record = recordByProvider.get(provider);
           const enabled = record?.enabled ?? settings.payments.enabled[provider];
           return (
             <Card key={provider} title={`${PROVIDER_LABEL[provider]} · webhook`}>
@@ -94,36 +107,38 @@ export default async function AdminPaymentsPage() {
         })}
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card title="Pembayaran menunggu" description="Termasuk pembayaran kurang yang perlu diverifikasi manual.">
-          <Table head={["Order", "Gateway", "Status", "Nominal"]} empty={pending.length === 0}>
-            {pending.map((row) => (
-              <tr key={row.id}>
-                <Td className="text-ink">{row.orderNumber}</Td>
-                <Td>{row.provider}</Td>
-                <Td>
-                  <Badge tone={row.status === "UNDERPAID" ? "warning" : "neutral"}>{row.status}</Badge>
-                </Td>
-                <Td className="tabular-nums">{formatRp(row.amountIdr)}</Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
+      {canSeeSecrets ? (
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <Card title="Pembayaran menunggu" description="Termasuk pembayaran kurang yang perlu diverifikasi manual.">
+            <Table head={["Order", "Gateway", "Status", "Nominal"]} empty={pending.length === 0}>
+              {pending.map((row) => (
+                <tr key={row.id}>
+                  <Td className="text-ink">{row.orderNumber}</Td>
+                  <Td>{row.provider}</Td>
+                  <Td>
+                    <Badge tone={row.status === "UNDERPAID" ? "warning" : "neutral"}>{row.status}</Badge>
+                  </Td>
+                  <Td className="tabular-nums">{formatRp(row.amountIdr)}</Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
 
-        <Card title="Webhook terakhir" description="Payload mentah tersimpan untuk audit sengketa.">
-          <Table head={["Waktu", "Gateway", "Event", "Signature", "Hasil"]} empty={events.length === 0}>
-            {events.map((event) => (
-              <tr key={event.id}>
-                <Td>{formatDateTimeWIB(event.receivedAt)}</Td>
-                <Td>{event.provider}</Td>
-                <Td className="max-w-48 truncate text-2xs">{event.eventType}</Td>
-                <Td>{event.signatureValid ? <span className="text-success">valid</span> : <span className="text-danger">invalid</span>}</Td>
-                <Td className="text-2xs">{event.result ?? "—"}</Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
-      </div>
+          <Card title="Webhook terakhir" description="Ringkasan hasil verifikasi; payload, header, dan IP tidak ditampilkan.">
+            <Table head={["Waktu", "Gateway", "Event", "Signature", "Hasil"]} empty={events.length === 0}>
+              {events.map((event) => (
+                <tr key={event.id}>
+                  <Td>{formatDateTimeWIB(event.receivedAt)}</Td>
+                  <Td>{event.provider}</Td>
+                  <Td className="max-w-48 truncate text-2xs">{event.eventType}</Td>
+                  <Td>{event.signatureValid ? <span className="text-success">valid</span> : <span className="text-danger">invalid</span>}</Td>
+                  <Td className="text-2xs">{event.result ?? "—"}</Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        </div>
+      ) : null}
     </>
   );
 }

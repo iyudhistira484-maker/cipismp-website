@@ -10,23 +10,14 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
       {/* Panel brand: hanya di desktop, dengan komposisi editorial */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-surface/40 p-10 lg:flex xl:p-14">
-        <div
-          className="pointer-events-none absolute inset-0 bg-grid opacity-[0.22] [mask-image:radial-gradient(75%_60%_at_30%_20%,black,transparent)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -right-24 top-1/3 size-[26rem] rounded-full opacity-40 blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(224,168,78,0.16), transparent 65%)" }}
-          aria-hidden
-        />
+      <aside className="hidden flex-col justify-between border-r border-line bg-surface-2 p-10 lg:flex xl:p-14">
         <Link href="/" className="relative">
           <Logo />
         </Link>
 
         <div className="relative max-w-md">
           <div className="flex items-end gap-3">
-            <RankBadge accent="gold" label="S1" size={54} />
+            <RankBadge accent="cute" label="S1" size={54} />
             <div>
               <p className="eyebrow">{season?.name ?? "Season baru"}</p>
               <p className="mt-1 text-[13px] text-muted">
@@ -58,7 +49,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           </ul>
         </div>
 
-        <p className="relative font-pixel text-[10px] uppercase tracking-[0.12em] text-muted-2">
+        <p className="relative font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">
           cipismp.my.id · Java 25565 · Bedrock 19202
         </p>
       </aside>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseWibDate } from "@/lib/admin-export-date";
 import { requireViewerApi } from "@/server/auth/guard";
 import { hasPermission } from "@/server/rbac";
 import { writeAudit } from "@/server/audit";
@@ -8,18 +9,14 @@ import { customersCsv, ordersCsv } from "@/server/admin/export";
 
 export const dynamic = "force-dynamic";
 
-function parseDate(value: string | null, endOfDay = false): Date | undefined {
-  if (!value) return undefined;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-  // Tanggal dianggap WIB; untuk batas akhir, sertakan seluruh hari tersebut.
-  return new Date(`${value}T${endOfDay ? "23:59:59" : "00:00:00"}+07:00`);
-}
-
 export async function GET(request: Request) {
   try {
     const viewer = await requireViewerApi();
     const url = new URL(request.url);
     const type = url.searchParams.get("type") ?? "orders";
+    if (type !== "orders" && type !== "customers") {
+      return NextResponse.json({ error: "Jenis ekspor tidak dikenal." }, { status: 400 });
+    }
     const permission = type === "customers" ? "customers.read" : "orders.read";
     if (!hasPermission(viewer.user.role, permission)) {
       return NextResponse.json({ error: "Tidak punya akses ekspor ini." }, { status: 403 });
@@ -34,8 +31,18 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    const from = parseDate(url.searchParams.get("from"));
-    const to = parseDate(url.searchParams.get("to"), true);
+    const fromValue = url.searchParams.get("from");
+    const toValue = url.searchParams.get("to");
+    if (type === "customers" && (fromValue || toValue)) {
+      return NextResponse.json({ error: "Filter tanggal hanya tersedia untuk ekspor pesanan." }, { status: 400 });
+    }
+    const parsedFrom = parseWibDate(fromValue);
+    const parsedTo = parseWibDate(toValue, true);
+    if (!parsedFrom.valid || !parsedTo.valid) {
+      return NextResponse.json({ error: "Tanggal harus valid dengan format YYYY-MM-DD (WIB)." }, { status: 400 });
+    }
+    const from = parsedFrom.date;
+    const to = parsedTo.date;
     if (from && to && from.getTime() > to.getTime()) {
       return NextResponse.json({ error: "Rentang tanggal tidak valid." }, { status: 400 });
     }

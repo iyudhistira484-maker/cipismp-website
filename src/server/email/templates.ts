@@ -6,12 +6,12 @@ import { formatDateWIB, formatDateTimeWIB } from "@/lib/dates";
 import { formatRp } from "@/lib/money";
 
 const BRAND = {
-  bg: "#f5f2ec",
-  card: "#15130f",
-  text: "#efe9de",
-  muted: "#a9a294",
-  accent: "#e0a84e",
-  line: "#2b2620",
+  bg: "#fefbfd",
+  card: "#ffffff",
+  text: "#342732",
+  muted: "#695865",
+  accent: "#a02b64",
+  line: "#eddde7",
 };
 
 export interface EmailContent {
@@ -35,7 +35,7 @@ function layout(input: { title: string; preheader: string; bodyHtml: string; foo
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="color-scheme" content="dark light" />
+<meta name="color-scheme" content="light" />
 <title>${escapeHtml(input.title)}</title>
 </head>
 <body style="margin:0;padding:0;background:${BRAND.bg};font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -67,7 +67,7 @@ function layout(input: { title: string; preheader: string; bodyHtml: string; foo
 function button(href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;"><tr>
     <td style="border-radius:10px;background:${BRAND.accent};">
-      <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:600;color:#1a1409;text-decoration:none;">${escapeHtml(label)}</a>
+      <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${escapeHtml(label)}</a>
     </td></tr></table>
     <p style="margin:8px 0 0;font-size:12px;color:${BRAND.muted};word-break:break-all;">${escapeHtml(href)}</p>`;
 }
@@ -142,7 +142,7 @@ export function loginAlertTemplate(input: { username: string; ip: string; device
       bodyHtml:
         p(`Halo <strong>${escapeHtml(input.username)}</strong>,`) +
         p("Ada login baru ke akun CipiSMP Store kamu.") +
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1d1a15;border-radius:10px;padding:14px 18px;margin:14px 0;">
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff7fb;border:1px solid ${BRAND.line};border-radius:10px;padding:14px 18px;margin:14px 0;">
           ${detailRow("Waktu", `${formatDateTimeWIB(input.at)} WIB`)}
           ${detailRow("Perangkat", input.device)}
           ${detailRow("IP", input.ip)}
@@ -199,7 +199,7 @@ export function orderCreatedTemplate(data: OrderEmailData): EmailContent {
         (data.method ? p(`Metode: ${escapeHtml(data.method)}`) : "") +
         (data.expiresAt ? p(`Bayar sebelum ${escapeHtml(formatDateTimeWIB(data.expiresAt))} WIB.`) : "") +
         (data.paymentUrl ? button(data.paymentUrl, "Buka halaman pembayaran") : "") +
-        p("Item dikirim otomatis setelah pembayaran terverifikasi."),
+        p("Setelah pembayaran terverifikasi, akses rank atau permission kit dikirim otomatis ke server."),
     }),
     text: `Pesanan ${data.orderNumber} menunggu pembayaran.\nTotal: ${formatRp(data.totalIdr)}\n${data.paymentUrl ?? ""}`,
   };
@@ -214,7 +214,7 @@ export function orderPaidTemplate(data: OrderEmailData): EmailContent {
       bodyHtml:
         p(`Halo <strong>${escapeHtml(data.playerName)}</strong>, pembayaran untuk order <strong>${escapeHtml(data.orderNumber)}</strong> sudah kami terima.`) +
         orderSummary(data) +
-        p("Item sedang dikirim ke server. Kalau kamu sedang offline, item dikirim otomatis saat kamu masuk berikutnya.") +
+        p("Akses rank atau permission PlayerKits sedang dikirim ke server. Kalau kamu sedang offline, perintah aktivasi dijalankan saat kamu masuk berikutnya.") +
         button(data.statusUrl, "Lihat status pesanan"),
     }),
     text: `Pembayaran diterima untuk ${data.orderNumber}. Total ${formatRp(data.totalIdr)}.\nStatus: ${data.statusUrl}`,
@@ -225,15 +225,15 @@ export function orderDeliveredTemplate(data: OrderEmailData): EmailContent {
   return {
     subject: `Pesanan selesai — ${data.orderNumber}`,
     html: layout({
-      title: "Item sudah dikirim",
+      title: "Akses sudah diaktifkan",
       preheader: `Order ${data.orderNumber} selesai.`,
       bodyHtml:
-        p(`Halo <strong>${escapeHtml(data.playerName)}</strong>, semua item di order <strong>${escapeHtml(data.orderNumber)}</strong> sudah dikirim ke server.`) +
+        p(`Halo <strong>${escapeHtml(data.playerName)}</strong>, perintah aktivasi untuk order <strong>${escapeHtml(data.orderNumber)}</strong> sudah dijalankan di server.`) +
         orderSummary(data) +
-        p("Masuk ke server untuk melihat rank atau mengambil kit. Kalau ada yang belum masuk, buka halaman status pesanan dan hubungi kami dengan nomor order di atas.") +
+        p("Masuk ke server untuk menggunakan rank atau permission PlayerKits. CipiPrime dan Cipi++ diklaim lewat PlayerKits dengan cooldown 5 jam. Kalau permission belum aktif, buka halaman status pesanan dan hubungi kami dengan nomor order di atas.") +
         button(data.statusUrl, "Lihat pesanan"),
     }),
-    text: `Pesanan ${data.orderNumber} selesai dikirim.`,
+    text: `Order ${data.orderNumber} selesai dan akses diaktifkan.`,
   };
 }
 

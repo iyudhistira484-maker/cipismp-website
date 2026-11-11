@@ -11,6 +11,8 @@ coverage
 *.log
 .DS_Store
 .playwright
+test-results
+playwright-report
 .turbo
 plugin/target
 prisma/*.db

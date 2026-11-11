@@ -1,14 +1,14 @@
 import type { ReactElement } from "react";
 
 const ACCENT_HEX: Record<string, string> = {
-  star: "#f6cf5f",
-  milk: "#e5f1ed",
-  pop: "#ff987c",
-  cute: "#ef9ad6",
-  iron: "#b9bcc2",
-  gold: "#e7b95c",
-  diamond: "#7fd8d0",
-  amber: "#e0a84e",
+  star: "#a63771",
+  milk: "#8c526f",
+  pop: "#a63771",
+  cute: "#694a96",
+  iron: "#5c5e68",
+  gold: "#8f5b18",
+  diamond: "#2f7777",
+  amber: "#a63771",
 };
 
 /** Token accent produk → warna hex untuk render OG. */
@@ -40,9 +40,9 @@ export function productOgElement({ name, type, tagline, priceLabel, accent, seas
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "#15130f",
+        background: "#fefbfd",
         padding: "64px 72px",
-        color: "#f5f2ec",
+        color: "#342732",
         fontFamily: "sans-serif",
       }}
     >
@@ -64,7 +64,7 @@ export function productOgElement({ name, type, tagline, priceLabel, accent, seas
           >
             C
           </div>
-          <div style={{ fontSize: 24, letterSpacing: 2, color: "#a69e8f" }}>CIPISMP.MY.ID</div>
+          <div style={{ fontSize: 24, letterSpacing: 2, color: "#695865" }}>CIPISMP.MY.ID</div>
         </div>
         <div
           style={{
@@ -82,7 +82,7 @@ export function productOgElement({ name, type, tagline, priceLabel, accent, seas
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ fontSize: 84, fontWeight: 700, lineHeight: 1.02, letterSpacing: -2 }}>{name}</div>
-        <div style={{ fontSize: 30, color: "#cdc6b8", lineHeight: 1.35, maxWidth: 900 }}>
+        <div style={{ fontSize: 30, color: "#695865", lineHeight: 1.35, maxWidth: 900 }}>
           {tagline ?? "Berlaku sepanjang season, tanpa perpanjangan."}
         </div>
         {perks.length > 0 ? (
@@ -93,9 +93,9 @@ export function productOgElement({ name, type, tagline, priceLabel, accent, seas
                 style={{
                   padding: "10px 18px",
                   borderRadius: 10,
-                  background: "#1f1c17",
-                  border: "1px solid #2e2a23",
-                  color: "#cdc6b8",
+                  background: "#fff7fb",
+                  border: "1px solid #eddde7",
+                  color: "#695865",
                   fontSize: 22,
                 }}
               >
@@ -108,10 +108,10 @@ export function productOgElement({ name, type, tagline, priceLabel, accent, seas
 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 20, color: "#8b8377", letterSpacing: 1 }}>MULAI DARI</div>
+          <div style={{ fontSize: 20, color: "#85727f", letterSpacing: 1 }}>MULAI DARI</div>
           <div style={{ fontSize: 46, fontWeight: 700, color: accent }}>{priceLabel}</div>
         </div>
-        <div style={{ fontSize: 22, color: "#a69e8f", textAlign: "right" }}>{seasonLabel}</div>
+        <div style={{ fontSize: 22, color: "#695865", textAlign: "right" }}>{seasonLabel}</div>
       </div>
     </div>
   );
@@ -127,15 +127,15 @@ export function fallbackOgElement(title: string): ReactElement {
         flexDirection: "column",
         justifyContent: "center",
         gap: 18,
-        background: "#15130f",
+        background: "#fefbfd",
         padding: "72px 80px",
-        color: "#f5f2ec",
+        color: "#342732",
         fontFamily: "sans-serif",
       }}
     >
-      <div style={{ fontSize: 24, letterSpacing: 2, color: "#a69e8f" }}>CIPISMP.MY.ID</div>
+      <div style={{ fontSize: 24, letterSpacing: 2, color: "#695865" }}>CIPISMP.MY.ID</div>
       <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05 }}>{title}</div>
-      <div style={{ fontSize: 28, color: "#a69e8f" }}>Rank dan kit per season · Java & Bedrock</div>
+      <div style={{ fontSize: 28, color: "#695865" }}>Rank dan kit per season · Java & Bedrock</div>
     </div>
   );
 }

@@ -137,6 +137,12 @@ export interface ProductFormValues {
 
 export function ProductForm({ product }: { product?: ProductFormValues }) {
   const [state, action] = useActionState(adminSaveProductAction, empty);
+  const [selectedProductType, setSelectedProductType] = useState(product?.type ?? "RANK");
+  const [selectedArtwork, setSelectedArtwork] = useState(() => {
+    if (product?.type === "KIT") return "";
+    const currentArtwork = product?.artwork ?? "";
+    return PRODUCT_ARTWORK_CHOICES.some((choice) => choice.value === currentArtwork) ? currentArtwork : "";
+  });
   const defaultGrant = product?.grantTemplate ?? "lp user {player} parent add {rank}";
   const defaultRevoke = product?.revokeTemplate ?? "lp user {player} parent remove {rank}";
   return (
@@ -145,7 +151,17 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
       {product?.id ? <input type="hidden" name="id" value={product.id} /> : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Jenis" htmlFor="product-type" required>
-          <Select id="product-type" name="type" defaultValue={product?.type ?? "RANK"} required>
+          <Select
+            id="product-type"
+            name="type"
+            value={selectedProductType}
+            onChange={(event) => {
+              const nextType = event.currentTarget.value;
+              setSelectedProductType(nextType);
+              if (nextType === "KIT") setSelectedArtwork("");
+            }}
+            required
+          >
             <option value="RANK">Rank</option>
             <option value="KIT">Kit</option>
           </Select>
@@ -173,16 +189,35 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
             {PRODUCT_ACCENT_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
           </Select>
         </Field>
-        <Field label="Ilustrasi kartu" htmlFor="product-artwork" hint="Aset lokal di public/images/products">
-          <Select id="product-artwork" name="artwork" defaultValue={product?.artwork ?? ""}>
-            <option value="">Otomatis dari slug / tanpa gambar khusus</option>
-            {PRODUCT_ARTWORK_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+        <Field
+          label="Ilustrasi kartu"
+          htmlFor="product-artwork"
+          hint={selectedProductType === "KIT" ? "Kit memakai ikon item Minecraft asli." : "Pilih ilustrasi rank lokal."}
+        >
+          <Select
+            id="product-artwork"
+            name="artwork"
+            value={selectedProductType === "KIT" ? "" : selectedArtwork}
+            onChange={(event) => setSelectedArtwork(event.currentTarget.value)}
+          >
+            <option value="">
+              {selectedProductType === "KIT" ? "Ikon mengikuti isi kit" : "Otomatis dari slug / tanpa gambar khusus"}
+            </option>
+            {selectedProductType === "KIT"
+              ? null
+              : PRODUCT_ARTWORK_CHOICES.map((choice) => (
+                  <option key={choice.value} value={choice.value}>{choice.label}</option>
+                ))}
           </Select>
         </Field>
         <Field label="Batas per season" htmlFor="product-max">
           <Input id="product-max" name="maxPerSeason" type="number" min={1} max={50} defaultValue={product?.maxPerSeason ?? 1} />
         </Field>
-        <Field label="Cooldown (jam)" htmlFor="product-cooldown">
+        <Field
+          label="Cooldown pembelian ulang (jam)"
+          htmlFor="product-cooldown"
+          hint="Bukan cooldown klaim PlayerKits di dalam server; kit Cipi diatur terpisah."
+        >
           <Input id="product-cooldown" name="cooldownHours" type="number" min={0} max={720} defaultValue={product?.cooldownHours ?? 0} />
         </Field>
         <Field label="Urutan tampil" htmlFor="product-sort">
@@ -845,8 +880,6 @@ export interface ServerFormValues {
   bedrockHost: string;
   bedrockPort: number;
   deliveryMode: string;
-  pluginBaseUrl: string | null;
-  pluginSecretSet: boolean;
   rconHost: string | null;
   rconPort: number | null;
   rconPasswordSet: boolean;
@@ -864,7 +897,7 @@ export function ServerSettingsForm({ server }: { server?: ServerFormValues }) {
         </Field>
         <Field label="Metode pengiriman" htmlFor="server-mode" required>
           <Select id="server-mode" name="deliveryMode" defaultValue={server?.deliveryMode ?? "PLUGIN"}>
-            <option value="PLUGIN">Plugin companion</option>
+            <option value="PLUGIN">Plugin companion (polling HTTPS)</option>
             <option value="RCON">RCON</option>
           </Select>
         </Field>
@@ -880,16 +913,11 @@ export function ServerSettingsForm({ server }: { server?: ServerFormValues }) {
         <Field label="Port Bedrock" htmlFor="server-bedrock-port" required>
           <Input id="server-bedrock-port" name="bedrockPort" type="number" defaultValue={server?.bedrockPort ?? 19202} required />
         </Field>
-        <Field label="URL plugin" htmlFor="server-plugin-url" hint="Alamat plugin di jaringan internal">
-          <Input id="server-plugin-url" name="pluginBaseUrl" defaultValue={server?.pluginBaseUrl ?? ""} placeholder="http://10.0.0.5:8081" />
-        </Field>
-        <Field
-          label="Secret plugin"
-          htmlFor="server-plugin-secret"
-          hint={server?.pluginSecretSet ? "Sudah diatur. Kosongkan bila tidak diubah." : "Sama dengan PLUGIN_SHARED_SECRET"}
-        >
-          <Input id="server-plugin-secret" name="pluginSecret" type="password" autoComplete="new-password" />
-        </Field>
+        <p className="sm:col-span-2 rounded-md border border-line bg-surface-2/50 p-3 text-2xs leading-relaxed text-muted">
+          Plugin Minecraft mengambil antrean dari website melalui HTTPS. Tidak perlu URL plugin publik atau port masuk;
+          atur <span className="font-mono">website-url</span> dan <span className="font-mono">shared-secret</span> di config plugin.
+          Secret harus sama dengan <span className="font-mono">PLUGIN_SHARED_SECRET</span> di environment website.
+        </p>
         <Field label="Host RCON" htmlFor="server-rcon-host" hint="Cadangan bila plugin mati">
           <Input id="server-rcon-host" name="rconHost" defaultValue={server?.rconHost ?? ""} />
         </Field>

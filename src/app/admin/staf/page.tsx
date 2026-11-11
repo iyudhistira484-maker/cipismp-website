@@ -11,9 +11,9 @@ import { RevokeAllSessionsButton, RevokeSessionButton, StaffRoleForm } from "@/c
 export const metadata = { title: "Staf" };
 
 const MATRIX = [
-  { label: "Melihat pesanan & pelanggan", value: "Support ke atas" },
-  { label: "Tandai lunas manual, ubah produk/season/kupon", value: "Admin ke atas" },
-  { label: "Kredensial gateway & ubah role staf", value: "Owner" },
+  { label: "Pesanan, pelanggan, pengiriman, audit; kirim ulang, comp/cabut entitlement", value: "Support ke atas" },
+  { label: "Pendapatan, produk, season, kupon, ulasan, metode pembayaran & pengaturan toko", value: "Admin ke atas" },
+  { label: "Kesiapan/kredensial gateway, pembayaran menunggu/webhook, ubah role & cabut sesi staf", value: "Owner" },
 ];
 
 export default async function AdminStaffPage() {

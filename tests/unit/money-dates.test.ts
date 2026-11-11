@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clampNonNegative, computeTotal, formatIDR, formatRp, parseIdr, percentOf } from "@/lib/money";
-import { addDays, daysUntil, formatDateWIB, formatDateTimeWIB, jakartaDateKey, minutesAgo } from "@/lib/dates";
+import { addDays, daysUntil, formatDateWIB, formatDateTimeWIB, jakartaDateKey, minutesAgo, startOfWibDay } from "@/lib/dates";
 import { maskEmail, normalizeEmail, randomToken } from "@/lib/tokens";
 import { safeNext } from "@/lib/safe-redirect";
 
@@ -42,6 +42,11 @@ describe("tanggal Asia/Jakarta", () => {
     expect(jakartaDateKey(date)).toBe("2025-04-01");
     expect(formatDateWIB(date)).toContain("2025");
     expect(formatDateTimeWIB(date)).toContain("01.30");
+  });
+
+  it("menghitung awal hari kalender WIB termasuk pergantian UTC", () => {
+    expect(startOfWibDay(new Date("2025-03-31T18:30:00.000Z")).toISOString()).toBe("2025-03-31T17:00:00.000Z");
+    expect(startOfWibDay(new Date("2025-03-31T16:59:59.000Z")).toISOString()).toBe("2025-03-30T17:00:00.000Z");
   });
 
   it("menghitung selisih hari", () => {

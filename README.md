@@ -63,7 +63,7 @@ npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, rem
 | `SEED_OWNER_EMAIL` / `SEED_OWNER_USERNAME` / `SEED_OWNER_PASSWORD` | akun Owner pertama |
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | opsional; login Discord (redirect URI `<APP_URL>/api/auth/discord/callback`) |
 | `EMAIL_PROVIDER` | `resend`, `smtp`, atau `outbox` (dev, email ditulis ke log) |
-| `PLUGIN_SHARED_SECRET` | ≥ 16 karakter, harus sama dengan `config.yml` plugin |
+| `PLUGIN_SHARED_SECRET` | ≥ 16 karakter acak, sama dengan `shared-secret` plugin; dipakai untuk HMAC polling HTTPS dan `/verify` |
 | `CRON_SECRET` | pengaman endpoint `POST /api/cron` |
 
 Opsional: `REDIS_URL` (rate limit lintas instance), `TRIPAY_*`, `MIDTRANS_*`,
@@ -83,7 +83,7 @@ variabel wajib hilang atau tidak valid (fail fast saat boot).
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Unit + integrasi (integrasi di-skip tanpa `TEST_DATABASE_URL`) |
 | `npm run test:unit` / `npm run test:integration` | Per kelompok |
-| `npm run test:e2e` | Playwright (butuh server produksi/`E2E_BASE_URL`) |
+| `npm run test:e2e` | Playwright (butuh `npm run build` + Chromium; server standalone dimulai otomatis) |
 | `npm run db:generate` / `npm run db:migrate` | Migrasi Drizzle |
 | `npm run db:seed` | Seed idempoten (season, produk, template perintah, owner) |
 
@@ -105,15 +105,18 @@ docs/             arsitektur, asumsi, progres, go-live, runbook, panduan admin
 
 ```bash
 cd plugin
-gradle build             # butuh JDK 21 + Gradle 8.10
+gradle test build         # JDK 21 + Gradle 8.10
 cp build/libs/cipismp-store-companion-1.0.0.jar <server>/plugins/
-# isi plugins/CipiStoreCompanion/config.yml: website-url, shared-secret, http.port
+# isi plugins/CipiStoreCompanion/config.yml: website-url, shared-secret, polling.*
 ```
 
-Plugin mendengarkan `127.0.0.1:8081` secara default, memverifikasi HMAC + timestamp +
-nonce, menjalankan perintah lewat LuckPerms (bila ada) atau konsol, dan menyimpan antrean
-pemain offline ke disk sampai login berikutnya. Pemain menghubungkan akun dengan
-`/verify KODE` dari dashboard.
+Plugin memulai polling keluar ke toko melalui HTTPS setiap 10 detik (default), memverifikasi
+setiap request dengan HMAC + timestamp + nonce, dan menjalankan perintah melalui LuckPerms
+(bila ada) atau konsol. Hosting Minecraft hanya memerlukan akses keluar HTTPS; jangan membuka
+port HTTP inbound untuk plugin. Perintah untuk pemain offline disimpan ke disk dan baru
+mendapat ACK setelah antrean lokal berhasil disimpan. `/admin/server` menampilkan check-in
+terakhir plugin; pastikan website dapat diakses melalui DNS/TLS dari hosting Minecraft.
+Pemain menghubungkan akun dengan `/verify KODE` dari dashboard.
 
 ## Dokumentasi
 
@@ -124,6 +127,25 @@ pemain offline ke disk sampai login berikutnya. Pemain menghubungkan akun dengan
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — prosedur operasi & insiden
 - [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) — panduan non-teknis untuk staf
 - [`ASSETS.md`](ASSETS.md) — lisensi aset visual & font
+
+## Status verifikasi & pekerjaan yang belum — 11 November 2026
+
+### Sudah diverifikasi di sandbox
+
+- `npm run typecheck`, `npx drizzle-kit check`, `git diff --check`, dan `npm run build` lulus.
+  Build menandai `/cara-kerja` sebagai route dinamis karena status server memakai `fetch` no-store; build tetap sukses.
+- Rantai migrasi `0000`–`0009` lulus pada PostgreSQL disposable yang baru. Katalog hasil migrasi sesuai: Cute Rp10.000, Pop Rp30.000, Milk Rp60.000, Star Rp100.000; kolom polling plugin juga tersedia. Database disposable dihapus setelah tes.
+- `npm test` pada database disposable termigrasi: **152/152 tes lulus** (116 unit + 36 integrasi).
+- Database lokal preview sudah menerapkan `0008`–`0009`. Uji smoke `npm start` menghasilkan HTTP 200 untuk `/api/health`, `/`, dan `/rank`; urutan dan harga rank tampil benar.
+
+### Belum selesai / membutuhkan runner atau lingkungan staging-produksi
+
+- **Playwright E2E:** konfigurasi server standalone sudah diperbaiki, tetapi 10 tes belum menjalankan assertion karena Chromium tidak tersedia di sandbox. Pasang Chromium pada runner, lalu jalankan `npm run test:e2e`.
+- **Plugin Paper:** JDK 21 dan Gradle tidak tersedia di sandbox, serta repo tidak memiliki Gradle Wrapper; kompilasi dan JUnit Java belum terverifikasi. Jalankan `cd plugin && gradle test build` di runner ber-toolchain. Tambahkan tes untuk pemulihan antrean offline ketika penulisan marker selesai gagal.
+- **Beban dan container:** uji k6 serta validasi/build Docker Compose belum dijalankan lokal karena k6 dan Docker tidak tersedia.
+- **Integrasi nyata di staging:** uji webhook Tripay/Midtrans, email, Discord OAuth, Turnstile, serta Paper/LuckPerms—polling HTTPS, HMAC, ACK/retry, pemain offline, revoke, RCON fallback, dan permission PlayerKits. Tes lokal memakai database disposable dan tidak menggantikan tes layanan live.
+- **Rilis production:** database production belum diubah. Verifikasi backup/restore dan drift schema/data terlebih dahulu, lalu rencanakan migrasi `0008`–`0009`, seed, rahasia environment, TLS/domain, worker, dan cron di lingkungan production.
+- **Go-live non-fungsional:** Lighthouse, ukuran layar/reduced-motion, monitoring/backup/alert, lisensi aset Minecraft, dan tinjauan hukum syarat/privasi/penjualan masih perlu dituntaskan. Detail checklist ada di [`docs/GO_LIVE.md`](docs/GO_LIVE.md) dan [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ## Kebijakan
 

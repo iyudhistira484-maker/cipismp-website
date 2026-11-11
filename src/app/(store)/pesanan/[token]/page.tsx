@@ -165,11 +165,12 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
           ) : null}
 
           <div className="mt-6 rounded-lg border border-line p-4 text-[12.5px] leading-relaxed text-muted">
-            <p className="font-medium text-ink">Item belum masuk?</p>
+            <p className="font-medium text-ink">Akses atau reward belum masuk?</p>
             <p className="mt-1">
-              Tunggu beberapa menit — bila kamu offline, item dikirim otomatis saat login berikutnya.
-              Kalau status sudah <em>Selesai</em> tetapi item tetap tidak ada, hubungi bantuan dengan
-              nomor order di atas. Solusinya pengiriman ulang, bukan pembayaran baru.
+              Tunggu beberapa menit — bila kamu offline, perintah aktivasi dijalankan saat login berikutnya.
+              Untuk kit CipiPrime dan Cipi++, pembayaran mengaktifkan permission PlayerKits; klaim reward
+              dilakukan di server. Kalau status sudah <em>Selesai</em> tetapi akses tetap belum aktif,
+              hubungi bantuan dengan nomor order di atas. Solusinya pengiriman ulang, bukan pembayaran baru.
             </p>
             <a
               href={`mailto:bantuan@cipismp.my.id?subject=${encodeURIComponent(`Bantuan order ${order.orderNumber}`)}`}

@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/server/db";
-import { authTokens, minecraftProfiles, pluginNonces } from "@/server/db/schema";
-import { pluginSharedSecret, verifyPluginSignature } from "@/server/delivery/plugin-auth";
+import { authTokens, minecraftProfiles } from "@/server/db/schema";
+import { verifyAndConsumePluginRequest } from "@/server/delivery/plugin-request";
 import { sha256 } from "@/server/crypto";
 import { upsertProfile } from "@/server/minecraft";
-import { ids } from "@/server/ids";
 import { logger } from "@/server/logger";
 import { writeAudit } from "@/server/audit";
 
@@ -17,32 +16,18 @@ export const dynamic = "force-dynamic";
  * dipakai ulang, sehingga endpoint ini tidak bisa dipalsukan dari luar.
  */
 export async function POST(request: Request) {
-  const secret = pluginSharedSecret();
-  if (!secret) {
-    return NextResponse.json({ ok: false, message: "Plugin secret belum dikonfigurasi" }, { status: 503 });
+  const verified = await verifyAndConsumePluginRequest(request);
+  if (!verified.ok) {
+    logger.warn("plugin_verify_rejected", { reason: verified.message });
+    return NextResponse.json({ ok: false, message: verified.message }, { status: verified.status });
   }
 
-  const rawBody = await request.text();
-  const timestamp = request.headers.get("x-cipi-timestamp") ?? "";
-  const nonce = request.headers.get("x-cipi-nonce") ?? "";
-  const signature = request.headers.get("x-cipi-signature") ?? "";
-
-  const verification = verifyPluginSignature({ secret, timestamp, nonce, signature, body: rawBody });
-  if (!verification.ok) {
-    logger.warn("plugin_verify_rejected", { reason: verification.reason });
-    return NextResponse.json({ ok: false, message: verification.reason }, { status: 401 });
+  let payload: { code?: string; uuid?: string; player?: string };
+  try {
+    payload = JSON.parse(verified.body) as typeof payload;
+  } catch {
+    return NextResponse.json({ ok: false, message: "JSON tidak valid" }, { status: 400 });
   }
-
-  const inserted = await db
-    .insert(pluginNonces)
-    .values({ id: ids.nonce(), nonce })
-    .onConflictDoNothing({ target: pluginNonces.nonce })
-    .returning({ id: pluginNonces.id });
-  if (inserted.length === 0) {
-    return NextResponse.json({ ok: false, message: "Nonce sudah dipakai" }, { status: 409 });
-  }
-
-  const payload = JSON.parse(rawBody) as { code?: string; uuid?: string; player?: string };
   const code = (payload.code ?? "").trim().toUpperCase();
   if (!code) return NextResponse.json({ ok: false, message: "Kode kosong" }, { status: 400 });
 

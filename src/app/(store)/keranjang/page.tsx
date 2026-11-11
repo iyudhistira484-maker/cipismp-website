@@ -54,7 +54,7 @@ export default async function CartPage() {
         <EmptyState
           className="mt-10"
           title="Keranjang masih kosong"
-          description="Pilih rank atau kit untuk season ini. Semua item berlaku sampai akhir season dan dikirim otomatis setelah pembayaran."
+          description="Pilih rank atau kit untuk season ini. Akses berlaku sampai akhir season dan diaktifkan otomatis setelah pembayaran."
           action={
             <div className="flex gap-2">
               <Link href="/rank">

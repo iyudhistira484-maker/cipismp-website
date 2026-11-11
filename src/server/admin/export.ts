@@ -1,4 +1,4 @@
-import { and, desc, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
 import { orders, users } from "../db/schema";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
@@ -103,51 +103,38 @@ export async function ordersCsv(range: ExportRange = {}): Promise<{ filename: st
 export async function customersCsv(): Promise<{ filename: string; csv: string; rowCount: number }> {
   const rows = await db
     .select({
+      id: users.id,
       email: users.email,
       username: users.username,
-      role: users.role,
       createdAt: users.createdAt,
-      emailVerifiedAt: users.emailVerifiedAt,
-      totpEnabledAt: users.totpEnabledAt,
-      lastLoginAt: users.lastLoginAt,
     })
     .from(users)
+    .where(eq(users.role, "CUSTOMER"))
     .orderBy(desc(users.createdAt))
     .limit(10_000);
 
+  // Match spend only to orders linked to this customer account. An unrelated guest
+  // order using the same email must not be attributed to an account export.
   const spend = await db
     .select({
-      email: orders.email,
+      userId: orders.userId,
       total: sql<string>`coalesce(sum(${orders.totalIdr}), 0)`,
       totalOrders: sql<string>`count(*)`,
     })
     .from(orders)
-    .where(inArray(orders.status, ["PAID", "DELIVERING", "DELIVERED", "DISPUTED"]))
-    .groupBy(orders.email);
-  const spendMap = new Map(spend.map((row) => [row.email.toLowerCase(), row]));
+    .innerJoin(users, eq(orders.userId, users.id))
+    .where(and(eq(users.role, "CUSTOMER"), inArray(orders.status, ["PAID", "DELIVERING", "DELIVERED", "DISPUTED"])))
+    .groupBy(orders.userId);
+  const spendMap = new Map(spend.map((row) => [row.userId, row]));
 
   const csv = toCsv(
-    [
-      "email",
-      "username",
-      "role",
-      "dibuat",
-      "email_terverifikasi",
-      "2fa_aktif",
-      "login_terakhir",
-      "total_belanja_idr",
-      "jumlah_order_dibayar",
-    ],
+    ["email", "username", "dibuat", "total_belanja_idr", "jumlah_order_dibayar"],
     rows.map((row) => {
-      const paid = spendMap.get(row.email.toLowerCase());
+      const paid = spendMap.get(row.id);
       return [
         row.email,
         row.username,
-        row.role,
         isoDate(row.createdAt),
-        row.emailVerifiedAt ? "ya" : "belum",
-        row.totpEnabledAt ? "ya" : "tidak",
-        isoDate(row.lastLoginAt),
         paid ? Number(paid.total) : 0,
         paid ? Number(paid.totalOrders) : 0,
       ];

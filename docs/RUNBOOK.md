@@ -14,33 +14,43 @@ docker compose logs --tail=50 worker
 
 `/api/health` mengembalikan 503 bila database tidak bisa diakses.
 
-## 1. Order dibayar tetapi item tidak masuk
+## 1. Order dibayar tetapi akses atau reward belum masuk
 
 1. Buka `/admin/pesanan/<id>`. Status order dan daftar pembayaran terlihat di sana.
 2. Lihat bagian **Pengiriman**:
-   - `QUEUED` lama → worker mati atau plugin tidak merespons. Cek `docker compose logs worker`.
-   - `FAILED` → lihat kolom error. Perbaiki penyebab (plugin/RCON), lalu **Kirim ulang**.
-   - `DEAD` → percobaan habis. Kirim ulang setelah sistem sehat; ini menambah percobaan baru.
+   - `QUEUED` lama pada mode plugin → cek check-in plugin; plugin mengambil baris langsung dari database poll.
+     Pada mode RCON, cek `docker compose logs worker`.
+   - `SENT` lebih dari 3 menit → lease kedaluwarsa dan dipulihkan pada poll berikutnya.
+     Jika plugin benar-benar offline, setelah mengaktifkan RCON klik **Kirim ulang** untuk baris itu.
+   - `FAILED` → lihat kolom error. Perbaiki penyebab (plugin/RCON), lalu **Kirim ulang** bila perlu.
+   - `DEAD` → percobaan habis. Kirim ulang setelah sistem sehat; ini memulai siklus baru.
 3. Bila order masih `PENDING` padahal gateway menandai lunas:
    - Pastikan webhook terdaftar di dashboard gateway dan signature valid.
-   - Cek `/admin/pembayaran` → daftar webhook terakhir. `invalid-signature` berarti secret
-     gateway berbeda dengan yang tersimpan.
-   - Bila dana benar-benar masuk, verifikasi di dashboard gateway lalu **Tandai lunas manual**
-     dengan alasan yang jelas. Aksi ini tercatat di audit log.
+   - Owner cek `/admin/pembayaran` → ringkasan webhook terakhir. `invalid-signature` berarti
+     secret gateway berbeda dengan yang tersimpan; staf lain eskalasi ke Owner.
+   - Bila dana benar-benar masuk, verifikasi di dashboard gateway lalu staf dengan izin
+     `orders.write` dapat **Tandai lunas manual** dengan alasan yang jelas. Aksi ini diaudit.
 4. Bila order `EXPIRED` lalu pembayaran datang terlambat: webhook tetap memprosesnya
    (`EXPIRED → PAID` diizinkan). Jangan membuat order baru untuk pembayaran yang sama.
 
-## 2. Plugin offline
+## 2. Plugin tidak polling / delivery tertunda
 
-Gejala: pengiriman `FAILED` dengan pesan "Plugin menolak request" atau timeout.
+Gejala: `/admin/server` menunjukkan check-in plugin lebih lama dari 60 detik, atau delivery
+`QUEUED` menunggu poll / `FAILED` setelah plugin tidak mengirim ACK.
 
-1. `curl -s http://<plugin-host>:8081/cipismp/health` (dengan signature) atau pakai tombol
-   **Uji plugin** di `/admin/server`.
-2. Periksa log server Minecraft: plugin gagal start, port dipakai, atau secret salah.
-3. Jika plugin tidak bisa dipulihkan cepat, sementara ubah metode pengiriman ke **RCON** di
-   `/admin/server`, lalu kirim ulang pengiriman yang tertunda.
-4. Setelah plugin hidup lagi, kembalikan metode ke **PLUGIN**.
-5. Perintah yang sudah masuk antrean plugin (pemain offline) akan terkirim saat pemain login.
+1. Gunakan **Cek status plugin** di `/admin/server`. Endpoint plugin tidak lagi dibuka ke
+   internet; jangan mencoba `curl` ke host/port Minecraft.
+2. Periksa log server Minecraft untuk `Delivery polling HTTPS aktif` dan peringatan request.
+   Pastikan `website-url` memakai URL publik HTTPS yang benar, DNS/TLS dapat dijangkau dari
+   hosting Minecraft, dan jam host tersinkron NTP.
+3. Pastikan `shared-secret` pada config plugin sama persis dengan `PLUGIN_SHARED_SECRET`
+   pada environment website, lalu restart plugin dan periksa check-in terakhir.
+4. Jika plugin tidak dapat dipulihkan, ubah metode sementara ke **RCON** di `/admin/server`
+   hanya bila RCON sudah diamankan/dapat dijangkau dari web; setelah plugin sehat, pilih
+   kembali **Plugin companion (polling HTTPS)**. Delivery lama akan tetap ada di database.
+5. Delivery pemain offline di-ACK setelah antrean lokal berhasil disimpan ke disk; perintah
+   dijalankan saat pemain login. Jika antrean penuh atau disk gagal ditulis, plugin mengirim
+   kegagalan agar website mencoba ulang; perbaiki ruang antrean/disk lalu pantau `/admin/pengiriman`.
 
 ## 3. Worker mati / antrean menumpuk
 
@@ -73,10 +83,12 @@ jangan menghapus baris (audit butuh jejaknya).
 Webhook gateway akan menandai order `DISPUTED` dan mengirim alert ke staf.
 
 1. Jangan mengirim ulang item. Jangan mengembalikan dana lewat sistem — tidak ada fitur refund.
-2. Simpan bukti: `payment_events.raw_payload` (payload mentah), log pengiriman, waktu join pemain.
-3. Tanggapi gateway sesuai prosedur mereka. Bila sengketa dimenangkan, tandai order
-   `DISPUTED → DELIVERED` lewat mekanisme order yang ada dan catat alasannya.
-4. Catat keputusan di catatan internal order (`/admin/pesanan/<id>`).
+2. Simpan bukti melalui Owner/ops teknis yang berwenang: `payment_events.raw_payload` bersifat
+   sensitif dan tidak ditampilkan di panel. Jangan menyalin payload, header, atau IP ke chat.
+   Kumpulkan juga log pengiriman dan waktu join pemain.
+3. Tanggapi gateway sesuai prosedur mereka. Panel saat ini tidak menyediakan aksi untuk
+   memulihkan status sengketa; eskalasi ke Owner dan jangan mengubah database langsung.
+4. Catat keputusan dan tindak lanjut di catatan internal order (`/admin/pesanan/<id>`).
 
 ## 6. Database
 
@@ -117,13 +129,13 @@ Transisi aman dijalankan ulang (idempoten): season yang sudah ENDED mengembalika
 | `PLUGIN_SHARED_SECRET` | Perbarui `.env` + `config.yml` plugin → restart web, worker, dan server MC. Pengiriman yang gagal saat transisi perlu dikirim ulang. |
 | `SESSION_SECRET` | Perbarui `.env` → restart web. Semua sesi login menjadi tidak valid; staf perlu login + 2FA lagi. |
 | `ENCRYPTION_KEY` | **Jangan** diganti tanpa mengenkripsi ulang `payment_credentials`; kredensial lama tidak akan terbaca. |
-| Kredensial gateway | Simpan ulang lewat `/admin/pembayaran` (otomatis terenkripsi). |
+| Kredensial gateway | Owner menyimpan ulang lewat `/admin/pembayaran` (otomatis terenkripsi), lalu menguji kesiapan gateway. |
 | Password owner | Login → `/dashboard/keamanan` → ganti password (semua sesi lain keluar). |
 
 ## 9. Daftar periksa harian (5 menit)
 
 - `/admin` → "Perlu perhatian" harus 0.
 - `/admin/pengiriman` → tidak ada `DEAD`.
-- `/admin/pembayaran` → tidak ada `UNDERPAID` menggantung.
+- Owner: `/admin/pembayaran` → tidak ada `UNDERPAID` menggantung.
 - `/admin/pesanan?status=FAILED` → kosong.
 - Backup terakhir berhasil.

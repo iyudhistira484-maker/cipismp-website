@@ -68,6 +68,19 @@ describe("signature request plugin (HMAC + timestamp + nonce)", () => {
   const body = JSON.stringify({ code: "ABCD1234", uuid: "33333333-3333-4333-8333-333333333333" });
   const now = () => String(Math.floor(Date.now() / 1000));
 
+  it("menghasilkan format HMAC yang sama dengan Java plugin", () => {
+    const fixtureSecret = "test-plugin-secret-0123456789abcdef";
+    const fixtureTimestamp = "1762900000";
+    const fixtureNonce = "abc123";
+    const fixtureBody = "{\"deliveryId\":\"del_1\",\"uuid\":\"33333333-3333-4333-8333-333333333333\",\"player\":\"CipiTest\",\"commands\":[\"lp user CipiTest parent add iron\"],\"reason\":\"PURCHASE\"}";
+    expect(computePluginSignature({
+      secret: fixtureSecret,
+      timestamp: fixtureTimestamp,
+      nonce: fixtureNonce,
+      body: fixtureBody,
+    })).toBe("0082f0749dfa5108e9f2b4a3ee9c07942cd3d5c713687c5b2dcfa40456654264");
+  });
+
   it("menerima signature yang benar", () => {
     const timestamp = now();
     const nonce = "nonce-1";

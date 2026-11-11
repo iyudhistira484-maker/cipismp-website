@@ -27,19 +27,66 @@ public final class QueueStore {
         this.data = YamlConfiguration.loadConfiguration(file);
     }
 
-    public synchronized void enqueue(Delivery delivery) {
-        List<String> ids = data.getStringList(key(delivery.uuid()) + ".ids");
+    public synchronized boolean enqueue(Delivery delivery) {
+        if (completedApplied(delivery.deliveryId()) != null) return true;
+        String base = key(delivery.uuid());
+        List<String> ids = data.getStringList(base + ".ids");
+        if (ids.contains(delivery.deliveryId())) return save();
         if (ids.size() >= maxPerPlayer) {
             plugin.getLogger().warning("Antrean " + delivery.player() + " penuh (" + maxPerPlayer + "); pengiriman "
-                    + delivery.deliveryId() + " dilewati dan harus dikirim ulang dari panel admin.");
-            return;
+                    + delivery.deliveryId() + " ditolak agar website dapat mencoba lagi.");
+            return false;
         }
         ids.add(delivery.deliveryId());
-        data.set(key(delivery.uuid()) + ".ids", ids);
-        data.set(key(delivery.uuid()) + ".player", delivery.player());
-        data.set(key(delivery.uuid()) + ".entries." + delivery.deliveryId() + ".reason", delivery.reason());
-        data.set(key(delivery.uuid()) + ".entries." + delivery.deliveryId() + ".commands", delivery.commands());
+        data.set(base + ".ids", ids);
+        data.set(base + ".player", delivery.player());
+        data.set(base + ".entries." + delivery.deliveryId() + ".reason", delivery.reason());
+        data.set(base + ".entries." + delivery.deliveryId() + ".commands", delivery.commands());
+        if (save()) return true;
+
+        // Do not let a retry be mistaken for a durable enqueue after a disk write failure.
+        ids.remove(delivery.deliveryId());
+        if (ids.isEmpty()) {
+            data.set(base, null);
+        } else {
+            data.set(base + ".ids", ids);
+        }
+        data.set(base + ".entries." + delivery.deliveryId(), null);
+        return false;
+    }
+
+    /** Return the applied-command count for a completed delivery, if already executed. */
+    public synchronized Integer completedApplied(String deliveryId) {
+        String path = "completed." + deliveryId + ".applied";
+        return data.isInt(path) ? data.getInt(path) : null;
+    }
+
+    /** Persist completion before the remote ACK so a re-polled delivery is not executed twice. */
+    public synchronized boolean markCompleted(String deliveryId, int applied) {
+        String path = "completed." + deliveryId;
+        data.set(path + ".applied", Math.max(0, applied));
+        data.set(path + ".at", System.currentTimeMillis());
+        pruneCompleted();
+        return save();
+    }
+
+    /** Remove an in-memory completion marker when its disk write failed and it must be retried. */
+    public synchronized void forgetCompleted(String deliveryId) {
+        data.set("completed." + deliveryId, null);
         save();
+    }
+
+    private void pruneCompleted() {
+        ConfigurationSection section = data.getConfigurationSection("completed");
+        if (section == null) return;
+        List<String> completed = new ArrayList<>(section.getKeys(false));
+        if (completed.size() <= 2000) return;
+        completed.sort((left, right) -> Long.compare(
+                data.getLong("completed." + left + ".at", 0L),
+                data.getLong("completed." + right + ".at", 0L)));
+        for (int i = 0; i < completed.size() - 2000; i++) {
+            data.set("completed." + completed.get(i), null);
+        }
     }
 
     public synchronized List<Delivery> drain(String uuid) {
@@ -79,14 +126,17 @@ public final class QueueStore {
         return "players." + uuid.toLowerCase();
     }
 
-    private void save() {
+    private boolean save() {
         try {
             if (!plugin.getDataFolder().exists() && !plugin.getDataFolder().mkdirs()) {
                 plugin.getLogger().warning("Tidak bisa membuat folder data plugin.");
+                return false;
             }
             data.save(file);
+            return true;
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Gagal menyimpan antrean pengiriman", e);
+            return false;
         }
     }
 }

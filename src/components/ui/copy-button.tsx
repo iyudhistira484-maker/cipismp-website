@@ -7,11 +7,13 @@ import { cn } from "@/lib/utils";
 export function CopyButton({
   value,
   label,
+  buttonText,
   className,
   compact,
 }: {
   value: string;
   label?: string;
+  buttonText?: string;
   className?: string;
   compact?: boolean;
 }) {
@@ -46,7 +48,7 @@ export function CopyButton({
       aria-label={copied ? "Tersalin" : `Salin ${label ?? value}`}
     >
       {copied ? <Check className="size-3 text-success" aria-hidden /> : <Copy className="size-3" aria-hidden />}
-      <span>{copied ? "Tersalin" : (label ?? "Salin")}</span>
+      <span>{copied ? "Tersalin" : (buttonText ?? label ?? "Salin")}</span>
       {!compact ? <span className="sr-only"> {value}</span> : null}
     </button>
   );

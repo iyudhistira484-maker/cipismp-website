@@ -185,7 +185,7 @@ export function CheckoutForm({
                 </p>
                 <p className="text-2xs text-muted-2">
                   {lookup.edition === "BEDROCK" ? "Bedrock (Floodgate)" : "Java Edition"} ·{" "}
-                  <span className="font-pixel">{lookup.uuid.slice(0, 13)}…</span>
+                  <span className="font-mono">{lookup.uuid.slice(0, 13)}…</span>
                 </p>
               </div>
             </div>
@@ -218,7 +218,7 @@ export function CheckoutForm({
                   value={option.id}
                   checked={provider === option.id}
                   onChange={() => setProvider(option.id)}
-                  className="mt-0.5 size-4 accent-[#e0a84e]"
+                  className="mt-0.5 size-4 accent-[#be427e]"
                 />
                 <span>
                   <span className="block text-[13.5px] text-ink">{option.label}</span>

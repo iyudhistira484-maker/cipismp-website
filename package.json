@@ -2,14 +2,14 @@
   "name": "cipismp-store",
   "version": "1.0.0",
   "private": true,
-  "description": "CipiSMP Store \u2014 webstore ranks & kits untuk server Minecraft CipiSMP",
+  "description": "CipiSMP Store — webstore ranks & kits untuk server Minecraft CipiSMP",
   "engines": {
     "node": ">=20.11"
   },
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 3000",
+    "start": "node scripts/start-standalone.mjs",
     "typecheck": "tsc --noEmit",
     "worker": "tsx src/worker/index.ts",
     "db:generate": "drizzle-kit generate",
@@ -29,7 +29,6 @@
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.2.8",
     "@fontsource-variable/instrument-sans": "^5.2.8",
-    "@fontsource/silkscreen": "^5.2.6",
     "@noble/hashes": "1.8.0",
     "@radix-ui/react-accordion": "1.2.11",
     "@radix-ui/react-checkbox": "1.3.2",
