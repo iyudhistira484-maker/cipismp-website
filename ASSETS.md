@@ -10,6 +10,7 @@ pencarian, tangkapan layar pihak lain, atau aset berlisensi tidak jelas.
 | Wordmark "CipiSMP" (tipografi, bukan gambar) | `src/components/store/site-header.tsx`, `src/components/store/site-footer.tsx` | Milik proyek |
 | Favicon / ikon aplikasi | `src/app/icon.svg` | Milik proyek |
 | Gambar OG default | `src/app/opengraph-image.tsx` (dibuat runtime oleh Next) | Milik proyek |
+| Gambar OG per produk | `src/app/(store)/{rank,kit}/[slug]/opengraph-image.tsx` + `src/components/art/og-product.tsx` — nama produk, tagline, 3 keunggulan, harga, sisa season, warna tier | Milik proyek |
 
 Logo sengaja tipografis: huruf dari font display yang sudah di-self-host, tanpa maskot
 atau ilustrasi tambahan. Favicon memakai bentuk "chestplate" sederhana dengan aksen amber.

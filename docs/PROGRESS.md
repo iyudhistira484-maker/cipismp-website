@@ -117,6 +117,12 @@ Dimulai dari **admin lanjutan** (dipilih pengguna).
 - **Halaman `/admin/pengaturan`**: pajak, biaya, batas bayar, usia minimum, freeze season,
   gateway default, dan toggle fitur (kupon, hadiah, ulasan, login Discord).
 
+- **Aset visual per produk**: setiap detail rank & kit punya gambar OG sendiri
+  (`/rank/<slug>/opengraph-image`, `/kit/<slug>/opengraph-image`) berisi nama produk,
+  tagline, tiga keunggulan, harga, tanggal berakhir season aktif, dan warna tier
+  (iron/gold/diamond/amber). Pratinjau tautan di Discord/WhatsApp kini menampilkan produk,
+  bukan hanya banner toko.
+
 ### Berikutnya
-1. Aset gambar/OG per produk (ilustrasi unik tiap rank & kit).
-2. Kupon bertingkat (minimum belanja bertingkat / kupon eksklusif season).
+1. Kupon bertingkat (minimum belanja bertingkat / kupon eksklusif season).
+2. Ilustrasi raster per produk untuk kartu katalog (opsional; sprite + OG sudah ada).
