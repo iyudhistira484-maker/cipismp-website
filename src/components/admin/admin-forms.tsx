@@ -14,7 +14,9 @@ import {
   adminMarkPaidAction,
   adminPreviewTransitionAction,
   adminRedeliverAction,
+  adminRevokeAllStaffSessionsAction,
   adminRevokeEntitlementAction,
+  adminRevokeSessionAction,
   adminRunTransitionAction,
   adminSaveCouponAction,
   adminSaveOrderNoteAction,
@@ -668,6 +670,46 @@ export function StaffRoleForm({
       </Select>
       <SubmitButton size="sm" variant="secondary" disabled={disabled}>
         Ubah
+      </SubmitButton>
+      {state.error ? <span className="text-2xs text-danger">{state.error}</span> : null}
+      {state.success ? <span className="text-2xs text-success">{state.success}</span> : null}
+    </form>
+  );
+}
+
+export function RevokeSessionButton({ sessionId }: { sessionId: string }) {
+  const [state, action, pending] = useActionState(adminRevokeSessionAction, empty);
+  return (
+    <form
+      action={action}
+      onSubmit={(event) => {
+        if (!window.confirm("Cabut sesi ini? Perangkat tersebut harus login ulang + 2FA.")) event.preventDefault();
+      }}
+      className="inline-flex flex-col gap-1"
+    >
+      <input type="hidden" name="sessionId" value={sessionId} />
+      <SubmitButton size="sm" variant="ghost" loading={pending}>
+        Cabut
+      </SubmitButton>
+      {state.error ? <span className="text-2xs text-danger">{state.error}</span> : null}
+      {state.success ? <span className="text-2xs text-success">{state.success}</span> : null}
+    </form>
+  );
+}
+
+export function RevokeAllSessionsButton({ userId, disabled }: { userId: string; disabled?: boolean }) {
+  const [state, action, pending] = useActionState(adminRevokeAllStaffSessionsAction, empty);
+  return (
+    <form
+      action={action}
+      onSubmit={(event) => {
+        if (!window.confirm("Cabut SEMUA sesi staf ini? Mereka harus login ulang.")) event.preventDefault();
+      }}
+      className="inline-flex flex-col gap-1"
+    >
+      <input type="hidden" name="userId" value={userId} />
+      <SubmitButton size="sm" variant="ghost" loading={pending} disabled={disabled}>
+        Cabut semua sesi
       </SubmitButton>
       {state.error ? <span className="text-2xs text-danger">{state.error}</span> : null}
       {state.success ? <span className="text-2xs text-success">{state.success}</span> : null}

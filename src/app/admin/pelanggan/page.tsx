@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { AdminPageHeader, Table, Td } from "@/components/admin/shell";
+import { ExportLink } from "@/components/admin/export-link";
 
 export const metadata = { title: "Pelanggan" };
 
@@ -19,6 +20,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
       <AdminPageHeader
         title="Pelanggan"
         description="Total belanja dihitung dari order berstatus dibayar. Akun yang dihapus tetap menyisakan order untuk pembukuan."
+        actions={<ExportLink type="customers" label="Ekspor CSV" />}
       />
 
       <form className="mb-4 flex flex-wrap items-end gap-2" method="get">

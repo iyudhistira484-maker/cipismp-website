@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { AdminPageHeader, Table, Td } from "@/components/admin/shell";
+import { ExportLink } from "@/components/admin/export-link";
 
 export const metadata = { title: "Pesanan" };
 
@@ -32,6 +33,7 @@ export default async function AdminOrdersPage({
       <AdminPageHeader
         title="Pesanan"
         description="Cari berdasarkan nomor order, email, atau nama pemain. Perubahan status tercatat di audit log."
+        actions={<ExportLink type="orders" label="Ekspor CSV (100 hari)" from={new Date(Date.now() - 100 * 86_400_000).toISOString().slice(0, 10)} />}
       />
 
       <form className="mb-4 flex flex-wrap items-end gap-2" method="get">

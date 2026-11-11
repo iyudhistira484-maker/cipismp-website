@@ -12,6 +12,7 @@ import {
   products,
   seasons,
   servers,
+  sessions,
   users,
 } from "../db/schema";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-state";
@@ -83,6 +84,76 @@ export async function analyticsSummary(now = new Date()): Promise<AnalyticsSumma
     deadDeliveries: Number(deadRow?.total ?? 0),
     pendingJobs: 0,
   };
+}
+
+export interface RevenuePoint {
+  day: string; // YYYY-MM-DD (Asia/Jakarta)
+  revenueIdr: number;
+  orders: number;
+}
+
+/** Pendapatan per hari (WIB) dari order yang sudah dibayar. */
+export async function revenueTrend(days = 30, now = new Date()): Promise<RevenuePoint[]> {
+  const from = new Date(now.getTime() - (days - 1) * 86_400_000);
+  const rows = await db
+    .select({
+      day: sql<string>`to_char((${orders.paidAt} AT TIME ZONE 'Asia/Jakarta')::date, 'YYYY-MM-DD')`,
+      revenue: sql<string>`coalesce(sum(${orders.totalIdr}), 0)`,
+      total: sql<string>`count(*)`,
+    })
+    .from(orders)
+    .where(and(inArray(orders.status, PAID_STATUSES), gte(orders.paidAt, from)))
+    .groupBy(sql`(${orders.paidAt} AT TIME ZONE 'Asia/Jakarta')::date`)
+    .orderBy(sql`(${orders.paidAt} AT TIME ZONE 'Asia/Jakarta')::date`);
+
+  const map = new Map(rows.map((row) => [row.day, { revenueIdr: idr(row.revenue), orders: Number(row.total) }]));
+  const out: RevenuePoint[] = [];
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date(now.getTime() - index * 86_400_000 + 7 * 3_600_000);
+    const key = date.toISOString().slice(0, 10);
+    const entry = map.get(key);
+    out.push({ day: key, revenueIdr: entry?.revenueIdr ?? 0, orders: entry?.orders ?? 0 });
+  }
+  return out;
+}
+
+export interface StaffSessionRow {
+  id: string;
+  userId: string;
+  email: string;
+  role: string;
+  ip: string | null;
+  userAgent: string | null;
+  lastSeenAt: Date;
+  absoluteExpiresAt: Date;
+  mfaSatisfiedAt: Date | null;
+}
+
+/** Sesi aktif milik semua akun staf (untuk pencabutan paksa). */
+export async function staffSessions(): Promise<StaffSessionRow[]> {
+  const rows = await db
+    .select({
+      id: sessions.id,
+      userId: sessions.userId,
+      email: users.email,
+      role: users.role,
+      ip: sessions.ip,
+      userAgent: sessions.userAgent,
+      lastSeenAt: sessions.lastSeenAt,
+      absoluteExpiresAt: sessions.absoluteExpiresAt,
+      mfaSatisfiedAt: sessions.mfaSatisfiedAt,
+    })
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
+    .where(
+      and(
+        inArray(users.role, ["OWNER", "ADMIN", "SUPPORT"]),
+        isNull(sessions.revokedAt),
+        gte(sessions.absoluteExpiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(sessions.lastSeenAt));
+  return rows;
 }
 
 export interface OrderFilters {

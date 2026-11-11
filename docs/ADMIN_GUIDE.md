@@ -28,6 +28,12 @@ Role:
 - Di kanan bawah ada **Comp manual**: memberi rank/kit gratis. Selalu isi alasan; alasan
   masuk ke audit log dan tidak bisa dihapus.
 
+## Ringkasan pendapatan
+
+Grafik batang di halaman **Ringkasan** menunjukkan pendapatan per hari (WIB) selama 30 hari
+terakhir, hanya dari order yang sudah dibayar. Klik **Lihat angka per hari** untuk melihat
+tabel angkanya. Untuk laporan bulanan, gunakan **Ekspor CSV** di halaman Pesanan.
+
 ## Menangani pesanan
 
 Buka **Pesanan**, cari dengan nomor order, email, atau nama pemain.
@@ -121,6 +127,31 @@ season berakhir.
   tercatat di audit log.
 - Tidak bisa mengubah role akun sendiri; ini pengaman agar tidak ada yang mengunci dirinya.
 - Akun Owner hanya diganti lewat CLI (`npm run seed:owner`) oleh Admin teknis.
+
+## Ekspor data (CSV)
+
+- **Pesanan → Ekspor CSV (100 hari)** mengunduh order 100 hari terakhir: nomor, waktu,
+  status, email, pemain, UUID, gateway, rincian uang, kupon, dan catatan admin.
+- **Pelanggan → Ekspor CSV** mengunduh daftar akun beserta total belanja dan jumlah order
+  yang sudah dibayar.
+- Berkas memakai pemisah koma, encoding UTF-8 (aman dibuka di Excel), dan teks yang mirip
+  formula otomatis dinetralkan.
+- Setiap ekspor tercatat di audit log (`data.export`) beserta jumlah baris dan rentang
+  tanggal, dan dibatasi 6 ekspor per menit per akun.
+- Data ini berisi informasi pribadi pembeli. Simpan hanya di tempat yang aman dan jangan
+  dibagikan ke publik.
+
+## Sesi staf
+
+Di bagian bawah halaman **Staf** ada tabel **Sesi staf aktif**: email, role, perangkat, IP,
+waktu aktif terakhir, dan status 2FA sesi.
+
+- **Cabut** pada satu baris mengeluarkan perangkat itu; orangnya harus login ulang + 2FA.
+- **Cabut semua sesi** di kolom role mengeluarkan semua perangkat staf tersebut sekaligus —
+  pakai bila perangkat hilang atau ada kecurigaan akun diambil alih.
+- Sesi milikmu sendiri tidak bisa dicabut dari sini; gunakan **Keluar** atau menu keamanan
+  di dashboard.
+- Sesi Owner tidak bisa dicabut oleh Admin; hanya Owner sendiri yang bisa.
 
 ## Audit log
 

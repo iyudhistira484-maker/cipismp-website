@@ -1,11 +1,12 @@
 import { requireStaff } from "@/server/auth/guard";
-import { listStaffAccounts } from "@/server/admin/queries";
+import { listStaffAccounts, staffSessions } from "@/server/admin/queries";
 import { ROLE_LABEL, hasPermission } from "@/server/rbac";
 import { formatDateTimeWIB } from "@/lib/dates";
+import { deviceLabel } from "@/server/auth/session";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/feedback";
 import { AdminPageHeader, Card, Table, Td } from "@/components/admin/shell";
-import { StaffRoleForm } from "@/components/admin/admin-forms";
+import { RevokeAllSessionsButton, RevokeSessionButton, StaffRoleForm } from "@/components/admin/admin-forms";
 
 export const metadata = { title: "Staf" };
 
@@ -17,8 +18,14 @@ const MATRIX = [
 
 export default async function AdminStaffPage() {
   const viewer = await requireStaff("staff.write");
-  const staff = await listStaffAccounts();
+  const [staff, sessions] = await Promise.all([listStaffAccounts(), staffSessions()]);
   const canManage = hasPermission(viewer.user.role, "staff.write");
+  const sessionsByUser = new Map<string, typeof sessions>();
+  for (const session of sessions) {
+    const list = sessionsByUser.get(session.userId) ?? [];
+    list.push(session);
+    sessionsByUser.set(session.userId, list);
+  }
 
   return (
     <>
@@ -41,13 +48,18 @@ export default async function AdminStaffPage() {
               <Td>{member.totpEnabledAt ? <span className="text-success">Aktif</span> : <span className="text-danger">Belum</span>}</Td>
               <Td>{member.lastLoginAt ? formatDateTimeWIB(member.lastLoginAt) : "—"}</Td>
               <Td>
-                {member.id === viewer.user.id ? (
-                  <span className="text-2xs text-muted-2">Akun sendiri</span>
-                ) : member.role === "OWNER" ? (
-                  <span className="text-2xs text-muted-2">Gunakan CLI seed-owner</span>
-                ) : (
-                  <StaffRoleForm userId={member.id} role={member.role} disabled={!canManage} />
-                )}
+                <div className="space-y-1.5">
+                  {member.id === viewer.user.id ? (
+                    <span className="text-2xs text-muted-2">Akun sendiri</span>
+                  ) : member.role === "OWNER" ? (
+                    <span className="text-2xs text-muted-2">Gunakan CLI seed-owner</span>
+                  ) : (
+                    <StaffRoleForm userId={member.id} role={member.role} disabled={!canManage} />
+                  )}
+                  {canManage && member.id !== viewer.user.id && member.role !== "OWNER" ? (
+                    <RevokeAllSessionsButton userId={member.id} />
+                  ) : null}
+                </div>
               </Td>
             </tr>
           ))}
@@ -68,6 +80,38 @@ export default async function AdminStaffPage() {
           </p>
         </Card>
       </div>
+
+      <Card
+        className="mt-4"
+        title="Sesi staf aktif"
+        description="Sesi yang masih berlaku (login belum kedaluwarsa atau dicabut). Cabut bila ada perangkat hilang atau akses perlu dihentikan segera."
+      >
+        <Table head={["Staf", "Role", "Perangkat", "IP", "Login terakhir", "2FA sesi", "Aksi"]} empty={sessions.length === 0}>
+          {sessions.map((session) => (
+            <tr key={session.id}>
+              <Td className="text-ink">{session.email}</Td>
+              <Td>{ROLE_LABEL[session.role as keyof typeof ROLE_LABEL] ?? session.role}</Td>
+              <Td className="max-w-48 truncate text-2xs">{deviceLabel(session.userAgent)}</Td>
+              <Td className="font-mono text-2xs">{session.ip ?? "—"}</Td>
+              <Td>{formatDateTimeWIB(session.lastSeenAt)}</Td>
+              <Td>{session.mfaSatisfiedAt ? <span className="text-success">terpenuhi</span> : <span className="text-warning">belum</span>}</Td>
+              <Td>
+                {session.userId === viewer.user.id ? (
+                  <span className="text-2xs text-muted-2">Sesi ini</span>
+                ) : canManage ? (
+                  <RevokeSessionButton sessionId={session.id} />
+                ) : (
+                  <span className="text-2xs text-muted-2">—</span>
+                )}
+              </Td>
+            </tr>
+          ))}
+        </Table>
+        <p className="mt-2 text-2xs text-muted-2">
+          Sesi staf berakhir otomatis setelah tidak aktif (bawaan 120 menit) atau setelah 168 jam, dan selalu
+          butuh 2FA saat login ulang.
+        </p>
+      </Card>
     </>
   );
 }

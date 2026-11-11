@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowUpRight } from "lucide-react";
 import { requireStaff } from "@/server/auth/guard";
-import { analyticsSummary, listOrders, deliveryMonitor, pendingPaymentRows } from "@/server/admin/queries";
+import { analyticsSummary, listOrders, deliveryMonitor, pendingPaymentRows, revenueTrend } from "@/server/admin/queries";
 import { adminActiveProducts } from "@/app/actions/admin";
 import { formatRp } from "@/lib/money";
 import { formatDateWIB, formatDateTimeWIB } from "@/lib/dates";
@@ -9,18 +9,20 @@ import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader, Card, Stat, Table, Td } from "@/components/admin/shell";
 import { CompForm } from "@/components/admin/admin-forms";
+import { RevenueChart } from "@/components/admin/revenue-chart";
 import { hasPermission } from "@/server/rbac";
 
 export const metadata = { title: "Ringkasan" };
 
 export default async function AdminHomePage() {
   const viewer = await requireStaff("orders.read");
-  const [summary, recentOrders, monitor, pendingPayments, products] = await Promise.all([
+  const [summary, recentOrders, monitor, pendingPayments, products, trend] = await Promise.all([
     analyticsSummary(),
     listOrders({ limit: 8 }),
     deliveryMonitor(8),
     pendingPaymentRows(5),
     adminActiveProducts(),
+    revenueTrend(30),
   ]);
   const canComp = hasPermission(viewer.user.role, "grants.write");
 
@@ -59,7 +61,11 @@ export default async function AdminHomePage() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <Card title="Tren pendapatan" className="mt-4" description="30 hari terakhir, hanya order yang sudah dibayar.">
+        <RevenueChart points={trend} />
+      </Card>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Card title="Pesanan terbaru" description="8 order terakhir dari semua status.">
           <Table head={["Order", "Pemain", "Status", "Total", "Dibuat"]} empty={recentOrders.length === 0}>
             {recentOrders.map((order) => (

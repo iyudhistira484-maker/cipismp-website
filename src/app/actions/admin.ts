@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { coupons, deliveries, orders, products, seasons, servers, users } from "@/server/db/schema";
+import { coupons, deliveries, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
 import { requireStaff, requirePermissionApi } from "@/server/auth/guard";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -812,6 +812,68 @@ export async function adminSetRoleAction(_prev: AdminState, formData: FormData):
     });
     revalidatePath("/admin/staf");
     return { success: `Role ${target.email} diubah menjadi ${role}.` };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* ------------------------------------------------------------------ sesi staf */
+
+export async function adminRevokeSessionAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    const viewer = await requirePermissionApi("staff.write");
+    const sessionId = String(formData.get("sessionId") ?? "");
+    if (!sessionId) return { error: "Sesi tidak dikenal." };
+
+    const { revokeSession } = await import("@/server/auth/session");
+    const session = await db.query.sessions.findFirst({ where: eq(sessions.id, sessionId) });
+    if (!session) return { error: "Sesi tidak ditemukan." };
+    if (session.userId === viewer.user.id) {
+      return { error: "Tidak bisa mencabut sesi yang sedang kamu pakai. Gunakan logout." };
+    }
+
+    await revokeSession(sessionId);
+    await writeAudit({
+      actor,
+      action: "staff.session-revoked",
+      targetType: "session",
+      targetId: sessionId,
+      before: { userId: session.userId, ip: session.ip },
+      ip,
+    });
+    revalidatePath("/admin/staf");
+    return { success: "Sesi staf dicabut. Perangkat tersebut harus login ulang + 2FA." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function adminRevokeAllStaffSessionsAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard(6, 300);
+    const viewer = await requirePermissionApi("staff.write");
+    const userId = String(formData.get("userId") ?? "");
+    if (!userId) return { error: "Pengguna tidak dikenal." };
+    if (userId === viewer.user.id) {
+      return { error: "Untuk akun sendiri, gunakan tombol di dashboard (semua sesi lain)." };
+    }
+    const target = await db.query.users.findFirst({ where: eq(users.id, userId) });
+    if (!target) return { error: "Pengguna tidak ditemukan." };
+    if (target.role === "OWNER") return { error: "Sesi Owner hanya bisa dicabut oleh Owner sendiri." };
+
+    const { revokeAllSessions } = await import("@/server/auth/session");
+    await revokeAllSessions(userId);
+    await writeAudit({
+      actor,
+      action: "staff.sessions-revoked-all",
+      targetType: "user",
+      targetId: userId,
+      after: { email: target.email, role: target.role },
+      ip,
+    });
+    revalidatePath("/admin/staf");
+    return { success: `Semua sesi ${target.email} dicabut.` };
   } catch (error) {
     return fail(error);
   }

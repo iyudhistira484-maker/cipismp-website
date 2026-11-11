@@ -87,8 +87,20 @@ snapshot legal, upgrade selisih, blokir rank dimiliki).
 - Playwright e2e (storefront, auth, admin gate) dan skrip k6 untuk uji beban katalog.
 - Dokumen: `README.md`, `ASSETS.md`, `GO_LIVE.md`, `RUNBOOK.md`, `ADMIN_GUIDE.md`.
 
-## Berikutnya (di luar MVP — Wave 2, menunggu keputusan)
+## Wave 2
+
+Dimulai dari **admin lanjutan** (dipilih pengguna).
+
+### Selesai
+- **Ekspor CSV** pesanan (rentang 100 hari, filter tanggal lewat query) dan pelanggan,
+  dengan escaping RFC 4180, BOM UTF-8, netralisasi formula spreadsheet, audit `data.export`,
+  dan rate limit 6 ekspor/menit per akun. Route: `GET /api/admin/export?type=orders|customers`.
+- **Grafik tren pendapatan** 30 hari (SVG tanpa dependensi, `role="img"` + tabel angka yang
+  bisa dibuka) di halaman Ringkasan.
+- **Manajemen sesi staf** di `/admin/staf`: daftar sesi aktif (perangkat, IP, aktivitas
+  terakhir, status 2FA) + cabut satu sesi / semua sesi, dengan audit log.
+
+### Berikutnya
 1. Gifting UI (mesin harga sudah mendukung aturan rank terhadap UUID penerima).
 2. Login Discord, ulasan pembeli, kupon bertingkat.
-3. Halaman admin lanjutan: ekspor CSV, grafik tren, manajemen sesi staf.
-4. Aset gambar/OG per produk.
+3. Aset gambar/OG per produk.
