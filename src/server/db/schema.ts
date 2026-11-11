@@ -529,6 +529,11 @@ export const coupons = pgTable(
     type: couponTypeEnum("type").notNull(),
     value: integer("value").notNull(),
     minSubtotalIdr: integer("min_subtotal_idr").notNull().default(0),
+    tiers: jsonb("tiers")
+      .$type<Array<{ minSubtotalIdr: number; type: "PERCENT" | "FIXED"; value: number }>>()
+      .notNull()
+      .default([]),
+    seasonId: text("season_id").references(() => seasons.id, { onDelete: "restrict" }),
     maxRedemptions: integer("max_redemptions"),
     maxPerUser: integer("max_per_user").notNull().default(1),
     startsAt: ts("starts_at"),
@@ -539,7 +544,7 @@ export const coupons = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("coupons_active_idx").on(t.active)],
+  (t) => [index("coupons_active_idx").on(t.active), index("coupons_season_idx").on(t.seasonId)],
 );
 
 export const couponRedemptions = pgTable(

@@ -1,5 +1,6 @@
 import { requireStaff } from "@/server/auth/guard";
 import { listCouponsForAdmin } from "@/server/admin/queries";
+import { listSeasons } from "@/server/catalog";
 import { formatRp } from "@/lib/money";
 import { formatDateWIB } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
@@ -11,19 +12,30 @@ export const metadata = { title: "Kupon" };
 export default async function AdminCouponsPage({ searchParams }: { searchParams: Promise<{ edit?: string }> }) {
   await requireStaff("coupons.write");
   const params = await searchParams;
-  const coupons = await listCouponsForAdmin();
+  const [coupons, seasons] = await Promise.all([listCouponsForAdmin(), listSeasons()]);
   const editing = params.edit ? coupons.find((coupon) => coupon.id === params.edit) : undefined;
+  const seasonNames = new Map(seasons.map((season) => [season.id, season.name]));
 
   return (
     <>
       <AdminPageHeader title="Kupon" description="Diskon tidak pernah membuat total negatif. Kuota dan batas per pembeli ditegakkan di server." />
 
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <Table head={["Kode", "Diskon", "Kuota", "Terpakai", "Total diskon", "Periode", "Status", "Aksi"]} empty={coupons.length === 0}>
+        <Table head={["Kode", "Diskon", "Season", "Kuota", "Terpakai", "Total diskon", "Periode", "Status", "Aksi"]} empty={coupons.length === 0}>
           {coupons.map((coupon) => (
             <tr key={coupon.id}>
               <Td className="font-mono text-ink">{coupon.code}</Td>
-              <Td>{coupon.type === "PERCENT" ? `${coupon.value}%` : formatRp(coupon.value)}</Td>
+              <Td className="min-w-40 align-top text-2xs">
+                <p className="text-ink">
+                  {coupon.type === "PERCENT" ? `${coupon.value}%` : formatRp(coupon.value)} · ≥ {formatRp(coupon.minSubtotalIdr)}
+                </p>
+                {coupon.tiers.map((tier, index) => (
+                  <p key={`${coupon.id}-tier-${index}`} className="mt-1 text-muted-2">
+                    {tier.type === "PERCENT" ? `${tier.value}%` : formatRp(tier.value)} · ≥ {formatRp(tier.minSubtotalIdr)}
+                  </p>
+                ))}
+              </Td>
+              <Td className="text-2xs">{coupon.seasonId ? (seasonNames.get(coupon.seasonId) ?? "Season khusus") : "Semua season"}</Td>
               <Td className="tabular-nums">{coupon.maxRedemptions ?? "∞"}</Td>
               <Td className="tabular-nums">{coupon.redeemedCount}</Td>
               <Td className="tabular-nums">{formatRp(coupon.discountGivenIdr)}</Td>
@@ -55,6 +67,8 @@ export default async function AdminCouponsPage({ searchParams }: { searchParams:
                     type: editing.type,
                     value: editing.value,
                     minSubtotalIdr: editing.minSubtotalIdr,
+                    tiers: editing.tiers,
+                    seasonId: editing.seasonId,
                     maxRedemptions: editing.maxRedemptions,
                     maxPerUser: editing.maxPerUser,
                     startsAt: editing.startsAt,
@@ -65,6 +79,7 @@ export default async function AdminCouponsPage({ searchParams }: { searchParams:
                   }
                 : undefined
             }
+            seasons={seasons.map(({ id, name, status }) => ({ id, name, status }))}
           />
         </Card>
       </div>

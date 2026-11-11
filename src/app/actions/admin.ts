@@ -23,6 +23,8 @@ import { saveProviderConfig, getAvailableProviders, PROVIDER_LABEL, type Provide
 import { encryptSecret, decryptSecret } from "@/server/crypto";
 import { testPluginEndpoint, testRcon } from "@/server/admin/server-test";
 import { parseIdr } from "@/lib/money";
+import { fromJakartaInput } from "@/lib/form-datetime";
+import type { CouponTier } from "@/lib/pricing";
 import { STAFF_ROLES, type Role } from "@/server/rbac";
 
 export interface AdminState {
@@ -450,21 +452,57 @@ export async function adminSaveCouponAction(_prev: AdminState, formData: FormDat
   try {
     const { ip, actor } = await guard();
     await requirePermissionApi("coupons.write");
+
     const value = idrField(formData, "value");
-    if (value === null) return { error: "Nilai kupon tidak valid." };
-    const type = String(formData.get("type") ?? "PERCENT") === "FIXED" ? "FIXED" : "PERCENT";
+    const minSubtotalIdr = idrField(formData, "minSubtotalIdr");
+    if (value === null || minSubtotalIdr === null) return { error: "Nilai kupon tidak valid." };
+    const typeRaw = String(formData.get("type") ?? "PERCENT");
+    if (typeRaw !== "PERCENT" && typeRaw !== "FIXED") return { error: "Tipe diskon tidak valid." };
+    const type = typeRaw as "PERCENT" | "FIXED";
     if (type === "PERCENT" && (value < 1 || value > 100)) return { error: "Diskon persen harus 1–100." };
     if (type === "FIXED" && value < 1000) return { error: "Diskon nominal minimal Rp 1.000." };
+
+    const tiers: CouponTier[] = [];
+    let previousThreshold = minSubtotalIdr;
+    for (const tierNumber of [2, 3]) {
+      const minimumRaw = String(formData.get(`tier${tierNumber}MinSubtotalIdr`) ?? "").trim();
+      const valueRaw = String(formData.get(`tier${tierNumber}Value`) ?? "").trim();
+      const tierTypeRaw = String(formData.get(`tier${tierNumber}Type`) ?? "PERCENT");
+      if (!minimumRaw && !valueRaw) continue;
+      if (!minimumRaw || !valueRaw) return { error: `Minimum dan diskon tingkat ${tierNumber} harus diisi bersama.` };
+
+      const tierMin = parseIdr(minimumRaw);
+      const tierValue = parseIdr(valueRaw);
+      if (
+        tierMin === null ||
+        tierValue === null ||
+        !Number.isSafeInteger(tierMin) ||
+        !Number.isSafeInteger(tierValue) ||
+        tierMin > 1_000_000_000
+      ) {
+        return { error: `Nilai tingkat ${tierNumber} tidak valid.` };
+      }
+      if (tierTypeRaw !== "PERCENT" && tierTypeRaw !== "FIXED") return { error: `Tipe tingkat ${tierNumber} tidak valid.` };
+      const tierType = tierTypeRaw as CouponTier["type"];
+      if (tierMin <= previousThreshold) return { error: "Minimum belanja tiap tingkat harus naik secara berurutan." };
+      if (tierType === "PERCENT" && (tierValue < 1 || tierValue > 100)) {
+        return { error: `Diskon persen tingkat ${tierNumber} harus 1–100.` };
+      }
+      if (tierType === "FIXED" && tierValue < 1000) return { error: `Diskon nominal tingkat ${tierNumber} minimal Rp 1.000.` };
+      tiers.push({ minSubtotalIdr: tierMin, type: tierType, value: tierValue });
+      previousThreshold = tierMin;
+    }
 
     const parsed = z
       .object({
         id: z.string().optional(),
         code: z.string().regex(/^[A-Z0-9-]{3,24}$/, "Kode 3–24 karakter huruf besar/angka."),
-        minSubtotalIdr: z.number().int().min(0),
+        minSubtotalIdr: z.number().int().min(0).max(1_000_000_000),
         maxRedemptions: z.number().int().min(0).max(100000),
         maxPerUser: z.number().int().min(0).max(100),
         startsAt: z.string().optional(),
         endsAt: z.string().optional(),
+        seasonId: z.string().optional(),
         rankOnly: z.boolean(),
         kitOnly: z.boolean(),
         active: z.boolean(),
@@ -473,26 +511,40 @@ export async function adminSaveCouponAction(_prev: AdminState, formData: FormDat
       .safeParse({
         id: String(formData.get("id") ?? "") || undefined,
         code: String(formData.get("code") ?? "").trim().toUpperCase(),
-        minSubtotalIdr: idrField(formData, "minSubtotalIdr") ?? 0,
+        minSubtotalIdr,
         maxRedemptions: Number(formData.get("maxRedemptions") ?? 0),
         maxPerUser: Number(formData.get("maxPerUser") ?? 1),
         startsAt: String(formData.get("startsAt") ?? "").trim() || undefined,
         endsAt: String(formData.get("endsAt") ?? "").trim() || undefined,
+        seasonId: String(formData.get("seasonId") ?? "").trim() || undefined,
         rankOnly: formData.get("rankOnly") === "on",
         kitOnly: formData.get("kitOnly") === "on",
         active: formData.get("active") !== null,
       });
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Data kupon tidak valid." };
     const data = parsed.data;
+    const startsAt = data.startsAt ? fromJakartaInput(data.startsAt) : null;
+    const endsAt = data.endsAt ? fromJakartaInput(data.endsAt) : null;
+    if ((startsAt && !Number.isFinite(startsAt.getTime())) || (endsAt && !Number.isFinite(endsAt.getTime()))) {
+      return { error: "Tanggal kupon tidak valid." };
+    }
+    if (startsAt && endsAt && endsAt <= startsAt) return { error: "Tanggal berakhir harus setelah tanggal mulai." };
+    if (data.seasonId) {
+      const season = await db.query.seasons.findFirst({ where: eq(seasons.id, data.seasonId) });
+      if (!season) return { error: "Season kupon tidak ditemukan." };
+    }
+
     const values = {
       code: data.code,
-      type: type as "PERCENT" | "FIXED",
+      type,
       value,
       minSubtotalIdr: data.minSubtotalIdr,
+      tiers,
+      seasonId: data.seasonId ?? null,
       maxRedemptions: data.maxRedemptions > 0 ? data.maxRedemptions : null,
       maxPerUser: data.maxPerUser,
-      startsAt: data.startsAt ? new Date(data.startsAt) : null,
-      endsAt: data.endsAt ? new Date(data.endsAt) : null,
+      startsAt,
+      endsAt,
       rankOnly: data.rankOnly,
       kitOnly: data.kitOnly,
       active: data.active,

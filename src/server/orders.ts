@@ -85,6 +85,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
 
   const settings = await getSettings();
   if (!settings.store.checkoutEnabled) throw new CheckoutError("Checkout sedang dinonaktifkan sementara.");
+  if (input.couponCode?.trim() && !settings.features.coupons) {
+    throw new CheckoutError("Kupon sedang dinonaktifkan oleh admin.");
+  }
 
   const player = await resolvePlayer(input.mcName);
 
@@ -153,6 +156,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     catalog,
     ownedByTarget: owned,
     coupon,
+    seasonId: season.id,
     settings: {
       taxPercent: settings.store.taxPercent,
       feeMode: settings.store.feeMode,
@@ -343,6 +347,8 @@ export async function loadCouponInput(code: string, email: string): Promise<Coup
     type: row.type,
     value: row.value,
     minSubtotalIdr: row.minSubtotalIdr,
+    tiers: row.tiers,
+    seasonId: row.seasonId,
     maxRedemptions: row.maxRedemptions,
     maxPerUser: row.maxPerUser,
     startsAt: row.startsAt,

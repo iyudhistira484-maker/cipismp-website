@@ -88,6 +88,7 @@ export default async function CheckoutPage() {
             email: viewer?.user.email ?? "",
           }}
           signedIn={Boolean(viewer)}
+          couponsEnabled={settings.features.coupons}
           taxPercent={settings.store.taxPercent}
           taxLabel={settings.store.taxLabel}
           minimumAge={settings.store.minimumAge}

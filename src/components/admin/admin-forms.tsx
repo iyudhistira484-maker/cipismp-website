@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckboxField, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toJakartaInput } from "@/lib/form-datetime";
+import type { CouponTier } from "@/lib/pricing";
 import {
   adminCancelOrderAction,
   adminDeleteProductAction,
@@ -369,6 +370,8 @@ export interface CouponFormValues {
   type: string;
   value: number;
   minSubtotalIdr: number;
+  tiers: CouponTier[];
+  seasonId: string | null;
   maxRedemptions: number | null;
   maxPerUser: number;
   startsAt: Date | null;
@@ -378,7 +381,13 @@ export interface CouponFormValues {
   active: boolean;
 }
 
-export function CouponForm({ coupon }: { coupon?: CouponFormValues }) {
+export interface CouponSeasonOption {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export function CouponForm({ coupon, seasons }: { coupon?: CouponFormValues; seasons: CouponSeasonOption[] }) {
   const [state, action] = useActionState(adminSaveCouponAction, empty);
   return (
     <form action={action} className="space-y-3">
@@ -388,16 +397,26 @@ export function CouponForm({ coupon }: { coupon?: CouponFormValues }) {
         <Field label="Kode" htmlFor="coupon-code" required>
           <Input id="coupon-code" name="code" defaultValue={coupon?.code} required placeholder="HEMAT10" />
         </Field>
-        <Field label="Tipe" htmlFor="coupon-type" required>
+        <Field label="Season" htmlFor="coupon-season" hint="Kosong = semua season">
+          <Select id="coupon-season" name="seasonId" defaultValue={coupon?.seasonId ?? ""}>
+            <option value="">Semua season</option>
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} ({season.status === "ACTIVE" ? "aktif" : season.status === "UPCOMING" ? "akan datang" : "selesai"})
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Diskon dasar — tipe" htmlFor="coupon-type" required>
           <Select id="coupon-type" name="type" defaultValue={coupon?.type ?? "PERCENT"}>
             <option value="PERCENT">Persen</option>
             <option value="FIXED">Nominal</option>
           </Select>
         </Field>
-        <Field label="Nilai (persen atau Rp)" htmlFor="coupon-value" required>
+        <Field label="Diskon dasar — nilai" htmlFor="coupon-value" required>
           <Input id="coupon-value" name="value" defaultValue={coupon?.value ?? 10} inputMode="numeric" required />
         </Field>
-        <Field label="Minimum belanja (Rp)" htmlFor="coupon-min">
+        <Field label="Minimum belanja dasar (Rp)" htmlFor="coupon-min">
           <Input id="coupon-min" name="minSubtotalIdr" defaultValue={coupon?.minSubtotalIdr ?? 0} inputMode="numeric" />
         </Field>
         <Field label="Kuota total" htmlFor="coupon-max" hint="0 = tanpa batas">
@@ -418,6 +437,51 @@ export function CouponForm({ coupon }: { coupon?: CouponFormValues }) {
           <Input id="coupon-end" name="endsAt" type="datetime-local" defaultValue={coupon?.endsAt ? toJakartaInput(coupon.endsAt) : ""} />
         </Field>
       </div>
+
+      <section className="space-y-3 rounded-md border border-line bg-bg/30 p-3" aria-labelledby="coupon-tiers-title">
+        <div>
+          <h3 id="coupon-tiers-title" className="text-[13px] font-semibold text-ink">Diskon bertingkat</h3>
+          <p className="mt-1 text-2xs leading-relaxed text-muted-2">
+            Nilai dasar adalah tingkat pertama. Tambahkan ambang belanja lebih tinggi; tingkat tertinggi yang tercapai dipakai, tidak dijumlahkan.
+          </p>
+        </div>
+        {[2, 3].map((tierNumber, index) => {
+          const tier = coupon?.tiers[index];
+          return (
+            <div key={tierNumber} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr]">
+              <Field label={`Tingkat ${tierNumber} — minimum (Rp)`} htmlFor={`coupon-tier-${tierNumber}-min`}>
+                <Input
+                  id={`coupon-tier-${tierNumber}-min`}
+                  name={`tier${tierNumber}MinSubtotalIdr`}
+                  defaultValue={tier?.minSubtotalIdr ?? ""}
+                  inputMode="numeric"
+                  placeholder="Kosong = tidak dipakai"
+                />
+              </Field>
+              <Field label="Tipe diskon" htmlFor={`coupon-tier-${tierNumber}-type`}>
+                <Select
+                  id={`coupon-tier-${tierNumber}-type`}
+                  name={`tier${tierNumber}Type`}
+                  defaultValue={tier?.type ?? "PERCENT"}
+                >
+                  <option value="PERCENT">Persen</option>
+                  <option value="FIXED">Nominal</option>
+                </Select>
+              </Field>
+              <Field label="Nilai diskon" htmlFor={`coupon-tier-${tierNumber}-value`}>
+                <Input
+                  id={`coupon-tier-${tierNumber}-value`}
+                  name={`tier${tierNumber}Value`}
+                  defaultValue={tier?.value ?? ""}
+                  inputMode="numeric"
+                  placeholder="10 atau 10000"
+                />
+              </Field>
+            </div>
+          );
+        })}
+      </section>
+
       <div className="flex flex-wrap gap-4">
         <label className="flex items-center gap-2 text-[13px] text-muted">
           <input type="checkbox" name="active" defaultChecked={coupon?.active ?? true} className="accent-accent" /> Aktif

@@ -44,11 +44,23 @@ export interface CartLineInput {
   targetName: string;
 }
 
+export interface CouponTier {
+  /** Ambang subtotal inklusif; diskon tier tertinggi yang tercapai dipakai (tidak ditumpuk). */
+  minSubtotalIdr: number;
+  type: "PERCENT" | "FIXED";
+  value: number;
+}
+
 export interface CouponInput {
   code: string;
   type: "PERCENT" | "FIXED";
   value: number;
+  /** Tier pertama / minimum agar kupon dapat digunakan. */
   minSubtotalIdr: number;
+  /** Tier tambahan yang threshold-nya selalu lebih tinggi dari tier sebelumnya. */
+  tiers: CouponTier[];
+  /** null = berlaku lintas season; selain null harus cocok dengan season aktif. */
+  seasonId: string | null;
   maxRedemptions: number | null;
   maxPerUser: number;
   startsAt: Date | null;
@@ -85,6 +97,7 @@ export type PricingErrorCode =
   | "COUPON_LIMIT_REACHED"
   | "COUPON_PER_USER_LIMIT"
   | "COUPON_TYPE_MISMATCH"
+  | "COUPON_SEASON_MISMATCH"
   | "EMPTY_CART";
 
 export interface PricingError {
@@ -136,6 +149,7 @@ const ERRORS: Record<PricingErrorCode, string> = {
   COUPON_LIMIT_REACHED: "Kuota kupon sudah habis.",
   COUPON_PER_USER_LIMIT: "Kamu sudah memakai kupon ini.",
   COUPON_TYPE_MISMATCH: "Kupon ini tidak berlaku untuk jenis produk di keranjang.",
+  COUPON_SEASON_MISMATCH: "Kupon ini tidak berlaku di season saat ini.",
   EMPTY_CART: "Keranjang kosong.",
 };
 
@@ -148,6 +162,7 @@ export function validateCoupon(
   subtotalIdr: number,
   typesInCart: Set<PriceableType>,
   now: Date,
+  currentSeasonId: string | null = null,
 ): PricingError[] {
   const errors: PricingError[] = [];
   if (!coupon.active) errors.push(err("COUPON_INACTIVE"));
@@ -157,6 +172,7 @@ export function validateCoupon(
     errors.push(err("COUPON_LIMIT_REACHED"));
   if (coupon.maxPerUser > 0 && coupon.redemptionsByBuyer >= coupon.maxPerUser)
     errors.push(err("COUPON_PER_USER_LIMIT"));
+  if (coupon.seasonId !== null && coupon.seasonId !== currentSeasonId) errors.push(err("COUPON_SEASON_MISMATCH"));
   if (coupon.rankOnly && !typesInCart.has("RANK")) errors.push(err("COUPON_TYPE_MISMATCH"));
   if (coupon.kitOnly && !typesInCart.has("KIT")) errors.push(err("COUPON_TYPE_MISMATCH"));
   if (coupon.value <= 0) errors.push(err("COUPON_INACTIVE"));
@@ -164,7 +180,15 @@ export function validateCoupon(
 }
 
 export function couponDiscount(coupon: CouponInput, subtotalIdr: number): number {
-  const raw = coupon.type === "PERCENT" ? percentOf(subtotalIdr, coupon.value) : coupon.value;
+  const selectedTier = coupon.tiers
+    .filter((tier) => tier.minSubtotalIdr <= subtotalIdr)
+    .reduce<CouponTier | null>(
+      (best, tier) => (!best || tier.minSubtotalIdr > best.minSubtotalIdr ? tier : best),
+      null,
+    );
+  const type = selectedTier?.type ?? coupon.type;
+  const value = selectedTier?.value ?? coupon.value;
+  const raw = type === "PERCENT" ? percentOf(subtotalIdr, value) : value;
   return clampNonNegative(Math.min(raw, subtotalIdr));
 }
 
@@ -173,6 +197,8 @@ export interface PriceCartArgs {
   catalog: Map<string, PriceableProduct>;
   ownedByTarget: Map<string, OwnedEntitlement[]>;
   coupon?: CouponInput | null;
+  /** Season yang menjadi konteks transaksi; wajib untuk validasi kupon eksklusif. */
+  seasonId?: string | null;
   settings: PricingSettings;
   now?: Date;
 }
@@ -302,7 +328,7 @@ export function priceCart(args: PriceCartArgs): PricingResult {
 
   if (args.coupon && lines.length > 0) {
     const typesInCart = new Set<PriceableType>(lines.map((l) => l.type));
-    const couponErrors = validateCoupon(args.coupon, subtotalIdr, typesInCart, now);
+    const couponErrors = validateCoupon(args.coupon, subtotalIdr, typesInCart, now, args.seasonId ?? null);
     if (subtotalIdr < args.coupon.minSubtotalIdr && couponErrors.length === 0) {
       couponErrors.push(err("COUPON_MIN_SUBTOTAL"));
     }

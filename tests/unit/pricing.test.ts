@@ -356,6 +356,8 @@ function coupon(overrides: Partial<CouponInput> = {}): CouponInput {
     type: "PERCENT",
     value: 10,
     minSubtotalIdr: 0,
+    tiers: [],
+    seasonId: null,
     maxRedemptions: null,
     maxPerUser: 1,
     startsAt: null,
@@ -383,6 +385,70 @@ describe("priceCart — kupon, pajak, biaya", () => {
     expect(result.discountIdr).toBe(10_000);
     expect(result.totalIdr).toBe(90_000);
     expect(result.couponCode).toBe("HEMAT10");
+  });
+
+  it("memilih tingkat diskon tertinggi yang tercapai tanpa menumpuk diskon", () => {
+    const multiTier = coupon({
+      minSubtotalIdr: 50_000,
+      value: 10,
+      tiers: [
+        { minSubtotalIdr: 100_000, type: "PERCENT", value: 15 },
+        { minSubtotalIdr: 200_000, type: "PERCENT", value: 20 },
+      ],
+    });
+    const priceAt = (amount: number) => {
+      const product = rank(`tier-${amount}`, 1, amount);
+      return priceCart({
+        items: [cart(product)],
+        catalog: new Map([[product.id, product]]),
+        ownedByTarget: new Map(),
+        coupon: multiTier,
+        settings,
+        now: NOW,
+      });
+    };
+
+    expect(priceAt(99_999).discountIdr).toBe(10_000); // tier dasar 10%
+    expect(priceAt(100_000).discountIdr).toBe(15_000); // ambang inklusif
+    expect(priceAt(150_000).discountIdr).toBe(22_500);
+    expect(priceAt(250_000).discountIdr).toBe(50_000); // 20%, bukan 10% + 15% + 20%
+  });
+
+  it("memilih tipe diskon baru untuk tier nominal", () => {
+    const product = rank("fixed-tier", 1, 150_000);
+    const result = priceCart({
+      items: [cart(product)],
+      catalog: new Map([[product.id, product]]),
+      ownedByTarget: new Map(),
+      coupon: coupon({
+        minSubtotalIdr: 50_000,
+        value: 10,
+        tiers: [{ minSubtotalIdr: 100_000, type: "FIXED", value: 30_000 }],
+      }),
+      settings,
+      now: NOW,
+    });
+    expect(result.discountIdr).toBe(30_000);
+    expect(result.totalIdr).toBe(120_000);
+  });
+
+  it("membatasi kupon season-eksklusif ke season yang sama", () => {
+    const seasonal = coupon({ seasonId: "season-2026" });
+    const product = rank("seasonal-coupon", 1, 100_000);
+    const args = {
+      items: [cart(product)],
+      catalog: new Map([[product.id, product]]),
+      ownedByTarget: new Map(),
+      coupon: seasonal,
+      settings,
+      now: NOW,
+    };
+    expect(priceCart({ ...args, seasonId: "season-2026" }).ok).toBe(true);
+    for (const seasonId of ["season-2027", null]) {
+      const result = priceCart({ ...args, seasonId });
+      expect(result.errors.map((error) => error.code)).toContain("COUPON_SEASON_MISMATCH");
+      expect(result.discountIdr).toBe(0);
+    }
   });
 
   it("diskon tetap tidak pernah melebihi subtotal atau negatif", () => {

@@ -142,8 +142,9 @@ Tripay/Midtrans, Discord app/redirect aktual, inbox Resend/SMTP dan Turnstile di
 publik, serta Paper/LuckPerms/RCON dan `/verify` di server Minecraft nyata tetap wajib
 dicentang saat go-live di `docs/GO_LIVE.md`.
 
-### Berikutnya — Group A (urutan yang diminta)
-1. Kupon bertingkat dan kupon eksklusif season.
-2. Halaman publik `/ulasan` dan fitur edit ulasan milik sendiri.
-3. UI admin untuk mengelola metode pembayaran (QRIS / VA / e-wallet).
-4. Ilustrasi raster yang berbeda pada setiap kartu produk katalog.
+### Group A (urutan yang diminta)
+- [x] Kupon bertingkat: tier dasar + dua ambang tambahan, tier tertinggi tercapai dipakai;
+  kupon opsional dibatasi ke season dan ditegakkan lagi saat preview/checkout.
+- [ ] Halaman publik `/ulasan` dan fitur edit ulasan milik sendiri.
+- [ ] UI admin untuk mengelola metode pembayaran (QRIS / VA / e-wallet).
+- [ ] Ilustrasi raster yang berbeda pada setiap kartu produk katalog.

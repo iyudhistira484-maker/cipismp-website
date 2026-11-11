@@ -53,6 +53,8 @@ export async function loadCoupon(code: string, subtotal: number, buyerEmail?: st
     type: row.type,
     value: row.value,
     minSubtotalIdr: row.minSubtotalIdr,
+    tiers: row.tiers,
+    seasonId: row.seasonId,
     maxRedemptions: row.maxRedemptions,
     maxPerUser: row.maxPerUser,
     startsAt: row.startsAt,
@@ -96,13 +98,16 @@ export async function priceCurrentCart(options: PriceCartOptions): Promise<CartP
     return sum + (p ? p.priceIdr * (input.quantity ?? 1) : 0);
   }, 0);
 
-  const coupon = options.couponCode ? await loadCoupon(options.couponCode, subtotalGuess, options.buyerEmail) : null;
+  const coupon = settings.features.coupons && options.couponCode
+    ? await loadCoupon(options.couponCode, subtotalGuess, options.buyerEmail)
+    : null;
 
   const result = priceCart({
     items: inputs,
     catalog,
     ownedByTarget: owned,
     coupon,
+    seasonId: season?.id ?? null,
     settings: {
       taxPercent: settings.store.taxPercent,
       feeMode: settings.store.feeMode,

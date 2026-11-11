@@ -87,7 +87,11 @@ season berakhir.
 
 ## Kupon
 
-- **Persen** (1–100) atau **nominal** (minimal Rp 1.000).
+- Tingkat dasar memakai **persen** (1–100) atau **nominal** (minimal Rp 1.000) dan ambang
+  minimum belanja. Maksimal dua tingkat tambahan; threshold harus meningkat, dan tier tertinggi
+  yang tercapai yang dipakai (diskon tidak dijumlahkan).
+- **Season** kosong berarti kupon berlaku lintas-season; pilih season untuk membatasi kupon
+  ke season tersebut. Season khusus yang bukan season aktif ditolak saat checkout.
 - **Kuota total** 0 berarti tanpa batas; **batas per pembeli** membatasi pemakaian per akun.
 - Centang **Hanya rank** atau **Hanya kit** bila kupon tidak boleh dipakai untuk jenis lain.
 - Nonaktifkan kupon yang sudah tidak dipakai; jangan menghapusnya karena riwayat pemakaian

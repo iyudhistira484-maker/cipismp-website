@@ -34,6 +34,7 @@ export function CheckoutForm({
   season,
   defaults,
   signedIn,
+  couponsEnabled,
   taxPercent,
   taxLabel,
   minimumAge,
@@ -45,6 +46,7 @@ export function CheckoutForm({
   season: { name: string; endAt: string; freezeDays: number } | null;
   defaults: { mcName: string; email: string };
   signedIn: boolean;
+  couponsEnabled: boolean;
   taxPercent: number;
   taxLabel: string;
   minimumAge: number;
@@ -326,27 +328,29 @@ export function CheckoutForm({
             })}
           </ul>
 
-          <div className="mt-4 flex gap-2">
-            <Input
-              name="couponCode"
-              value={coupon}
-              onChange={(event) => setCoupon(event.target.value.toUpperCase())}
-              placeholder="Kode kupon"
-              aria-label="Kode kupon"
-              className="h-10"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-10 shrink-0"
-              disabled={previewing || !mcName}
-              onClick={() => refreshPreview(lookup?.name ?? mcName, coupon)}
-            >
-              {previewing ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
-              Terapkan
-            </Button>
-          </div>
+          {couponsEnabled ? (
+            <div className="mt-4 flex gap-2">
+              <Input
+                name="couponCode"
+                value={coupon}
+                onChange={(event) => setCoupon(event.target.value.toUpperCase())}
+                placeholder="Kode kupon"
+                aria-label="Kode kupon"
+                className="h-10"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-10 shrink-0"
+                disabled={previewing || !mcName}
+                onClick={() => refreshPreview(lookup?.name ?? mcName, coupon)}
+              >
+                {previewing ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
+                Terapkan
+              </Button>
+            </div>
+          ) : null}
 
           <dl className="mt-4 space-y-2 border-t border-line pt-4 text-[13px]">
             <div className="flex justify-between">
