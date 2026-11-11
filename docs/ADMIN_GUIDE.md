@@ -64,11 +64,15 @@ Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diteri
 
 **Produk** menampilkan rank dan kit beserta harga, status, dan jumlah terjual.
 
+- Rank awal katalog: **Star Cipi**, **Milk Cipi**, **Pop Cipi**, dan **Cute Cipi**. Harga/keuntungan seed adalah nilai awal dan bisa disesuaikan di dashboard sebelum penjualan.
+- Form produk mengatur nama, slug, status, harga, tier/urutan, batas/cooldown, warna badge, ilustrasi lokal, tagline, deskripsi, keuntungan, dan apakah pengiriman perintah server dipakai.
+- Untuk rank, atur juga template perintah **grant/revoke**. Placeholder yang tersedia: `{player}`, `{uuid}`, `{season}`, `{rank}`, `{kitname}`. Star/Milk/Pop mempertahankan group LuckPerms lama (`iron`, `gold`, `diamond`); Cute Cipi memakai `cute-cipi` sebagai nilai awal. Pastikan group benar-benar ada di server dan uji pengiriman sebelum produk ditayangkan.
+- Untuk kit, isi daftar item satu per baris dengan format `item_key | nama | jumlah | enchantment1,enchantment2 | lore1,lore2`. Kit tayang wajib punya minimal satu item.
 - Menambah produk: isi formulir di kanan, simpan sebagai **Draft** dulu, cek tampilan di
-  `/rank` atau `/kit`, lalu ubah ke **Published**.
+  `/rank` atau `/kit`, uji template pengiriman, lalu ubah ke **Published**.
 - Menyembunyikan produk: tombol tempat sampah (soft delete). Riwayat order tetap utuh.
-  Jangan menghapus produk yang masih dipakai season aktif tanpa bicara ke Owner.
-- Mengubah harga tidak mengubah order yang sudah dibuat.
+  Produk yang dihapus bisa dipulihkan sebagai **Draft** dari baris yang sama.
+- Mengubah harga tidak mengubah order yang sudah dibuat. Mengganti slug mengubah URL; cek juga template grant yang mungkin memakai `{rank}`.
 - Perubahan **tier** rank harus hati-hati: tier menentukan siapa boleh upgrade ke siapa.
 
 ## Season

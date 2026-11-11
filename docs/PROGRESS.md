@@ -19,8 +19,8 @@ Diperbarui setiap akhir langkah. Status: ✅ selesai · 🚧 sedang dikerjakan �
 ## Test
 
 ```
-npm test                          # 98 unit; integrasi di-skip tanpa database
-TEST_DATABASE_URL=... npm test    # 120 test (98 unit + 22 integrasi)
+npm test                          # 102 unit; integrasi di-skip tanpa database
+TEST_DATABASE_URL=... npm test    # 124 test (102 unit + 22 integrasi)
 npm run test:e2e                  # Playwright smoke (butuh browser)
 ```
 
@@ -35,7 +35,7 @@ pembayaran), ulasan pembeli (kelayakan, edit oleh pemilik, moderasi, dan feed pu
   Postgres menggantikan Prisma/Auth.js/BullMQ).
 
 ### Langkah 1 — Fondasi
-- Skema database lengkap, migrasi SQL versioned, seed idempoten (Season 1, 3 rank, 3 kit,
+- Skema database lengkap, migrasi SQL versioned, seed idempoten (Season 1, 4 rank, 3 kit,
   template perintah LuckPerms/EssentialsX, kupon contoh, owner dari env).
 - Token desain + komponen dasar + 22 sprite item original + logo SVG.
 - Beranda: hero asimetris, status server live, kartu rank & kit, cara kerja, FAQ.
@@ -75,7 +75,7 @@ pembayaran), ulasan pembeli (kelayakan, edit oleh pemilik, moderasi, dan feed pu
 ### Langkah 7 — Panel admin
 - Ringkasan (pendapatan, order menunggu, pengiriman bermasalah, comp manual), pesanan +
   detail (tandai lunas manual, batal, catatan, kirim ulang), monitor pengiriman, produk
-  (CRUD + soft delete), season (CRUD + pratinjau/simulasi/eksekusi transisi), pelanggan,
+  (CRUD + soft delete; harga/tier/artwork/warna/perks/perintah/isi kit), season (CRUD + pratinjau/simulasi/eksekusi transisi), pelanggan,
   kupon, pembayaran (kredensial Owner-only, webhook terakhir), server & plugin (uji koneksi),
   staf (role), audit log, matriks izin per role.
 
@@ -121,7 +121,7 @@ Dimulai dari **admin lanjutan** (dipilih pengguna).
 - **Aset visual per produk**: setiap detail rank & kit punya gambar OG sendiri
   (`/rank/<slug>/opengraph-image`, `/kit/<slug>/opengraph-image`) berisi nama produk,
   tagline, tiga keunggulan, harga, tanggal berakhir season aktif, dan warna tier
-  (iron/gold/diamond/amber). Pratinjau tautan di Discord/WhatsApp kini menampilkan produk,
+  (star/milk/pop/cute/amber). Pratinjau tautan di Discord/WhatsApp kini menampilkan produk,
   bukan hanya banner toko.
 
 - **Penyempurnaan pasca-Wave 2**: rating bintang tampil di kartu katalog (`/`, `/rank`,
@@ -147,4 +147,4 @@ dicentang saat go-live di `docs/GO_LIVE.md`.
   kupon opsional dibatasi ke season dan ditegakkan lagi saat preview/checkout.
 - [x] Halaman publik `/ulasan` (feed dimoderasi, ringkasan rating, pagination) dan edit ulasan milik sendiri; perubahan kembali ke antrean moderasi.
 - [x] UI admin untuk mengelola metode pembayaran QRIS / VA / e-wallet per Tripay/Midtrans; checkout memfilter dan memvalidasi pilihan di server.
-- [x] Enam ilustrasi raster unik untuk kartu katalog Iron, Gold, Diamond, Starter, Builder, dan Explorer; aset dioptimalkan lewat `next/image`.
+- [x] Sepuluh ilustrasi raster unik untuk empat rank aktif (Star Cipi, Milk Cipi, Pop Cipi, Cute Cipi), tiga kit, dan tiga rank arsip; dashboard dapat memilih aset lokal.

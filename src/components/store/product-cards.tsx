@@ -23,7 +23,7 @@ export function RankCard({
   highlighted?: boolean;
   rating?: { count: number; average: number };
 }) {
-  const artwork = getProductArtwork(product.slug);
+  const artwork = getProductArtwork(product.slug, product.artwork);
 
   return (
     <article
@@ -110,7 +110,7 @@ export function KitCard({
   season: { name: string; endAt: Date } | null;
   rating?: { count: number; average: number };
 }) {
-  const artwork = getProductArtwork(product.slug);
+  const artwork = getProductArtwork(product.slug, product.artwork);
   const itemPreviewCount = artwork ? 4 : 8;
 
   return (

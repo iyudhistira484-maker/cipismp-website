@@ -9,9 +9,11 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { toJakartaInput } from "@/lib/form-datetime";
 import type { CouponTier } from "@/lib/pricing";
 import type { PaymentMethodOption } from "@/lib/payment-methods";
+import { PRODUCT_ACCENT_CHOICES, PRODUCT_ARTWORK_CHOICES } from "@/lib/product-artwork";
 import {
   adminCancelOrderAction,
   adminDeleteProductAction,
+  adminRestoreProductAction,
   adminGrantCompAction,
   adminMarkPaidAction,
   adminPreviewTransitionAction,
@@ -125,10 +127,18 @@ export interface ProductFormValues {
   sortOrder: number;
   perks: string;
   status: string;
+  accent: string;
+  artwork: string;
+  useServerCommands: boolean;
+  grantTemplate: string;
+  revokeTemplate: string;
+  kitItems: string;
 }
 
 export function ProductForm({ product }: { product?: ProductFormValues }) {
   const [state, action] = useActionState(adminSaveProductAction, empty);
+  const defaultGrant = product?.grantTemplate ?? "lp user {player} parent add {rank}";
+  const defaultRevoke = product?.revokeTemplate ?? "lp user {player} parent remove {rank}";
   return (
     <form action={action} className="space-y-3">
       <StateAlert state={state} />
@@ -158,6 +168,17 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
         <Field label="Tier" htmlFor="product-tier" hint="Rank: makin besar makin tinggi">
           <Input id="product-tier" name="tier" type="number" min={0} max={20} defaultValue={product?.tier ?? 0} />
         </Field>
+        <Field label="Warna badge" htmlFor="product-accent">
+          <Select id="product-accent" name="accent" defaultValue={product?.accent ?? "amber"}>
+            {PRODUCT_ACCENT_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Ilustrasi kartu" htmlFor="product-artwork" hint="Aset lokal di public/images/products">
+          <Select id="product-artwork" name="artwork" defaultValue={product?.artwork ?? ""}>
+            <option value="">Otomatis dari slug / tanpa gambar khusus</option>
+            {PRODUCT_ARTWORK_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+          </Select>
+        </Field>
         <Field label="Batas per season" htmlFor="product-max">
           <Input id="product-max" name="maxPerSeason" type="number" min={1} max={50} defaultValue={product?.maxPerSeason ?? 1} />
         </Field>
@@ -168,6 +189,12 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
           <Input id="product-sort" name="sortOrder" type="number" min={0} max={999} defaultValue={product?.sortOrder ?? 0} />
         </Field>
       </div>
+      <CheckboxField
+        name="useServerCommands"
+        defaultChecked={product?.useServerCommands ?? true}
+        label="Jalankan perintah server setelah pembayaran"
+        hint="Matikan hanya untuk produk yang memang tidak perlu pengiriman otomatis."
+      />
       <Field label="Tagline" htmlFor="product-tagline" required>
         <Input id="product-tagline" name="tagline" defaultValue={product?.tagline} required maxLength={120} />
       </Field>
@@ -175,7 +202,28 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
         <Textarea id="product-description" name="description" defaultValue={product?.description} required rows={4} />
       </Field>
       <Field label="Keuntungan (satu per baris)" htmlFor="product-perks">
-        <Textarea id="product-perks" name="perks" defaultValue={product?.perks} rows={5} placeholder={"/fly di lobby\n2 home tambahan"} />
+        <Textarea id="product-perks" name="perks" defaultValue={product?.perks} rows={5} placeholder={"Prefix chat khusus\n3 home tambahan"} />
+      </Field>
+      <Field label="Perintah grant" htmlFor="product-grant" hint="Placeholder: {player}, {uuid}, {season}, {rank}, {kitname}">
+        <Textarea id="product-grant" name="grantTemplate" defaultValue={defaultGrant} rows={3} spellCheck={false} className="font-mono text-[12px]" />
+      </Field>
+      <Field label="Perintah revoke" htmlFor="product-revoke" hint="Gunakan # di awal baris untuk komentar. Multi-baris didukung.">
+        <Textarea id="product-revoke" name="revokeTemplate" defaultValue={defaultRevoke} rows={3} spellCheck={false} className="font-mono text-[12px]" />
+      </Field>
+      <Field
+        label="Isi kit (khusus jenis Kit)"
+        htmlFor="product-kit-items"
+        hint="Satu item per baris: item_key | nama | jumlah | enchantment1,enchantment2 | lore1,lore2"
+      >
+        <Textarea
+          id="product-kit-items"
+          name="kitItems"
+          defaultValue={product?.kitItems}
+          rows={5}
+          spellCheck={false}
+          className="font-mono text-[12px]"
+          placeholder={"bread | Roti | 16 | | Makanan pemulihan\nstone_sword | Pedang Batu | 1 | Ketajaman I |"}
+        />
       </Field>
       <SubmitButton size="sm">{product?.id ? "Simpan perubahan" : "Buat produk"}</SubmitButton>
     </form>
@@ -197,6 +245,21 @@ export function DeleteProductButton({ productId, name }: { productId: string; na
         <Trash2 className="size-3.5" aria-hidden />
       </SubmitButton>
       {state.error ? <span className="text-2xs text-danger">{state.error}</span> : null}
+    </form>
+  );
+}
+
+export function RestoreProductButton({ productId }: { productId: string }) {
+  const [state, action] = useActionState(adminRestoreProductAction, empty);
+  return (
+    <form action={action} className="inline-flex items-center gap-2">
+      <input type="hidden" name="productId" value={productId} />
+      <SubmitButton size="sm" variant="secondary">
+        <RotateCcw className="size-3.5" aria-hidden />
+        Pulihkan sebagai draft
+      </SubmitButton>
+      {state.error ? <span className="text-2xs text-danger">{state.error}</span> : null}
+      {state.success ? <span className="text-2xs text-success">{state.success}</span> : null}
     </form>
   );
 }

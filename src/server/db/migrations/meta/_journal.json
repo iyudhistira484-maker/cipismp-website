@@ -43,6 +43,13 @@
       "when": 1794368944718,
       "tag": "0005_tiered_season_coupons",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794372258552,
+      "tag": "0006_product_artwork",
+      "breakpoints": true
     }
   ]
 }

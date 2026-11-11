@@ -209,6 +209,7 @@ export const products = pgTable(
     name: text("name").notNull(),
     tagline: text("tagline").notNull(),
     description: text("description").notNull(),
+    artwork: text("artwork"),
     priceIdr: integer("price_idr").notNull(),
     tier: integer("tier").notNull().default(0),
     accent: text("accent").notNull().default("amber"),

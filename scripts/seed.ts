@@ -1,6 +1,7 @@
 /**
  * Seed data CipiSMP Store — idempoten, aman dijalankan berulang.
- * Membuat: pengaturan toko, server, Season 1, 3 rank, 3 kit, template perintah,
+ * Melengkapi data default yang belum ada tanpa menimpa perubahan dari dashboard admin.
+ * Membuat: pengaturan toko, server, Season 1, 4 rank, 3 kit, template perintah,
  * kupon contoh, dan akun Owner dari env (SEED_OWNER_*). Tidak ada kredensial hardcoded.
  */
 import "dotenv/config";
@@ -32,33 +33,35 @@ interface RankSeed {
   perks: string[];
   rankName: string;
   sortOrder: number;
+  artwork: string;
 }
 
 const RANKS: RankSeed[] = [
   {
-    slug: "iron",
-    name: "Iron",
-    tagline: "Pijakan pertama untuk pemain yang mulai serius membangun.",
+    slug: "star-cipi",
+    name: "Star Cipi",
+    tagline: "Awali season dengan sentuhan bintang.",
     description:
-      "Iron membuka ruang kerja yang lebih lega tanpa mengubah cara bermain siapa pun. Tiga home tambahan berarti kamu tidak perlu memilih antara base utama dan lokasi tambang, dan dua slot lelang ekstra memberi ruang untuk menjual hasil kebun atau redstone buatanmu. Prefix chat berwarna membuat obrolan di chat terasa lebih personal, terutama saat membantu pemain baru di jam ramai.",
+      "Star Cipi adalah pijakan pertama untuk pemain yang mulai serius membangun. Prefix chat berwarna membuat obrolan lebih personal, tiga home tambahan memberi ruang untuk base dan tambang, sementara dua slot lelang ekstra membantu menjual hasil kebun atau redstone.",
     priceIdr: 20_000,
     tier: 1,
-    accent: "iron",
-    perks: ["Prefix chat berwarna", "3 home tambahan", "2 slot lelang ekstra"],
+    accent: "star",
+    perks: ["Prefix chat Star Cipi", "3 home tambahan", "2 slot lelang ekstra"],
     rankName: "iron",
     sortOrder: 1,
+    artwork: "/images/products/star-cipi.jpg",
   },
   {
-    slug: "gold",
-    name: "Gold",
-    tagline: "Kenyamanan untuk pemain yang setiap hari Online.",
+    slug: "milk-cipi",
+    name: "Milk Cipi",
+    tagline: "Kenyamanan lembut untuk pemain yang aktif setiap hari.",
     description:
-      "Gold adalah tier yang paling sering diambil pemain aktif: semua keuntungan Iron, ditambah enam home, jejak partikel kosmetik, dan warna nickname sendiri. Saat server penuh di akhir pekan, pemilik Gold masuk lewat antrean prioritas sehingga tidak perlu menunggu slot kosong. Semua efeknya kosmetik dan kenyamanan — tidak ada damage, speed, atau keuntungan PvP.",
+      "Milk Cipi membawa semua keuntungan Star Cipi, ditambah ruang home yang lebih luas, warna nickname, dan jejak partikel kosmetik. Pemiliknya juga mendapat antrean prioritas saat server penuh. Semua keuntungan berfokus pada kenyamanan dan kosmetik, bukan pertarungan.",
     priceIdr: 45_000,
     tier: 2,
-    accent: "gold",
+    accent: "milk",
     perks: [
-      "Semua keuntungan Iron",
+      "Semua keuntungan Star Cipi",
       "6 home tambahan",
       "Jejak partikel kosmetik",
       "Warna nickname",
@@ -66,18 +69,19 @@ const RANKS: RankSeed[] = [
     ],
     rankName: "gold",
     sortOrder: 2,
+    artwork: "/images/products/milk-cipi.jpg",
   },
   {
-    slug: "diamond",
-    name: "Diamond",
-    tagline: "Untuk yang membangun kota dan tinggal sampai akhir season.",
+    slug: "pop-cipi",
+    name: "Pop Cipi",
+    tagline: "Warna dan kenyamanan untuk pemain yang kreatif.",
     description:
-      "Diamond memberi ruang paling luas: sepuluh home, blok klaim lahan tambahan, dan nickname kustom yang tampil di seluruh server. Pemilik Diamond juga bisa masuk ke area hub kosmetik — tempat untuk memajang banner, piala musim, dan foto base tanpa mengganggu ekonomi survival. Cocok untuk pemain yang sering membangun bersama tim.",
+      "Pop Cipi memberi ruang paling luas untuk membangun kota bersama tim: home tambahan, nickname kustom, blok klaim lahan tambahan, dan akses ke area hub kosmetik. Rank ini mewarisi kenyamanan tier sebelumnya tanpa menambah damage, speed, atau keunggulan PvP.",
     priceIdr: 80_000,
     tier: 3,
-    accent: "diamond",
+    accent: "pop",
     perks: [
-      "Semua keuntungan Gold",
+      "Semua keuntungan Milk Cipi",
       "10 home tambahan",
       "Nickname kustom",
       "Blok klaim lahan tambahan",
@@ -85,6 +89,27 @@ const RANKS: RankSeed[] = [
     ],
     rankName: "diamond",
     sortOrder: 3,
+    artwork: "/images/products/pop-cipi.jpg",
+  },
+  {
+    slug: "cute-cipi",
+    name: "Cute Cipi",
+    tagline: "Pilihan paling lengkap dengan sentuhan kosmetik yang manis.",
+    description:
+      "Cute Cipi melengkapi seluruh kenyamanan Pop Cipi dengan identitas chat dan kosmetik bertema Cute Cipi. Cocok untuk pemain yang ingin ruang membangun lebih lega sekaligus tampil khas di komunitas. Semua efeknya kosmetik dan kenyamanan.",
+    priceIdr: 120_000,
+    tier: 4,
+    accent: "cute",
+    perks: [
+      "Semua keuntungan Pop Cipi",
+      "Prefix chat Cute Cipi",
+      "Efek partikel kosmetik eksklusif",
+      "4 home tambahan",
+      "Slot lelang ekstra",
+    ],
+    rankName: "cute-cipi",
+    sortOrder: 4,
+    artwork: "/images/products/cute-cipi.jpg",
   },
 ];
 
@@ -95,6 +120,7 @@ interface KitSeed {
   description: string;
   priceIdr: number;
   sortOrder: number;
+  artwork: string;
   items: Array<{
     itemKey: string;
     name: string;
@@ -113,6 +139,7 @@ const KITS: KitSeed[] = [
       "Dibuat untuk hari pertama di season baru. Isinya cukup untuk bertahan melewati malam pertama tanpa harus menebang pohon dalam gelap: makanan, alat batu, obor, dan satu tempat tidur untuk menetapkan titik respawn. Bisa diambil sekali per pemain di setiap season.",
     priceIdr: 10_000,
     sortOrder: 1,
+    artwork: "/images/products/starter.jpg",
     items: [
       { itemKey: "bread", name: "Roti", quantity: 16 },
       { itemKey: "stone_sword", name: "Pedang Batu", quantity: 1 },
@@ -132,6 +159,7 @@ const KITS: KitSeed[] = [
       "Satu tumpuk penuh blok yang paling sering habis saat membangun: papan, batu bata, batu halus, dan kaca. Tidak ada blok dekorasi langka di sini — hanya material dasar yang membuat dinding pertama cepat berdiri. Sekali per pemain per season.",
     priceIdr: 25_000,
     sortOrder: 2,
+    artwork: "/images/products/builder.jpg",
     items: [
       { itemKey: "oak_planks", name: "Papan Kayu Ek", quantity: 64 },
       { itemKey: "stone_bricks", name: "Batu Bata", quantity: 64 },
@@ -151,6 +179,7 @@ const KITS: KitSeed[] = [
       "Berisi peralatan navigasi dan logistik untuk perjalanan panjang: peta, kompas, perahu, ender chest untuk menyimpan hasil temuan, dan saddle untuk membawa pulang hewan langka. Makanan dan obor sudah termasuk supaya perjalanan pertama tidak berakhir di lava.",
     priceIdr: 30_000,
     sortOrder: 3,
+    artwork: "/images/products/explorer.jpg",
     items: [
       { itemKey: "map", name: "Peta Kosong", quantity: 1 },
       { itemKey: "compass", name: "Kompas", quantity: 1, lore: ["Menunjuk ke titik spawn"] },
@@ -210,27 +239,25 @@ async function seedSeason(): Promise<string> {
 async function seedProducts(seasonId: string) {
   for (const rank of RANKS) {
     const existing = await db.query.products.findFirst({ where: eq(products.slug, rank.slug) });
-    const productId = existing?.id ?? ids.product();
-    const values = {
+    if (existing) continue;
+
+    const productId = ids.product();
+    await db.insert(products).values({
       id: productId,
       slug: rank.slug,
-      type: "RANK" as const,
+      type: "RANK",
       name: rank.name,
       tagline: rank.tagline,
       description: rank.description,
+      artwork: rank.artwork,
       priceIdr: rank.priceIdr,
       tier: rank.tier,
       accent: rank.accent,
-      status: "PUBLISHED" as const,
+      status: "PUBLISHED",
       sortOrder: rank.sortOrder,
       perks: rank.perks,
       maxPerSeason: 1,
-    };
-    if (existing) {
-      await db.update(products).set(values).where(eq(products.id, productId));
-    } else {
-      await db.insert(products).values(values);
-    }
+    });
     await upsertCommands(productId, {
       grant: `lp user {player} parent add ${rank.rankName}`,
       revoke: `lp user {player} parent remove ${rank.rankName}`,
@@ -239,28 +266,25 @@ async function seedProducts(seasonId: string) {
 
   for (const kit of KITS) {
     const existing = await db.query.products.findFirst({ where: eq(products.slug, kit.slug) });
-    const productId = existing?.id ?? ids.product();
-    const values = {
+    if (existing) continue;
+
+    const productId = ids.product();
+    await db.insert(products).values({
       id: productId,
       slug: kit.slug,
-      type: "KIT" as const,
+      type: "KIT",
       name: kit.name,
       tagline: kit.tagline,
       description: kit.description,
+      artwork: kit.artwork,
       priceIdr: kit.priceIdr,
       tier: 0,
       accent: "amber",
-      status: "PUBLISHED" as const,
+      status: "PUBLISHED",
       sortOrder: kit.sortOrder,
       perks: ["Sekali per pemain setiap season", "Berlaku sampai akhir season"],
       maxPerSeason: 1,
-    };
-    if (existing) {
-      await db.update(products).set(values).where(eq(products.id, productId));
-      await db.delete(kitItems).where(eq(kitItems.productId, productId));
-    } else {
-      await db.insert(products).values(values);
-    }
+    });
     await db.insert(kitItems).values(
       kit.items.map((item, index) => ({
         id: ids.kitItem(),

@@ -42,10 +42,12 @@ label kecil (mis. kode verifikasi), tidak untuk teks isi.
 
 ## 5. Ilustrasi & gambar lain
 
-- Enam ilustrasi raster orisinal untuk kartu katalog ada di `public/images/products/`
-  (`iron`, `gold`, `diamond`, `starter`, `builder`, `explorer`). Dibuat khusus untuk proyek
-  dengan generasi AI, bergaya voxel generik; bukan tangkapan layar atau tekstur game pihak lain.
-  Pemetaan slug produk ke gambar ada di `src/lib/product-artwork.ts`.
+- Sepuluh ilustrasi raster orisinal untuk kartu katalog ada di `public/images/products/`:
+  empat rank aktif (`star-cipi`, `milk-cipi`, `pop-cipi`, `cute-cipi`), tiga kit
+  (`starter`, `builder`, `explorer`), serta tiga ilustrasi arsip untuk rank lama
+  (`iron`, `gold`, `diamond`). Dibuat khusus untuk proyek dengan generasi AI, bergaya voxel
+  generik; bukan tangkapan layar atau tekstur game pihak lain. Dashboard admin dapat memilih
+  ilustrasi kartu dari daftar lokal. Pemetaan/fallback ada di `src/lib/product-artwork.ts`.
 - Tangkapan layar di dokumentasi (bila ada) dibuat dari aplikasi ini sendiri.
 
 ## 6. Menambah aset baru

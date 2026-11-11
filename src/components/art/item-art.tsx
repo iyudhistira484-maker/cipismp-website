@@ -398,6 +398,10 @@ export function ItemArt({ itemKey, className, title }: { itemKey: string; classN
 }
 
 const TIER_COLORS: Record<string, { base: string; edge: string; ink: string }> = {
+  star: { base: "#f6cf5f", edge: "#b07b1c", ink: "#241a06" },
+  milk: { base: "#e5f1ed", edge: "#6eaaa0", ink: "#19302d" },
+  pop: { base: "#ff987c", edge: "#bc4c44", ink: "#31110f" },
+  cute: { base: "#ef9ad6", edge: "#99518f", ink: "#311026" },
   iron: { base: "#b9bcc2", edge: "#6f747c", ink: "#1b1c1e" },
   gold: { base: "#e7b95c", edge: "#9a7423", ink: "#241a06" },
   diamond: { base: "#7fd8d0", edge: "#2f7f7a", ink: "#07201f" },

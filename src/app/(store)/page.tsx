@@ -135,11 +135,11 @@ export default async function HomePage() {
           <div>
             <p className="eyebrow">Rank season ini</p>
             <h2 id="rank-heading" className="mt-2 max-w-xl text-balance font-display text-h1 text-ink">
-              Tiga tier, tanpa keuntungan tempur.
+              Rank Cipi untuk season ini.
             </h2>
             <p className="mt-3 max-w-xl text-pretty text-[14.5px] leading-relaxed text-muted">
-              Semua keuntungan bersifat kenyamanan dan kosmetik: home tambahan, slot lelang, prefix chat,
-              sampai antrean prioritas. Tidak ada damage, speed, atau keuntungan PvP.
+              Tiap rank menawarkan kombinasi kenyamanan dan kosmetik yang berbeda. Lihat kartu untuk
+              detail tier, keuntungan, dan harga; tidak ada damage, speed, atau keuntungan PvP.
             </p>
           </div>
           <Link
@@ -151,13 +151,12 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {ranks.map((rank) => (
             <RankCard
               key={rank.id}
               product={rank}
               season={season ? { name: season.name, endAt: season.endAt } : null}
-              highlighted={rank.tier === 2}
               rating={ratings.get(rank.id)}
             />
           ))}

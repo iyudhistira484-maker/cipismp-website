@@ -199,7 +199,7 @@ Nilai ada di `src/app/globals.css` dan dipetakan ke Tailwind di `tailwind.config
 | `--muted-2` | `125 118 106` | teks tersier (kontras 3.9:1, hanya untuk label besar) |
 | `--accent` | `224 168 78` | CTA, fokus, aksen tunggal |
 | `--success` / `--danger` / `--info` | hijau/merah/biru redup | status saja |
-| Tier | iron `168 168 176`, gold `224 168 78`, diamond `120 200 196` | badge rank |
+| Tier | star `246 207 95`, milk `229 241 237`, pop `255 152 124`, cute `239 154 214` | badge rank |
 
 Spasi kelipatan 8px (`4`, `8`, `12`, ...), radius 6/10/14/20/28, durasi transisi
 150–250ms dengan easing `cubic-bezier(0.22, 1, 0.36, 1)`. Semua animasi dimatikan pada

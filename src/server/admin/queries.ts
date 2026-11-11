@@ -4,9 +4,11 @@ import {
   auditLogs,
   coupons,
   couponRedemptions,
+  commandTemplates,
   deliveries,
   deliveryAttempts,
   entitlements,
+  kitItems,
   orders,
   payments,
   products,
@@ -223,9 +225,20 @@ export async function listProductsForAdmin() {
   return rows.map((row) => ({ ...row, soldCount: soldMap.get(row.id) ?? 0 }));
 }
 
-/** Data lengkap satu produk untuk form edit (termasuk tagline/deskripsi/perks). */
+/** Data lengkap satu produk untuk form admin, termasuk command & isi kit. */
 export async function productForEdit(productId: string) {
-  return db.query.products.findFirst({ where: eq(products.id, productId) });
+  const product = await db.query.products.findFirst({ where: eq(products.id, productId) });
+  if (!product) return undefined;
+  const [commands, items] = await Promise.all([
+    db.select().from(commandTemplates).where(eq(commandTemplates.productId, productId)),
+    db.select().from(kitItems).where(eq(kitItems.productId, productId)).orderBy(kitItems.slot),
+  ]);
+  return {
+    ...product,
+    grantTemplate: commands.find((command) => command.kind === "GRANT")?.template ?? "",
+    revokeTemplate: commands.find((command) => command.kind === "REVOKE")?.template ?? "",
+    kitItems: items,
+  };
 }
 
 export async function listSeasonsForAdmin() {

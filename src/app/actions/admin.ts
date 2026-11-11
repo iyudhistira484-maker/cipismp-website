@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { coupons, deliveries, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
+import { commandTemplates, coupons, deliveries, kitItems, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
 import { requireStaff, requirePermissionApi } from "@/server/auth/guard";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -14,7 +14,7 @@ import { ids } from "@/server/ids";
 import { logger } from "@/server/logger";
 import { fulfillPaidOrder, cancelOrder } from "@/server/orders";
 import { redeliver } from "@/server/delivery";
-import { buildGrantCommands } from "@/server/delivery/commands";
+import { buildGrantCommands, validateTemplate } from "@/server/delivery/commands";
 import { grantEntitlement } from "@/server/entitlements";
 import { previewTransition, runSeasonTransition } from "@/server/seasons/transition";
 import { enqueue } from "@/server/queue";
@@ -27,6 +27,7 @@ import { fromJakartaInput } from "@/lib/form-datetime";
 import type { CouponTier } from "@/lib/pricing";
 import { MIDTRANS_METHODS, TRIPAY_METHODS } from "@/lib/payment-methods";
 import { STAFF_ROLES, type Role } from "@/server/rbac";
+import { PRODUCT_ACCENT_CHOICES, PRODUCT_ARTWORK_CHOICES } from "@/lib/product-artwork";
 
 export interface AdminState {
   error?: string;
@@ -175,6 +176,31 @@ export async function adminRedeliverAction(_prev: AdminState, formData: FormData
 
 /* ------------------------------------------------------------------ produk */
 
+const kitItemSchema = z.object({
+  itemKey: z.string().regex(/^[a-z0-9_:-]{1,64}$/i, "ID item hanya boleh memakai huruf, angka, titik dua, garis bawah, atau tanda hubung."),
+  name: z.string().min(1).max(80),
+  quantity: z.number().int().min(1).max(64),
+  enchantments: z.array(z.string().min(1).max(80)).max(8),
+  lore: z.array(z.string().min(1).max(120)).max(8),
+});
+
+function parseKitItems(raw: string) {
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const columns = line.split("|").map((column) => column.trim());
+      return {
+        itemKey: columns[0] ?? "",
+        name: columns[1] ?? "",
+        quantity: Number(columns[2] ?? 0),
+        enchantments: columns[3] ? columns[3].split(",").map((value) => value.trim()).filter(Boolean) : [],
+        lore: columns[4] ? columns[4].split(",").map((value) => value.trim()).filter(Boolean) : [],
+      };
+    });
+}
+
 const productSchema = z.object({
   id: z.string().optional(),
   type: z.enum(["RANK", "KIT"]),
@@ -182,6 +208,14 @@ const productSchema = z.object({
   name: z.string().min(2).max(40),
   tagline: z.string().min(3).max(120),
   description: z.string().min(10).max(2000),
+  artwork: z.string().max(160).refine(
+    (value) => !value || PRODUCT_ARTWORK_CHOICES.some((choice) => choice.value === value),
+    "Pilih ilustrasi lokal yang tersedia.",
+  ),
+  accent: z.string().refine(
+    (value) => PRODUCT_ACCENT_CHOICES.some((choice) => choice.value === value),
+    "Pilih warna badge yang tersedia.",
+  ),
   priceIdr: z.number().int().min(1000).max(50_000_000),
   tier: z.number().int().min(0).max(20),
   maxPerSeason: z.number().int().min(1).max(50),
@@ -189,7 +223,63 @@ const productSchema = z.object({
   sortOrder: z.number().int().min(0).max(999),
   perks: z.array(z.string().min(1).max(80)).max(12),
   status: z.enum(["DRAFT", "PUBLISHED"]),
+  useServerCommands: z.boolean(),
+  grantTemplate: z.string().max(4000),
+  revokeTemplate: z.string().max(4000),
+  kitItems: z.array(kitItemSchema).max(32),
 });
+
+async function saveProductAutomation(
+  productId: string,
+  input: {
+    type: "RANK" | "KIT";
+    grantTemplate: string;
+    revokeTemplate: string;
+    kitItems: Array<z.infer<typeof kitItemSchema>>;
+  },
+) {
+  await db.transaction(async (tx) => {
+    for (const entry of [
+      { kind: "GRANT" as const, template: input.grantTemplate.trim() },
+      { kind: "REVOKE" as const, template: input.revokeTemplate.trim() },
+    ]) {
+      if (!entry.template) {
+        await tx
+          .delete(commandTemplates)
+          .where(and(eq(commandTemplates.productId, productId), eq(commandTemplates.kind, entry.kind)));
+        continue;
+      }
+      await tx
+        .insert(commandTemplates)
+        .values({
+          id: ids.product().replace(/^prd/, "cmd"),
+          productId,
+          kind: entry.kind,
+          template: entry.template,
+        })
+        .onConflictDoUpdate({
+          target: [commandTemplates.productId, commandTemplates.kind],
+          set: { template: entry.template, updatedAt: new Date() },
+        });
+    }
+
+    await tx.delete(kitItems).where(eq(kitItems.productId, productId));
+    if (input.type === "KIT" && input.kitItems.length > 0) {
+      await tx.insert(kitItems).values(
+        input.kitItems.map((item, slot) => ({
+          id: ids.kitItem(),
+          productId,
+          slot,
+          itemKey: item.itemKey,
+          name: item.name,
+          quantity: item.quantity,
+          enchantments: item.enchantments,
+          lore: item.lore,
+        })),
+      );
+    }
+  });
+}
 
 export async function adminSaveProductAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
   try {
@@ -197,6 +287,11 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
     await requirePermissionApi("products.write");
     const price = idrField(formData, "priceIdr");
     if (price === null) return { error: "Harga harus angka rupiah yang valid." };
+    const kitItemsRaw = String(formData.get("kitItems") ?? "");
+    const kitItemLines = kitItemsRaw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (kitItemLines.some((line) => line.split("|").length !== 5)) {
+      return { error: "Setiap baris isi kit harus memiliki 5 kolom yang dipisahkan tanda |." };
+    }
 
     const parsed = productSchema.safeParse({
       id: String(formData.get("id") ?? "") || undefined,
@@ -205,6 +300,8 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
       name: String(formData.get("name") ?? "").trim(),
       tagline: String(formData.get("tagline") ?? "").trim(),
       description: String(formData.get("description") ?? "").trim(),
+      artwork: String(formData.get("artwork") ?? ""),
+      accent: String(formData.get("accent") ?? "amber"),
       priceIdr: price,
       tier: Number(formData.get("tier") ?? 0),
       maxPerSeason: Number(formData.get("maxPerSeason") ?? 1),
@@ -215,9 +312,26 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
         .map((line) => line.trim())
         .filter(Boolean),
       status: String(formData.get("status") ?? "DRAFT"),
+      useServerCommands: formData.has("useServerCommands"),
+      grantTemplate: String(formData.get("grantTemplate") ?? "").trim(),
+      revokeTemplate: String(formData.get("revokeTemplate") ?? "").trim(),
+      kitItems: parseKitItems(kitItemsRaw),
     });
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Data produk tidak valid." };
     const data = parsed.data;
+    for (const [label, template] of [["grant", data.grantTemplate], ["revoke", data.revokeTemplate]] as const) {
+      const validation = validateTemplate(template);
+      if (!validation.ok) return { error: `Template ${label}: ${validation.error}` };
+    }
+    const hasGrantCommand = data.grantTemplate
+      .split(/\r?\n/)
+      .some((line) => line.trim().length > 0 && !line.trim().startsWith("#"));
+    if (data.status === "PUBLISHED" && data.useServerCommands && !hasGrantCommand) {
+      return { error: "Produk tayang yang mengirim perintah harus punya minimal satu baris grant (bukan komentar)." };
+    }
+    if (data.type === "KIT" && data.status === "PUBLISHED" && data.kitItems.length === 0) {
+      return { error: "Kit tayang harus berisi minimal satu item." };
+    }
 
     if (data.id) {
       const existing = await db.query.products.findFirst({ where: eq(products.id, data.id) });
@@ -230,6 +344,8 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
           name: data.name,
           tagline: data.tagline,
           description: data.description,
+          artwork: data.artwork || null,
+          accent: data.accent,
           priceIdr: data.priceIdr,
           tier: data.tier,
           maxPerSeason: data.maxPerSeason,
@@ -237,19 +353,51 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
           sortOrder: data.sortOrder,
           perks: data.perks,
           status: data.status,
+          useServerCommands: data.useServerCommands,
           updatedAt: new Date(),
         })
         .where(eq(products.id, data.id));
+      await saveProductAutomation(data.id, data);
       await writeAudit({
         actor,
         action: "product.updated",
         targetType: "product",
         targetId: data.id,
-        before: { priceIdr: existing.priceIdr, status: existing.status, name: existing.name },
-        after: { priceIdr: data.priceIdr, status: data.status, name: data.name },
+        before: {
+          name: existing.name,
+          slug: existing.slug,
+          type: existing.type,
+          priceIdr: existing.priceIdr,
+          tier: existing.tier,
+          status: existing.status,
+          sortOrder: existing.sortOrder,
+          accent: existing.accent,
+          artwork: existing.artwork,
+          perks: existing.perks,
+          useServerCommands: existing.useServerCommands,
+        },
+        after: {
+          name: data.name,
+          slug: data.slug,
+          type: data.type,
+          priceIdr: data.priceIdr,
+          tier: data.tier,
+          status: data.status,
+          sortOrder: data.sortOrder,
+          accent: data.accent,
+          artwork: data.artwork || null,
+          perks: data.perks,
+          useServerCommands: data.useServerCommands,
+          kitItemCount: data.kitItems.length,
+        },
         ip,
       });
       revalidatePath("/admin/produk");
+      revalidatePath("/");
+      revalidatePath("/rank");
+      revalidatePath("/kit");
+      revalidatePath(`/rank/${existing.slug}`);
+      revalidatePath(`/kit/${existing.slug}`);
       revalidatePath(`/rank/${data.slug}`);
       revalidatePath(`/kit/${data.slug}`);
       return { success: `Produk ${data.name} diperbarui.` };
@@ -263,6 +411,8 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
       name: data.name,
       tagline: data.tagline,
       description: data.description,
+      artwork: data.artwork || null,
+      accent: data.accent,
       priceIdr: data.priceIdr,
       tier: data.tier,
       maxPerSeason: data.maxPerSeason,
@@ -270,9 +420,31 @@ export async function adminSaveProductAction(_prev: AdminState, formData: FormDa
       sortOrder: data.sortOrder,
       perks: data.perks,
       status: data.status,
+      useServerCommands: data.useServerCommands,
     });
-    await writeAudit({ actor, action: "product.created", targetType: "product", targetId: newId, after: { ...data }, ip });
+    await saveProductAutomation(newId, data);
+    await writeAudit({
+      actor,
+      action: "product.created",
+      targetType: "product",
+      targetId: newId,
+      after: {
+        name: data.name,
+        slug: data.slug,
+        type: data.type,
+        priceIdr: data.priceIdr,
+        tier: data.tier,
+        status: data.status,
+        accent: data.accent,
+        artwork: data.artwork || null,
+        perks: data.perks,
+        useServerCommands: data.useServerCommands,
+        kitItemCount: data.kitItems.length,
+      },
+      ip,
+    });
     revalidatePath("/admin/produk");
+    revalidatePath("/");
     revalidatePath("/rank");
     revalidatePath("/kit");
     return { success: `Produk ${data.name} dibuat.` };
@@ -297,9 +469,44 @@ export async function adminDeleteProductAction(_prev: AdminState, formData: Form
       .where(eq(products.id, productId));
     await writeAudit({ actor, action: "product.deleted", targetType: "product", targetId: productId, before: { name: product.name }, ip });
     revalidatePath("/admin/produk");
+    revalidatePath("/");
     revalidatePath("/rank");
     revalidatePath("/kit");
+    revalidatePath(`/rank/${product.slug}`);
+    revalidatePath(`/kit/${product.slug}`);
     return { success: `Produk ${product.name} disembunyikan (soft delete). Riwayat order tetap utuh.` };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function adminRestoreProductAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("products.write");
+    const productId = String(formData.get("productId") ?? "");
+    const product = await db.query.products.findFirst({ where: eq(products.id, productId) });
+    if (!product) return { error: "Produk tidak ditemukan." };
+    if (!product.deletedAt) return { error: "Produk ini tidak sedang dihapus." };
+
+    await db
+      .update(products)
+      .set({ deletedAt: null, status: "DRAFT", updatedAt: new Date() })
+      .where(eq(products.id, productId));
+    await writeAudit({
+      actor,
+      action: "product.restored",
+      targetType: "product",
+      targetId: productId,
+      before: { name: product.name, deletedAt: product.deletedAt },
+      after: { name: product.name, deletedAt: null, status: "DRAFT" },
+      ip,
+    });
+    revalidatePath("/admin/produk");
+    revalidatePath("/");
+    revalidatePath("/rank");
+    revalidatePath("/kit");
+    return { success: `Produk ${product.name} dipulihkan sebagai Draft.` };
   } catch (error) {
     return fail(error);
   }

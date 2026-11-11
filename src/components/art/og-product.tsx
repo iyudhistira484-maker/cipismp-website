@@ -1,13 +1,17 @@
 import type { ReactElement } from "react";
 
 const ACCENT_HEX: Record<string, string> = {
+  star: "#f6cf5f",
+  milk: "#e5f1ed",
+  pop: "#ff987c",
+  cute: "#ef9ad6",
   iron: "#b9bcc2",
   gold: "#e7b95c",
   diamond: "#7fd8d0",
   amber: "#e0a84e",
 };
 
-/** Token accent produk (iron/gold/diamond/amber) → warna hex untuk render OG. */
+/** Token accent produk → warna hex untuk render OG. */
 export function accentHex(token: string | null | undefined): string {
   return ACCENT_HEX[token ?? "amber"] ?? ACCENT_HEX.amber!;
 }

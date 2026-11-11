@@ -3,7 +3,7 @@ import { listProductsForAdmin, productForEdit } from "@/server/admin/queries";
 import { formatRp } from "@/lib/money";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader, Card, Table, Td } from "@/components/admin/shell";
-import { DeleteProductButton, ProductForm } from "@/components/admin/admin-forms";
+import { DeleteProductButton, ProductForm, RestoreProductButton } from "@/components/admin/admin-forms";
 
 export const metadata = { title: "Produk" };
 
@@ -17,7 +17,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     <>
       <AdminPageHeader
         title="Produk"
-        description="Harga dan ketersediaan bisa diubah kapan saja. Perubahan harga tidak mengubah order yang sudah dibuat."
+        description="Kelola rank dan kit: harga, tier, badge, ilustrasi, keuntungan, isi kit, serta perintah grant/revoke. Perubahan katalog tidak mengubah snapshot order yang sudah dibuat."
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
@@ -37,10 +37,16 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
               </Td>
               <Td className="tabular-nums">{product.soldCount}</Td>
               <Td>
-                <a href={`/admin/produk?edit=${product.id}`} className="text-2xs text-muted underline-offset-2 hover:text-accent hover:underline">
-                  Ubah
-                </a>
-                {!product.deletedAt ? <span className="ml-2"><DeleteProductButton productId={product.id} name={product.name} /></span> : null}
+                {product.deletedAt ? (
+                  <RestoreProductButton productId={product.id} />
+                ) : (
+                  <>
+                    <a href={`/admin/produk?edit=${product.id}`} className="text-2xs text-muted underline-offset-2 hover:text-accent hover:underline">
+                      Ubah
+                    </a>
+                    <span className="ml-2"><DeleteProductButton productId={product.id} name={product.name} /></span>
+                  </>
+                )}
               </Td>
             </tr>
           ))}
@@ -67,6 +73,14 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
                     sortOrder: editing.sortOrder,
                     perks: editing.perks.join("\n"),
                     status: editing.status,
+                    accent: editing.accent,
+                    artwork: editing.artwork ?? "",
+                    useServerCommands: editing.useServerCommands,
+                    grantTemplate: editing.grantTemplate,
+                    revokeTemplate: editing.revokeTemplate,
+                    kitItems: editing.kitItems
+                      .map((item) => [item.itemKey, item.name, item.quantity, item.enchantments.join(", "), item.lore.join(", ")].join(" | "))
+                      .join("\n"),
                   }
                 : undefined
             }

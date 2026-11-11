@@ -13,9 +13,9 @@ export const FAQ_ITEMS: FaqEntry[] = [
   },
   {
     id: "upgrade",
-    question: "Saya sudah punya Iron. Berapa harga untuk upgrade ke Gold?",
+    question: "Bagaimana cara upgrade rank?",
     answer:
-      "Hanya selisihnya. Gold Rp 45.000 dikurangi Iron Rp 20.000, jadi yang dibayar Rp 25.000. Upgrade ke tier yang lebih rendah tidak bisa dilakukan, dan membeli rank yang sama dua kali diblokir sistem.",
+      "Pilih tier yang lebih tinggi; sistem menghitung dan menagih hanya selisih harga setelah rank yang sedang dimiliki diperhitungkan. Upgrade ke tier yang lebih rendah tidak bisa dilakukan, dan membeli rank yang sama dua kali diblokir sistem.",
   },
   {
     id: "bedrock",

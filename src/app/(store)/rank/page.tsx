@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/field";
 export const metadata: Metadata = {
   title: "Rank",
   description:
-    "Tiga tier rank CipiSMP untuk Season 1: Iron, Gold, Diamond. Semua keuntungan kenyamanan dan kosmetik, berlaku sampai akhir season.",
+    "Pilih rank CipiSMP untuk season ini. Lihat keuntungan, harga, dan masa aktif setiap tier sebelum membeli.",
   alternates: { canonical: "/rank" },
 };
 
@@ -40,7 +40,7 @@ export default async function RankListPage({
       <div className="max-w-2xl">
         <p className="eyebrow">Rank · {season?.name ?? "Belum ada season"}</p>
         <h1 className="mt-2 text-balance font-display text-h1 text-ink">
-          Tiga tier. Semua kenyamanan, tanpa keuntungan tempur.
+          Rank Cipi untuk season ini.
         </h1>
         <p className="mt-3 text-pretty text-[15px] leading-relaxed text-muted">
           Rank berlaku sampai akhir season dan tidak diperpanjang otomatis. Kalau kamu sudah punya tier
@@ -75,13 +75,12 @@ export default async function RankListPage({
         </button>
       </form>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {ranks.map((rank) => (
           <RankCard
             key={rank.id}
             product={rank}
             season={season ? { name: season.name, endAt: season.endAt } : null}
-            highlighted={rank.tier === 2}
             rating={ratings.get(rank.id)}
           />
         ))}
