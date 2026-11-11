@@ -23,6 +23,7 @@ export async function SiteFooter() {
           <ul className="space-y-2 text-[13.5px] text-muted">
             <li><Link href="/rank" className="hover:text-ink">Rank</Link></li>
             <li><Link href="/kit" className="hover:text-ink">Kit</Link></li>
+            <li><Link href="/ulasan" className="hover:text-ink">Ulasan</Link></li>
             <li><Link href="/status-pesanan" className="hover:text-ink">Cek pesanan</Link></li>
             <li><Link href="/cara-kerja" className="hover:text-ink">Cara kerja</Link></li>
           </ul>

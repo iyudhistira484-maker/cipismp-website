@@ -4,7 +4,18 @@ import { db } from "@/server/db";
 import { entitlements, orderItems, orders, products, reviews, seasons, users } from "@/server/db/schema";
 
 import { hashPassword } from "@/server/auth/password";
-import { reviewEligibility, setReviewStatus, submitReview, listApprovedReviews, ratingSummary, ReviewError } from "@/server/reviews";
+import {
+  reviewEligibility,
+  setReviewStatus,
+  submitReview,
+  updateOwnReview,
+  listApprovedReviews,
+  listOwnReviews,
+  listPublicReviews,
+  ratingSummary,
+  publicReviewSummary,
+  ReviewError,
+} from "@/server/reviews";
 import { databaseUrl, uniqueSuffix } from "./helpers";
 
 const enabled = databaseUrl() !== null;
@@ -149,6 +160,51 @@ describe.skipIf(!enabled)("ulasan pembeli terverifikasi", () => {
 
     expect(await listApprovedReviews(rankId)).toHaveLength(0);
     expect((await ratingSummary(rankId)).count).toBe(0);
+
+    const own = await listOwnReviews(buyerId);
+    expect(own).toHaveLength(1);
+    expect(own[0]).toMatchObject({
+      id: created.id,
+      productId: rankId,
+      status: "PENDING",
+      rating: 5,
+    });
+  });
+
+  it("hanya pemilik yang bisa mengedit; perubahan kembali ke antrean moderasi", async () => {
+    const row = await db.query.reviews.findFirst({ where: and(eq(reviews.userId, buyerId), eq(reviews.productId, rankId)) });
+    expect(row).toBeTruthy();
+
+    await expect(
+      updateOwnReview({
+        reviewId: row!.id,
+        userId: strangerId,
+        rating: 1,
+        body: "Akun lain tidak boleh mengubah ulasan ini.",
+      }),
+    ).rejects.toThrow(/bukan milik akunmu/i);
+
+    const updated = await updateOwnReview({
+      reviewId: row!.id,
+      userId: buyerId,
+      rating: 4,
+      body: "Rank ini bagus dan manfaatnya terasa saat bermain bersama teman.",
+    });
+    expect(updated).toMatchObject({
+      id: row!.id,
+      productId: rankId,
+      before: { status: "PENDING", rating: 5 },
+    });
+
+    const saved = await db.query.reviews.findFirst({ where: eq(reviews.id, row!.id) });
+    expect(saved).toMatchObject({
+      status: "PENDING",
+      rating: 4,
+      body: "Rank ini bagus dan manfaatnya terasa saat bermain bersama teman.",
+    });
+    await expect(
+      updateOwnReview({ reviewId: row!.id, userId: buyerId, rating: 0, body: "Rating tidak valid untuk perubahan." }),
+    ).rejects.toThrow(/1 sampai 5/);
   });
 
   it("menolak ulasan ganda untuk produk yang sama", async () => {
@@ -163,8 +219,11 @@ describe.skipIf(!enabled)("ulasan pembeli terverifikasi", () => {
     ).rejects.toThrow(/1 sampai 5/);
   });
 
-  it("ulasan yang disetujui tampil dengan nama disamarkan dan ringkasan rata-rata", async () => {
+  it("ulasan yang disetujui tampil di feed publik dan hanya produk terbit yang dihitung", async () => {
     const row = await db.query.reviews.findFirst({ where: and(eq(reviews.userId, buyerId), eq(reviews.productId, rankId)) });
+    expect(row).toBeTruthy();
+    const countBefore = await publicReviewSummary();
+    const feedBefore = await listPublicReviews(50, 0);
     await setReviewStatus(row!.id, "APPROVED");
 
     const list = await listApprovedReviews(rankId);
@@ -174,14 +233,54 @@ describe.skipIf(!enabled)("ulasan pembeli terverifikasi", () => {
 
     const summary = await ratingSummary(rankId);
     expect(summary.count).toBe(1);
-    expect(summary.average).toBe(5);
-    expect(summary.buckets[4]).toBe(1);
+    expect(summary.average).toBe(4);
+    expect(summary.buckets[3]).toBe(1);
+
+    const feed = await listPublicReviews(50, 0);
+    expect(feed.total).toBe(feedBefore.total + 1);
+    expect(feed.reviews.find((review) => review.id === row!.id)).toMatchObject({
+      productId: rankId,
+      productType: "RANK",
+      productName: "Rank Ulasan Satu",
+      productSlug: `review-uji-${suffix}-satu`,
+      rating: 4,
+      authorName: "Pembeli",
+      verified: true,
+    });
+    const globalSummary = await publicReviewSummary();
+    expect(globalSummary.count).toBe(countBefore.count + 1);
+    expect(globalSummary.buckets[3]).toBe(countBefore.buckets[3]! + 1);
+
+    await db.update(products).set({ status: "DRAFT" }).where(eq(products.id, rankId));
+    expect((await listPublicReviews(50, 0)).reviews.some((review) => review.id === row!.id)).toBe(false);
+    expect((await publicReviewSummary()).count).toBe(countBefore.count);
+    await db.update(products).set({ status: "PUBLISHED" }).where(eq(products.id, rankId));
+
+    await db.update(products).set({ deletedAt: new Date() }).where(eq(products.id, rankId));
+    expect((await listPublicReviews(50, 0)).reviews.some((review) => review.id === row!.id)).toBe(false);
+    expect((await publicReviewSummary()).count).toBe(countBefore.count);
+    await db.update(products).set({ deletedAt: null }).where(eq(products.id, rankId));
+
+    const edited = await updateOwnReview({
+      reviewId: row!.id,
+      userId: buyerId,
+      rating: 3,
+      body: "Setelah dipakai lebih lama, ada beberapa hal yang masih bisa diperbaiki.",
+    });
+    expect(edited.before).toMatchObject({ status: "APPROVED", rating: 4 });
+    expect((await db.query.reviews.findFirst({ where: eq(reviews.id, row!.id) }))?.status).toBe("PENDING");
+    expect(await listApprovedReviews(rankId)).toHaveLength(0);
+    expect((await ratingSummary(rankId)).count).toBe(0);
   });
 
-  it("ulasan yang disembunyikan hilang dari halaman produk", async () => {
+  it("ulasan yang disembunyikan hilang dari halaman produk dan feed publik", async () => {
     const row = await db.query.reviews.findFirst({ where: and(eq(reviews.userId, buyerId), eq(reviews.productId, rankId)) });
+    const countBefore = await publicReviewSummary();
+    const feedBefore = await listPublicReviews(50, 0);
     await setReviewStatus(row!.id, "HIDDEN");
     expect(await listApprovedReviews(rankId)).toHaveLength(0);
     expect((await ratingSummary(rankId)).count).toBe(0);
+    expect((await listPublicReviews(50, 0)).total).toBe(feedBefore.total);
+    expect((await publicReviewSummary()).count).toBe(countBefore.count);
   });
 });

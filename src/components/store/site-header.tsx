@@ -11,6 +11,7 @@ import { t } from "@/lib/i18n";
 const NAV = [
   { href: "/rank", label: t("nav.ranks") },
   { href: "/kit", label: t("nav.kits") },
+  { href: "/ulasan", label: "Ulasan" },
   { href: "/cara-kerja", label: t("nav.how") },
   { href: "/faq", label: t("nav.faq") },
 ];

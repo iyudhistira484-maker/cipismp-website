@@ -75,7 +75,8 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 - [ ] Toggle **Hadiah** dinyalakan bila gifting dipublikasikan; uji sekali dengan akun uji
       (keranjang menampilkan "Hadiah untuk X", checkout mengirim ke penerima).
 - [ ] Toggle **Ulasan** dinyalakan; kirim satu ulasan uji, setujui di `/admin/ulasan`,
-      pastikan muncul di halaman produk dengan nama tersamar.
+      pastikan tampil di halaman produk dan `/ulasan` dengan nama tersamar; edit sebagai pemilik,
+      pastikan ulasan kembali ke antrean moderasi dan hilang dari publik sampai disetujui lagi.
 - [ ] Login Discord (bila dipakai): aplikasi Discord dibuat, redirect URI
       `<APP_URL>/api/auth/discord/callback` terdaftar, kredensial diisi, toggle dinyalakan,
       lalu uji tautkan akun dari `/dashboard/keamanan` dan login ulang dengan Discord.

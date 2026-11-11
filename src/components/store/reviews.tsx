@@ -6,22 +6,30 @@ import { Stars } from "@/components/ui/stars";
 import { Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
-import { submitReviewAction, type ReviewState } from "@/app/actions/reviews";
+import { editReviewAction, submitReviewAction, type ReviewState } from "@/app/actions/reviews";
 import { cn } from "@/lib/utils";
 
 const initial: ReviewState = {};
 
-export function ReviewForm({ productId, productName }: { productId: string; productName: string }) {
-  const [state, action] = useActionState(submitReviewAction, initial);
-  const [rating, setRating] = useState(5);
+export function ReviewForm({
+  productId,
+  productName,
+  review,
+}: {
+  productId: string;
+  productName: string;
+  review?: { id: string; rating: number; body: string };
+}) {
+  const [state, action] = useActionState(review ? editReviewAction : submitReviewAction, initial);
+  const [rating, setRating] = useState(review?.rating ?? 5);
 
   if (state.success) {
-    return <Alert tone="success" title="Ulasan terkirim">{state.success}</Alert>;
+    return <Alert tone="success" title={review ? "Perubahan terkirim" : "Ulasan terkirim"}>{state.success}</Alert>;
   }
 
   return (
     <form action={action} className="space-y-3">
-      <input type="hidden" name="productId" value={productId} />
+      {review ? <input type="hidden" name="reviewId" value={review.id} /> : <input type="hidden" name="productId" value={productId} />}
       <input type="hidden" name="rating" value={rating} />
 
       <div>
@@ -57,6 +65,7 @@ export function ReviewForm({ productId, productName }: { productId: string; prod
           minLength={15}
           maxLength={1200}
           rows={4}
+          defaultValue={review?.body}
           placeholder="Ceritakan pengalamanmu memakai rank/kit ini di server — minimal 15 karakter."
         />
       </label>
@@ -65,10 +74,12 @@ export function ReviewForm({ productId, productName }: { productId: string; prod
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-2xs leading-relaxed text-muted-2">
-          Ulasan tampil setelah moderasi. Nama disamarkan demi privasi.
+          {review
+            ? "Perubahan kembali ke antrean moderasi. Nama disamarkan demi privasi."
+            : "Ulasan tampil setelah moderasi. Nama disamarkan demi privasi."}
         </p>
         <Button type="submit" size="sm">
-          Kirim ulasan
+          {review ? "Simpan perubahan" : "Kirim ulasan"}
         </Button>
       </div>
     </form>

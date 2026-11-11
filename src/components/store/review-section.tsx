@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MessageSquare, ShieldCheck } from "lucide-react";
 import { ReviewForm } from "@/components/store/reviews";
 import { Stars } from "@/components/ui/stars";
@@ -42,18 +43,27 @@ export async function ReviewSection({ productId, productName }: { productId: str
           <ReviewForm productId={productId} productName={productName} />
         </div>
       ) : eligibility.reason === "ALREADY_REVIEWED" ? (
-        <Alert tone="info" title="Kamu sudah mengulas produk ini">
-          {eligibility.existing?.status === "APPROVED"
-            ? "Ulasanmu sudah tampil di bawah."
-            : eligibility.existing?.status === "PENDING"
-              ? "Ulasanmu sedang menunggu moderasi admin."
-              : "Ulasanmu disembunyikan oleh moderator."}
-        </Alert>
+        <div className="space-y-3">
+          <Alert tone="info" title="Kamu sudah mengulas produk ini">
+            {eligibility.existing?.status === "APPROVED"
+              ? "Ulasanmu tampil di bawah. Jika mengubahnya, ulasan akan kembali ke moderasi."
+              : eligibility.existing?.status === "PENDING"
+                ? "Ulasanmu sedang menunggu moderasi admin. Kamu masih bisa mengoreksinya."
+                : "Ulasanmu disembunyikan moderator. Kamu masih bisa mengoreksinya dan mengirim untuk ditinjau ulang."}
+          </Alert>
+          {eligibility.existing ? (
+            <div className="rounded-lg border border-line bg-surface/40 p-4">
+              <h3 className="mb-3 text-[13.5px] font-medium text-ink">Edit ulasanmu</h3>
+              <ReviewForm productId={productId} productName={productName} review={eligibility.existing} />
+            </div>
+          ) : null}
+        </div>
       ) : eligibility.reason === "NOT_PURCHASED" ? (
         <Alert tone="info">Ulasan terbuka otomatis setelah pesananmu untuk produk ini lunas dan terkirim.</Alert>
       ) : (
         <Alert tone="info">
-          <a href="/masuk?next=ulasan">Masuk ke akunmu</a> untuk melihat apakah kamu bisa mengulas produk ini.
+          <Link href="/masuk?next=%2Fulasan" className="font-medium text-accent hover:underline">Masuk ke akunmu</Link>{" "}
+          untuk melihat apakah kamu bisa mengulas produk ini.
         </Alert>
       )}
 

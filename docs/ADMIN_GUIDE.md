@@ -185,7 +185,10 @@ satu ulasan per akun per produk. Semua ulasan baru berstatus **Menunggu**.
 - **Tampilkan** menerbitkan ulasan ke halaman produk; **Sembunyikan** menariknya kembali
   (mis. berisi kata kasar, data pribadi, atau spam). Bisa dibalik kapan saja.
 - Nama penulis otomatis disamarkan (mis. “Budi” dari `Budi_S`) dan ulasan dari pembeli
-  terverifikasi diberi label **Pembelian terverifikasi**.
+  terverifikasi diberi label **Pembelian terverifikasi**. Ulasan yang tampil di halaman produk
+  juga dikumpulkan di `/ulasan`; feed publik hanya memuat ulasan disetujui pada produk terbit.
+- Pemilik ulasan dapat mengeditnya dari `/ulasan` atau halaman produk. Setiap perubahan
+  mengembalikan ulasan ke status **Menunggu**, sehingga ulasan tidak tampil lagi sampai disetujui.
 - Menolak ulasan tanpa membuka debat: tidak ada fitur balasan publik; tanggapi lewat Discord.
 
 ## Login Discord
@@ -206,8 +209,9 @@ masuk dengan password dulu — bukan membuat akun baru.
 
 Setiap tindakan penting tercatat: siapa (email), apa (aksi), pada apa (order/produk/season),
 alasan, dan IP. Gunakan filter untuk mencari, misalnya `season.transition` atau
-`order.manual-paid`. Aksi fitur baru juga tercatat: `review.submitted`, `review.approved`,
-`review.hidden`, `account.login-discord`, `account.discord-linked`, `account.discord-unlinked`.
+`order.manual-paid`. Aksi fitur baru juga tercatat: `review.submitted`, `review.edited`,
+`review.approved`, `review.hidden`, `account.login-discord`, `account.discord-linked`,
+`account.discord-unlinked`.
 Log tidak bisa dihapus dari panel.
 
 ## Aturan yang tidak boleh dilanggar
