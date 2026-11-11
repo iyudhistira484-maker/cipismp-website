@@ -19,10 +19,13 @@ Diperbarui setiap akhir langkah. Status: ✅ selesai · 🚧 sedang dikerjakan �
 ## Test
 
 ```
-npm test                     # unit + integrasi yang bisa di-skip
-npm run test:unit            # 62 test, tanpa database
-TEST_DATABASE_URL=... npm test  # + 5 test integrasi webhook (67 total)
+npm test                          # 62 unit, integrasi di-skip tanpa database
+TEST_DATABASE_URL=... npm test    # 72 test (62 unit + 10 integrasi)
+npm run test:e2e                  # Playwright smoke (butuh browser)
 ```
+
+Integration: validasi & idempotensi webhook, pembuatan order server-side (no-refund,
+snapshot legal, upgrade selisih, blokir rank dimiliki).
 
 ## Log
 
