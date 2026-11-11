@@ -572,6 +572,12 @@ export async function adminSaveStoreSettingsAction(_prev: AdminState, formData: 
       payments: {
         defaultProvider: String(formData.get("defaultProvider") ?? "FAKE") as "TRIPAY" | "MIDTRANS" | "FAKE",
       },
+      features: {
+        coupons: formData.get("featureCoupons") !== null,
+        gifting: formData.get("featureGifting") !== null,
+        reviews: formData.get("featureReviews") !== null,
+        discordLogin: formData.get("featureDiscord") !== null,
+      },
     };
     const before = await getSettings();
     await updateSettings(patch, actor.id);

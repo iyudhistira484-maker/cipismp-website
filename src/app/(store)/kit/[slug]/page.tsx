@@ -4,10 +4,12 @@ import type { Metadata } from "next";
 import { Clock, Layers, ShieldCheck } from "lucide-react";
 import { ItemArt } from "@/components/art/item-art";
 import { AddToCart } from "@/components/store/add-to-cart";
+import { ReviewSection } from "@/components/store/review-section";
 import { Alert } from "@/components/ui/feedback";
 import { Badge } from "@/components/ui/badge";
 import { ItemTooltip } from "@/components/ui/tooltip";
 import { getActiveSeason, getKitItemsForProducts, getProductBySlug } from "@/server/catalog";
+import { getSettings } from "@/server/settings";
 import { formatRp } from "@/lib/money";
 import { activeUntilLabel, isPurchaseFrozen } from "@/lib/seasons";
 import { formatDateWIB } from "@/lib/dates";
@@ -28,7 +30,8 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
   const product = await getProductBySlug(slug);
   if (!product || product.type !== "KIT" || product.status !== "PUBLISHED" || product.deletedAt) notFound();
 
-  const season = await getActiveSeason();
+  const [season, settings] = await Promise.all([getActiveSeason(), getSettings()]);
+  const giftingEnabled = settings.features.gifting;
   const items = await getKitItemsForProducts([product.id]);
   const frozen = season ? isPurchaseFrozen(season) : false;
 
@@ -123,7 +126,7 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
                   {season ? ` (${formatDateWIB(season.endAt)})` : ""}.
                 </Alert>
               ) : (
-                <AddToCart productId={product.id} label="Tambah ke keranjang" />
+                <AddToCart productId={product.id} label="Tambah ke keranjang" giftingEnabled={giftingEnabled} />
               )}
             </div>
 
@@ -137,6 +140,8 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
           </div>
         </aside>
       </div>
+
+      <ReviewSection productId={product.id} productName={product.name} />
     </div>
   );
 }

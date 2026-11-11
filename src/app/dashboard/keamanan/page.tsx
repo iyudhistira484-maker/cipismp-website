@@ -4,16 +4,33 @@ import { listSessions, deviceLabel } from "@/server/auth/session";
 import { formatDateTimeWIB } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { AccountSecurityForms, TotpPanel, DeleteAccountPanel } from "@/components/store/account-forms";
-import { revokeSessionAction, revokeAllOtherSessionsAction } from "@/app/actions/account";
+import { revokeSessionAction, revokeAllOtherSessionsAction, unlinkDiscordAction } from "@/app/actions/account";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
+import { db } from "@/server/db";
+import { users } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
+import { discordLoginAvailable } from "@/server/auth/discord";
 
 export const metadata: Metadata = { title: "Keamanan", robots: { index: false, follow: false } };
 
-export default async function SecurityPage({ searchParams }: { searchParams: Promise<{ "email-berubah"?: string }> }) {
+export default async function SecurityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ "email-berubah"?: string; discord?: string }>;
+}) {
   const viewer = await requireViewer("/dashboard/keamanan");
   const params = await searchParams;
-  const sessions = await listSessions(viewer.user.id, viewer.sessionId);
+  const [sessions, discordRow, discordReady] = await Promise.all([
+    listSessions(viewer.user.id, viewer.sessionId),
+    db
+      .select({ discordId: users.discordId, discordUsername: users.discordUsername })
+      .from(users)
+      .where(eq(users.id, viewer.user.id))
+      .limit(1),
+    discordLoginAvailable(),
+  ]);
+  const discord = discordRow[0] ?? { discordId: null, discordUsername: null };
 
   return (
     <div className="space-y-8">
@@ -29,7 +46,49 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
         </Alert>
       ) : null}
 
+      {params.discord === "linked" ? (
+        <Alert tone="success" title="Discord tertaut">
+          Sekarang kamu bisa masuk memakai tombol Discord. 2FA (bila aktif) tetap diminta.
+        </Alert>
+      ) : null}
+      {params.discord === "mfa-required" ? (
+        <Alert tone="warning" title="Aktifkan 2FA lebih dulu">
+          Staf wajib memakai 2FA sebelum bisa menautkan Discord. Aktifkan 2FA di bawah, lalu ulangi penautan.
+        </Alert>
+      ) : null}
+
       <AccountSecurityForms email={viewer.user.email} verified={Boolean(viewer.user.emailVerifiedAt)} />
+
+      <section aria-labelledby="discord" className="rounded-lg border border-line p-4">
+        <h2 id="discord" className="font-display text-h3 text-ink">Discord</h2>
+        {discord.discordId ? (
+          <div className="mt-2 space-y-3">
+            <p className="text-[13.5px] text-muted">
+              Tertaut sebagai <span className="text-ink">@{discord.discordUsername}</span>. Kamu bisa masuk dengan tombol
+              Discord di halaman masuk.
+            </p>
+            <form action={unlinkDiscordAction}>
+              <Button type="submit" variant="secondary" size="sm">Lepas tautan Discord</Button>
+            </form>
+          </div>
+        ) : (
+          <div className="mt-2 space-y-3">
+            <p className="text-[13.5px] text-muted">
+              {discordReady
+                ? "Tautkan Discord agar bisa masuk tanpa password. Password tetap bisa dipakai kapan saja."
+                : "Fitur login Discord belum dinyalakan admin, jadi penautan belum tersedia."}
+            </p>
+            {discordReady ? (
+              <a
+                href="/api/auth/discord?next=%2Fdashboard%2Fkeamanan"
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-[#5865F2] px-3 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
+              >
+                Hubungkan Discord
+              </a>
+            ) : null}
+          </div>
+        )}
+      </section>
 
       <TotpPanel enabled={Boolean(viewer.user.totpEnabledAt)} isStaff={viewer.user.role !== "CUSTOMER"} />
 

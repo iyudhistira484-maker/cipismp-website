@@ -53,6 +53,18 @@ sebagai catatan audit. Centang setiap baris; jangan meluncurkan sebelum semuanya
 - [ ] Email verifikasi, reset password, dan struk diterima di Gmail + Outlook (bukan spam).
 - [ ] `EMAIL_FROM` memakai domain toko, bukan Gmail pribadi.
 
+## 5b. Fitur toko (opsional sebelum rilis)
+
+- [ ] `/admin/pengaturan`: pajak, biaya layanan, batas bayar, usia minimum, dan freeze
+      season sudah sesuai keputusan bisnis.
+- [ ] Toggle **Hadiah** dinyalakan bila gifting dipublikasikan; uji sekali dengan akun uji
+      (keranjang menampilkan "Hadiah untuk X", checkout mengirim ke penerima).
+- [ ] Toggle **Ulasan** dinyalakan; kirim satu ulasan uji, setujui di `/admin/ulasan`,
+      pastikan muncul di halaman produk dengan nama tersamar.
+- [ ] Login Discord (bila dipakai): aplikasi Discord dibuat, redirect URI
+      `<APP_URL>/api/auth/discord/callback` terdaftar, kredensial diisi, toggle dinyalakan,
+      lalu uji tautkan akun dari `/dashboard/keamanan` dan login ulang dengan Discord.
+
 ## 6. Server Minecraft & plugin
 
 - [ ] `cd plugin && ./gradlew build` sukses (JDK 17).

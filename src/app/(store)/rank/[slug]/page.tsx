@@ -4,9 +4,11 @@ import type { Metadata } from "next";
 import { Check, Clock, Info, ShieldCheck } from "lucide-react";
 import { RankBadge } from "@/components/art/item-art";
 import { AddToCart } from "@/components/store/add-to-cart";
+import { ReviewSection } from "@/components/store/review-section";
 import { Alert } from "@/components/ui/feedback";
 import { Badge } from "@/components/ui/badge";
 import { getActiveSeason, getProductBySlug } from "@/server/catalog";
+import { getSettings } from "@/server/settings";
 import { getViewer } from "@/server/auth/guard";
 import { verifiedProfilesForUser } from "@/server/minecraft";
 import { priceSingleProduct } from "@/server/pricing-service";
@@ -30,7 +32,8 @@ export default async function RankDetailPage({ params }: { params: Promise<{ slu
   const product = await getProductBySlug(slug);
   if (!product || product.type !== "RANK" || product.status !== "PUBLISHED" || product.deletedAt) notFound();
 
-  const season = await getActiveSeason();
+  const [season, settings] = await Promise.all([getActiveSeason(), getSettings()]);
+  const giftingEnabled = settings.features.gifting;
   const viewer = await getViewer();
   const profiles = viewer ? await verifiedProfilesForUser(viewer.user.id) : [];
   const profile = profiles[0] ?? null;
@@ -129,7 +132,7 @@ export default async function RankDetailPage({ params }: { params: Promise<{ slu
                   {season ? ` (${formatDateWIB(season.endAt)})` : ""}.
                 </Alert>
               ) : (
-                <AddToCart productId={product.id} label="Tambah ke keranjang" />
+                <AddToCart productId={product.id} label="Tambah ke keranjang" giftingEnabled={giftingEnabled} />
               )}
             </div>
 
@@ -159,6 +162,8 @@ export default async function RankDetailPage({ params }: { params: Promise<{ slu
           </div>
         </aside>
       </div>
+
+      <ReviewSection productId={product.id} productName={product.name} />
     </div>
   );
 }

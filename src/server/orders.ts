@@ -39,7 +39,8 @@ export class CheckoutError extends Error {
 }
 
 export interface CreateOrderInput {
-  items: Array<{ productId: string; quantity?: number }>;
+  /** `targetName` diisi untuk item hadiah; aturan rank dievaluasi terhadap penerima. */
+  items: Array<{ productId: string; quantity?: number; targetName?: string | null }>;
   mcName: string;
   email: string;
   couponCode?: string | null;
@@ -86,7 +87,38 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
   if (!settings.store.checkoutEnabled) throw new CheckoutError("Checkout sedang dinonaktifkan sementara.");
 
   const player = await resolvePlayer(input.mcName);
-  const productIds = [...new Set(input.items.map((item) => item.productId))];
+
+  // Resolusi penerima per item: hadiah diverifikasi ke UUID masing-masing agar aturan
+  // "rank sudah dimiliki" dan "upgrade hanya selisih" dihitung untuk penerimanya.
+  const resolvedItems: Array<{ productId: string; quantity: number; uuid: string; name: string; gift: boolean }> = [];
+  for (const item of input.items) {
+    const giftName = item.targetName?.trim();
+    if (giftName) {
+      const recipient = await resolvePlayer(giftName);
+      if (recipient.uuid === player.uuid) {
+        throw new CheckoutError("Penerima hadiah tidak boleh sama dengan akun Minecraft kamu sendiri.", {
+          cart: "Hapus hadiah untuk diri sendiri, atau ganti username penerima.",
+        });
+      }
+      resolvedItems.push({
+        productId: item.productId,
+        quantity: item.quantity ?? 1,
+        uuid: recipient.uuid,
+        name: recipient.name,
+        gift: true,
+      });
+    } else {
+      resolvedItems.push({
+        productId: item.productId,
+        quantity: item.quantity ?? 1,
+        uuid: player.uuid,
+        name: player.name,
+        gift: false,
+      });
+    }
+  }
+
+  const productIds = [...new Set(resolvedItems.map((item) => item.productId))];
   const productRows = await db.select().from(products).where(inArray(products.id, productIds));
   if (productRows.length !== productIds.length) throw new CheckoutError("Sebagian produk tidak ditemukan.");
 
@@ -108,15 +140,15 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     ]),
   );
 
-  const owned = await ownedMap([player.uuid], season.id);
+  const owned = await ownedMap([...new Set(resolvedItems.map((item) => item.uuid))], season.id);
   const coupon = input.couponCode ? await loadCouponInput(input.couponCode, input.email) : null;
 
   const pricing = priceCart({
-    items: input.items.map((item) => ({
+    items: resolvedItems.map((item) => ({
       productId: item.productId,
-      quantity: item.quantity ?? 1,
-      targetUuid: player.uuid,
-      targetName: player.name,
+      quantity: item.quantity,
+      targetUuid: item.uuid,
+      targetName: item.name,
     })),
     catalog,
     ownedByTarget: owned,
@@ -169,6 +201,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
       .returning();
 
     for (const line of pricing.lines) {
+      const recipient = resolvedItems.find(
+        (item) => item.uuid === line.targetUuid && item.productId === line.productId,
+      );
       await tx.insert(orderItems).values({
         id: ids.orderItem(),
         orderId,
@@ -180,9 +215,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
         lineTotalIdr: line.lineTotalIdr,
         targetUuid: line.targetUuid,
         targetName: line.targetName,
-        meta: line.upgradeFrom
-          ? { upgradeFromProductId: line.upgradeFrom.productId, upgradeFromName: line.upgradeFrom.name }
-          : null,
+        meta: {
+          ...(line.upgradeFrom
+            ? { upgradeFromProductId: line.upgradeFrom.productId, upgradeFromName: line.upgradeFrom.name }
+            : {}),
+          ...(recipient?.gift ? { giftFromName: player.name, giftFromUuid: player.uuid } : {}),
+        },
       });
     }
 
@@ -222,6 +260,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     edition: player.edition,
     userId: input.userId ?? null,
   });
+  for (const item of resolvedItems.filter((entry) => entry.gift)) {
+    await upsertProfile({ uuid: item.uuid, name: item.name, edition: player.edition, userId: null });
+  }
 
   // Buat transaksi di gateway. Kalau gagal, order tetap PENDING dan bisa dicoba lagi.
   let paymentUrl: string | null = null;

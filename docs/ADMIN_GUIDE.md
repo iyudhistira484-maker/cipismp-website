@@ -153,11 +153,54 @@ waktu aktif terakhir, dan status 2FA sesi.
   di dashboard.
 - Sesi Owner tidak bisa dicabut oleh Admin; hanya Owner sendiri yang bisa.
 
+## Pengaturan toko
+
+Halaman **Pengaturan** (`/admin/pengaturan`) mengatur angka dan saklar yang berlaku langsung
+setelah disimpan:
+
+- **Pajak** (persen + label) dan **biaya layanan** (flat / persen / keduanya).
+- **Batas waktu bayar** order (menit), **usia minimum** pembeli, dan **freeze season**
+  (hari terakhir sebelum pergantian season saat pembelian dikunci).
+- **Gateway default** untuk checkout baru (kredensialnya tetap di halaman Pembayaran).
+- **Toggle fitur**: kupon, hadiah (gift), ulasan pembeli, login Discord.
+
+Mematikan sebuah fitur langsung menyembunyikan UI-nya; data lama tidak dihapus. Perubahan
+tercatat di audit log (`settings.store`).
+
+## Ulasan pembeli
+
+Ulasan hanya bisa ditulis oleh pembeli produk tersebut (order berstatus lunas/terkirim),
+satu ulasan per akun per produk. Semua ulasan baru berstatus **Menunggu**.
+
+- Buka **Ulasan** → tab **Menunggu**. Setiap baris menampilkan produk, rating, isi ulasan,
+  penulis, dan nomor pesanan sumber verifikasi.
+- **Tampilkan** menerbitkan ulasan ke halaman produk; **Sembunyikan** menariknya kembali
+  (mis. berisi kata kasar, data pribadi, atau spam). Bisa dibalik kapan saja.
+- Nama penulis otomatis disamarkan (mis. “Budi” dari `Budi_S`) dan ulasan dari pembeli
+  terverifikasi diberi label **Pembelian terverifikasi**.
+- Menolak ulasan tanpa membuka debat: tidak ada fitur balasan publik; tanggapi lewat Discord.
+
+## Login Discord
+
+Login Discord bersifat opsional dan tidak pernah menggabungkan akun otomatis lewat email.
+
+1. Buat aplikasi di <https://discord.com/developers/applications>, ambil Client ID dan
+   Client Secret, lalu tambahkan redirect URI `https://<domain>/api/auth/discord/callback`.
+2. Isi `DISCORD_CLIENT_ID` dan `DISCORD_CLIENT_SECRET` di `.env`, restart aplikasi.
+3. Nyalakan toggle **Login Discord** di `/admin/pengaturan`.
+
+Pemain menautkan akun di **Dashboard → Keamanan**. Staf wajib mengaktifkan 2FA lebih dulu
+sebelum bisa menautkan (mencegah tautan Discord menjadi jalan pintas tanpa 2FA). Bila
+seseorang menekan tombol Discord tetapi akunnya belum tertaut, sistem mengarahkan mereka
+masuk dengan password dulu — bukan membuat akun baru.
+
 ## Audit log
 
 Setiap tindakan penting tercatat: siapa (email), apa (aksi), pada apa (order/produk/season),
 alasan, dan IP. Gunakan filter untuk mencari, misalnya `season.transition` atau
-`order.manual-paid`. Log tidak bisa dihapus dari panel.
+`order.manual-paid`. Aksi fitur baru juga tercatat: `review.submitted`, `review.approved`,
+`review.hidden`, `account.login-discord`, `account.discord-linked`, `account.discord-unlinked`.
+Log tidak bisa dihapus dari panel.
 
 ## Aturan yang tidak boleh dilanggar
 

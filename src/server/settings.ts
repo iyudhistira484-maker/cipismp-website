@@ -89,7 +89,7 @@ export const DEFAULT_SETTINGS: StoreSettings = {
     salesVersion: "2026-01-01",
     updatedAt: "2026-01-01",
   },
-  features: { coupons: true, gifting: false, discordLogin: false, reviews: false },
+  features: { coupons: true, gifting: true, discordLogin: false, reviews: true },
 };
 
 const SETTINGS_KEY = "store.settings";

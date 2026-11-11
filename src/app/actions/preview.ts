@@ -77,7 +77,11 @@ export async function previewTotalsAction(input: {
       productId: line.productId,
       name: line.name,
       amountIdr: line.lineTotalIdr,
-      note: line.upgradeFrom ? `Upgrade dari ${line.upgradeFrom.name}` : undefined,
+      note: line.upgradeFrom
+        ? `Upgrade dari ${line.upgradeFrom.name}`
+        : line.targetName !== name
+          ? `Hadiah untuk ${line.targetName}`
+          : undefined,
     })),
     subtotalIdr: pricing.result.subtotalIdr,
     discountIdr: pricing.result.discountIdr,

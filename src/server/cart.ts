@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { cartItems, carts } from "./db/schema";
 import { ids } from "./ids";
@@ -11,6 +11,10 @@ export interface CartLine {
   id: string;
   productId: string;
   quantity: number;
+  /** Penerima hadiah; null berarti dibeli untuk pembeli sendiri. */
+  targetUuid: string | null;
+  targetName: string | null;
+  isGift: boolean;
   addedAt: Date;
 }
 
@@ -71,6 +75,9 @@ export async function getCartLines(cartId: string | null): Promise<CartLine[]> {
     id: row.id,
     productId: row.productId,
     quantity: row.quantity,
+    targetUuid: row.targetUuid,
+    targetName: row.targetName,
+    isGift: row.isGift,
     addedAt: row.createdAt,
   }));
 }
@@ -81,10 +88,21 @@ export async function getCartCount(): Promise<number> {
   return lines.reduce((sum, line) => sum + line.quantity, 0);
 }
 
-export async function addToCart(productId: string, quantity = 1): Promise<void> {
+export interface CartTarget {
+  /** Username yang sudah diverifikasi ke UUID oleh pemanggil. */
+  uuid: string;
+  name: string;
+}
+
+export async function addToCart(productId: string, quantity = 1, gift?: CartTarget | null): Promise<void> {
   const cart = await getOrCreateCart();
+  const targetUuid = gift?.uuid ?? null;
   const existing = await db.query.cartItems.findFirst({
-    where: and(eq(cartItems.cartId, cart.cartId), eq(cartItems.productId, productId)),
+    where: and(
+      eq(cartItems.cartId, cart.cartId),
+      eq(cartItems.productId, productId),
+      targetUuid ? eq(cartItems.targetUuid, targetUuid) : isNull(cartItems.targetUuid),
+    ),
   });
   if (existing) {
     await db
@@ -92,7 +110,15 @@ export async function addToCart(productId: string, quantity = 1): Promise<void> 
       .set({ quantity: Math.min(99, existing.quantity + quantity) })
       .where(eq(cartItems.id, existing.id));
   } else {
-    await db.insert(cartItems).values({ id: ids.cartItem(), cartId: cart.cartId, productId, quantity });
+    await db.insert(cartItems).values({
+      id: ids.cartItem(),
+      cartId: cart.cartId,
+      productId,
+      quantity,
+      targetUuid,
+      targetName: gift?.name ?? null,
+      isGift: Boolean(gift),
+    });
   }
   await db.update(carts).set({ updatedAt: new Date() }).where(eq(carts.id, cart.cartId));
 }
@@ -126,7 +152,11 @@ export async function mergeGuestCart(userId: string, guestKey: string | null): P
   const guestLines = await db.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id));
   for (const line of guestLines) {
     const existing = await db.query.cartItems.findFirst({
-      where: and(eq(cartItems.cartId, userCart.id), eq(cartItems.productId, line.productId)),
+      where: and(
+        eq(cartItems.cartId, userCart.id),
+        eq(cartItems.productId, line.productId),
+        line.targetUuid ? eq(cartItems.targetUuid, line.targetUuid) : isNull(cartItems.targetUuid),
+      ),
     });
     if (existing) {
       await db
@@ -139,6 +169,9 @@ export async function mergeGuestCart(userId: string, guestKey: string | null): P
         cartId: userCart.id,
         productId: line.productId,
         quantity: line.quantity,
+        targetUuid: line.targetUuid,
+        targetName: line.targetName,
+        isGift: line.isGift,
       });
     }
   }

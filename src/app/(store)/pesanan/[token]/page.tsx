@@ -142,6 +142,7 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
                     <p className="mt-0.5 text-2xs text-muted-2">
                       {item.type === "RANK" ? "Rank" : "Kit"} · {item.targetName}
                       {item.meta?.upgradeFromName ? ` · upgrade dari ${item.meta.upgradeFromName}` : ""}
+                      {item.meta?.giftFromName ? ` · hadiah dari ${item.meta.giftFromName}` : ""}
                     </p>
                     {delivery ? (
                       <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10.5px] text-muted">

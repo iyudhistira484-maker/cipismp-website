@@ -35,8 +35,8 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./
+COPY --from=builder --chown=nextjs:nodejs /app/src/server/db/migrations ./src/server/db/migrations
 COPY --from=builder --chown=nextjs:nodejs /app/src/server/db/schema.ts ./src/server/db/schema.ts
 USER nextjs
 EXPOSE 3000
@@ -51,7 +51,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json drizzle.config.ts ./
 COPY src ./src
 COPY scripts ./scripts
-COPY drizzle ./drizzle
 USER node
 CMD ["npx", "tsx", "src/worker/index.ts"]
 

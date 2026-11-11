@@ -5,6 +5,9 @@ satu season, dengan pembayaran QRIS/e-wallet lewat Tripay atau Midtrans, pengiri
 ke server lewat plugin Paper (fallback RCON), dan panel admin lengkap.
 
 - **Tanpa langganan, tanpa perpanjangan, tanpa refund.** Rank/kit aktif sampai season berakhir.
+- **Bisa dihadiahkan** ke pemain lain (harga & aturan rank dihitung terhadap penerima).
+- **Ulasan hanya dari pembeli terverifikasi**, dimoderasi admin sebelum tampil.
+- **Login Discord opsional** di samping email/password, dengan 2FA tetap berjalan.
 - **Uang selalu integer rupiah**, waktu selalu `Asia/Jakarta`, UI berbahasa Indonesia.
 - **Identitas pembeli = UUID Minecraft** (Floodgate UUID untuk Bedrock). Username hanya tampilan.
 
@@ -58,6 +61,7 @@ npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, rem
 | `SESSION_SECRET` | ≥ 32 karakter acak, dipakai juga untuk signature provider Fake |
 | `ENCRYPTION_KEY` | base64 32 byte untuk mengenkripsi kredensial gateway di database |
 | `SEED_OWNER_EMAIL` / `SEED_OWNER_USERNAME` / `SEED_OWNER_PASSWORD` | akun Owner pertama |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | opsional; login Discord (redirect URI `<APP_URL>/api/auth/discord/callback`) |
 | `EMAIL_PROVIDER` | `resend`, `smtp`, atau `outbox` (dev, email ditulis ke log) |
 | `PLUGIN_SHARED_SECRET` | ≥ 16 karakter, harus sama dengan `config.yml` plugin |
 | `CRON_SECRET` | pengaman endpoint `POST /api/cron` |

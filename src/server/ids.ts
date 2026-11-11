@@ -33,4 +33,5 @@ export const ids = {
   nonce: () => newId("non"),
   couponRedemption: () => newId("crx"),
   legal: () => newId("lgl"),
+  review: () => newId("rev"),
 };

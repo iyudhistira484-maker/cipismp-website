@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { addToCart, removeFromCart } from "@/server/cart";
 import { getProductById } from "@/server/catalog";
 import { getActiveSeason } from "@/server/catalog";
+import { getSettings } from "@/server/settings";
+import { InvalidUsernameError, resolvePlayer } from "@/server/minecraft";
 import { assertSameOrigin } from "@/server/csrf";
 import { headers } from "next/headers";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -31,8 +33,22 @@ export async function addToCartAction(_prev: CartActionState, formData: FormData
     return { error: "Produk tidak tersedia." };
   }
 
+  const giftName = String(formData.get("giftName") ?? "").trim();
+  let gift: { uuid: string; name: string } | null = null;
+  if (giftName) {
+    const settings = await getSettings();
+    if (!settings.features.gifting) return { error: "Fitur hadiah sedang dinonaktifkan." };
+    try {
+      const recipient = await resolvePlayer(giftName);
+      gift = { uuid: recipient.uuid, name: recipient.name };
+    } catch (error) {
+      if (error instanceof InvalidUsernameError) return { error: error.message };
+      return { error: "Username penerima hadiah tidak bisa diverifikasi." };
+    }
+  }
+
   await enforceRateLimit(`cart:add:${productId}`, 30, 60);
-  await addToCart(product.id, 1);
+  await addToCart(product.id, 1, gift);
   revalidatePath("/keranjang");
   redirect("/keranjang");
 }

@@ -93,6 +93,11 @@ export default async function CartPage() {
                       </span>
                     </div>
                     <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{product.tagline}</p>
+                    {line.isGift && line.targetName ? (
+                      <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10.5px] text-accent">
+                        Hadiah untuk {line.targetName}
+                      </p>
+                    ) : null}
                     {season ? (
                       <p className="mt-1 text-2xs text-muted-2">{activeUntilLabel(season)}</p>
                     ) : null}

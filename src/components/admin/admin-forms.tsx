@@ -458,6 +458,7 @@ export interface StoreSettingsValues {
   minimumAge: number;
   defaultFreezeDays: number;
   defaultProvider: string;
+  features: { coupons: boolean; gifting: boolean; reviews: boolean; discordLogin: boolean };
 }
 
 export function StoreSettingsForm({ settings }: { settings: StoreSettingsValues }) {
@@ -502,6 +503,21 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettingsValues 
         </Field>
       </div>
       <CheckboxField id="settings-checkout" name="checkoutEnabled" defaultChecked={settings.checkoutEnabled} label="Checkout dibuka" />
+
+      <fieldset className="rounded-md border border-line bg-surface/40 p-3">
+        <legend className="px-1 text-2xs uppercase tracking-wider text-muted-2">Fitur toko</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <CheckboxField id="feature-coupons" name="featureCoupons" defaultChecked={settings.features.coupons} label="Kupon diskon" />
+          <CheckboxField id="feature-gifting" name="featureGifting" defaultChecked={settings.features.gifting} label="Hadiah (gift) rank/kit" />
+          <CheckboxField id="feature-reviews" name="featureReviews" defaultChecked={settings.features.reviews} label="Ulasan pembeli" />
+          <CheckboxField id="feature-discord" name="featureDiscord" defaultChecked={settings.features.discordLogin} label="Login Discord" />
+        </div>
+        <p className="mt-2 text-2xs leading-relaxed text-muted-2">
+          Login Discord juga memerlukan DISCORD_CLIENT_ID dan DISCORD_CLIENT_SECRET di .env; tombol hanya muncul bila
+          keduanya terisi.
+        </p>
+      </fieldset>
+
       <SubmitButton size="sm">Simpan pengaturan</SubmitButton>
     </form>
   );

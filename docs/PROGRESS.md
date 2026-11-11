@@ -13,19 +13,20 @@ Diperbarui setiap akhir langkah. Status: ✅ selesai · 🚧 sedang dikerjakan �
 | 4. Pembayaran | ✅ | Tripay, Midtrans, Fake; webhook tervalidasi + idempoten; rekonsiliasi |
 | 5. Pengiriman, plugin & season | ✅ | Plugin Paper (HMAC, antrean offline, LuckPerms), RCON, transisi season |
 | 6. Dashboard pemain | ✅ | Ringkasan, pesanan, akun Minecraft, keamanan (password, 2FA, sesi, hapus akun) |
-| 7. Dashboard admin | ✅ | 11 halaman: ringkasan, pesanan, pengiriman, produk, season, pelanggan, kupon, pembayaran, server, staf, audit, comp |
+| 7. Dashboard admin | ✅ | 13 halaman: ringkasan, pesanan, pengiriman, produk, season, pelanggan, kupon, pembayaran, pengaturan, ulasan, server, staf, audit, comp |
 | 8. Hardening, CI, go-live | ✅ | Header + CSP, sitemap/robots/OG, Docker Compose, CI, e2e, dokumen |
 
 ## Test
 
 ```
-npm test                          # 62 unit, integrasi di-skip tanpa database
-TEST_DATABASE_URL=... npm test    # 72 test (62 unit + 10 integrasi)
+npm test                          # 66 unit, integrasi di-skip tanpa database
+TEST_DATABASE_URL=... npm test    # 84 test (66 unit + 18 integrasi)
 npm run test:e2e                  # Playwright smoke (butuh browser)
 ```
 
 Integration: validasi & idempotensi webhook, pembuatan order server-side (no-refund,
-snapshot legal, upgrade selisih, blokir rank dimiliki).
+snapshot legal, upgrade selisih, blokir rank dimiliki, hadiah ke UUID penerima),
+ulasan pembeli terverifikasi (hanya pembeli, satu ulasan per produk, moderasi).
 
 ## Log
 
@@ -100,7 +101,22 @@ Dimulai dari **admin lanjutan** (dipilih pengguna).
 - **Manajemen sesi staf** di `/admin/staf`: daftar sesi aktif (perangkat, IP, aktivitas
   terakhir, status 2FA) + cabut satu sesi / semua sesi, dengan audit log.
 
+- **Gifting UI** di halaman rank & kit: centang "Belikan untuk pemain lain" → isi username
+  penerima (divalidasi ke Mojang), baris keranjang bertanda "Hadiah untuk X", harga/aturan
+  rank dihitung terhadap UUID penerima, hadiah untuk diri sendiri ditolak, entitlement
+  dikirim hanya ke penerima, dan pembeli tercatat di `order_items.meta` (tampil sebagai
+  "hadiah dari X" di halaman pesanan). Fitur bisa dimatikan di `/admin/pengaturan`.
+- **Ulasan pembeli terverifikasi**: hanya akun dengan pesanan lunas/terkirim untuk produk
+  itu yang bisa mengulas, satu ulasan per produk. Semua ulasan masuk antrean moderasi
+  (`/admin/ulasan`: Menunggu / Tampil / Disembunyikan), nama penulis disamarkan, rata-rata
+  bintang tampil di halaman produk.
+- **Login Discord** (OAuth2 identifikasi): tautkan dari `/dashboard/keamanan`, lalu masuk
+  dengan satu klik. Tidak ada penggabungan akun otomatis lewat email; staf wajib 2FA lebih
+  dulu sebelum menautkan. Aktif bila `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET` terisi dan
+  toggle "Login Discord" dinyalakan.
+- **Halaman `/admin/pengaturan`**: pajak, biaya, batas bayar, usia minimum, freeze season,
+  gateway default, dan toggle fitur (kupon, hadiah, ulasan, login Discord).
+
 ### Berikutnya
-1. Gifting UI (mesin harga sudah mendukung aturan rank terhadap UUID penerima).
-2. Login Discord, ulasan pembeli, kupon bertingkat.
-3. Aset gambar/OG per produk.
+1. Aset gambar/OG per produk (ilustrasi unik tiap rank & kit).
+2. Kupon bertingkat (minimum belanja bertingkat / kupon eksklusif season).

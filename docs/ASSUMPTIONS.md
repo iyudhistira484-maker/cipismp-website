@@ -154,3 +154,28 @@ Lingkungan penyusunan tidak memiliki Docker, Java, maupun Redis, sehingga:
   stabil dan setiap pemanggilan diperiksa manual.
 - Uji e2e Playwright ditulis dan dikonfigurasi, tetapi browser tidak bisa diunduh di
   lingkungan ini; jalankan `npx playwright install chromium` lalu `npm run test:e2e`.
+
+## 14. Wave 2: ulasan, gifting, dan login Discord
+
+**Keputusan:**
+
+- **Ulasan hanya untuk pembeli.** Syaratnya ada baris `order_items` pada order milik akun
+  tersebut dengan status PAID/DELIVERING/DELIVERED/DISPUTED. Pesanan yang dihadiahkan tidak
+  memberi hak mengulas bagi penerima (penerima tidak punya order), sedangkan pembeli yang
+  membeli untuk diri sendiri bisa mengulas. Tidak ada ulasan anonim: setiap ulasan terikat
+  akun, meski namanya disamarkan di halaman publik.
+- **Semua ulasan dimoderasi lebih dulu** (`PENDING` → `APPROVED`/`HIDDEN`) karena toko
+  Minecraft kerap jadi sasaran spam dan ujaran kebencian. Satu ulasan per akun per produk
+  dijaga oleh indeks unik database, bukan hanya validasi UI.
+- **Hadiah tidak mengubah kepemilikan:** entitlement dikirim ke UUID penerima, sedangkan
+  pembeli hanya tercatat di `order_items.meta` untuk keperluan dukungan pelanggan. Hadiah ke
+  UUID sendiri ditolak agar tidak menjadi celah melewati aturan "satu rank per pemain".
+- **Login Discord tidak pernah menggabungkan akun lewat email.** Discord hanya bisa dipakai
+  bila `users.discord_id` sudah tertaut dari akun yang sedang login. Staf wajib 2FA sebelum
+  menautkan, sehingga tautan Discord tidak bisa dipakai untuk melewati langkah kedua.
+- **Fitur bisa dimatikan tanpa migrasi:** kupon, hadiah, ulasan, dan login Discord punya
+  toggle di `/admin/pengaturan`. Mematikan fitur hanya menyembunyikan UI; data tetap utuh.
+
+**Dampak:** kolom `users.discord_id/discord_username` dan tabel `reviews` datang dari migrasi
+`0004_reviews_discord`; dua variabel `.env` baru (`DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`)
+bersifat opsional dan tidak memblokir start aplikasi.

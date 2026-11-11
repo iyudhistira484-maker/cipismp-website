@@ -68,6 +68,8 @@ export const couponTypeEnum = pgEnum("coupon_type", ["PERCENT", "FIXED"]);
 export const entitlementSourceEnum = pgEnum("entitlement_source", ["PURCHASE", "COMP"]);
 export const commandKindEnum = pgEnum("command_kind", ["GRANT", "REVOKE"]);
 export const emailStatusEnum = pgEnum("email_status", ["QUEUED", "SENT", "FAILED"]);
+export const reviewStatusEnum = pgEnum("review_status", ["PENDING", "APPROVED", "HIDDEN"]);
+
 export const notificationKindEnum = pgEnum("notification_kind", [
   "ORDER_PAID",
   "ORDER_DELIVERED",
@@ -91,6 +93,8 @@ export const users = pgTable(
     role: roleEnum("role").notNull().default("CUSTOMER"),
     totpSecret: text("totp_secret"),
     totpEnabledAt: ts("totp_enabled_at"),
+    discordId: text("discord_id").unique(),
+    discordUsername: text("discord_username"),
     totpLastStep: integer("totp_last_step"),
     failedLoginCount: integer("failed_login_count").notNull().default(0),
     lockedUntil: ts("locked_until"),
@@ -144,6 +148,31 @@ export const authTokens = pgTable(
   },
   (t) => [index("auth_tokens_user_idx").on(t.userId, t.type), index("auth_tokens_exp_idx").on(t.expiresAt)],
 );
+
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: text("id").primaryKey(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    orderId: text("order_id").references(() => orders.id, { onDelete: "set null" }),
+    rating: integer("rating").notNull(),
+    body: text("body").notNull(),
+    status: reviewStatusEnum("status").notNull().default("PENDING"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("reviews_product_user_uq").on(t.productId, t.userId),
+    index("reviews_product_status_idx").on(t.productId, t.status),
+  ],
+);
+
+export type Review = typeof reviews.$inferSelect;
 
 export const legalAcceptances = pgTable("legal_acceptances", {
   id: text("id").primaryKey(),
@@ -321,10 +350,15 @@ export const cartItems = pgTable(
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
     quantity: integer("quantity").notNull().default(1),
+    // Diisi hanya untuk item hadiah: penerima diverifikasi dan aturan rank dievaluasi
+    // terhadap UUID penerima, bukan pembeli.
     targetUuid: text("target_uuid"),
+    targetName: text("target_name"),
+    isGift: boolean("is_gift").notNull().default(false),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("cart_items_uq").on(t.cartId, t.productId)],
+  // Produk yang sama boleh ada dua baris bila penerimanya berbeda (hadiah).
+  (t) => [uniqueIndex("cart_items_uq").on(t.cartId, t.productId, sql`coalesce(${t.targetUuid}, '')`)],
 );
 
 export const orders = pgTable(
@@ -387,7 +421,12 @@ export const orderItems = pgTable(
     lineTotalIdr: integer("line_total_idr").notNull(),
     targetUuid: text("target_uuid").notNull(),
     targetName: text("target_name").notNull(),
-    meta: jsonb("meta").$type<{ upgradeFromProductId?: string; upgradeFromName?: string }>(),
+    meta: jsonb("meta").$type<{
+      upgradeFromProductId?: string;
+      upgradeFromName?: string;
+      giftFromName?: string;
+      giftFromUuid?: string;
+    }>(),
     createdAt: createdAt(),
   },
   (t) => [index("order_items_order_idx").on(t.orderId), index("order_items_product_idx").on(t.productId)],

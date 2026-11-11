@@ -22,6 +22,20 @@
       "when": 1794360080886,
       "tag": "0002_delivery_optional_order",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794363502856,
+      "tag": "0003_cart_gifting",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794363737305,
+      "tag": "0004_reviews_discord",
+      "breakpoints": true
     }
   ]
 }

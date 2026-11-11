@@ -79,15 +79,17 @@ export async function priceCurrentCart(options: PriceCartOptions): Promise<CartP
     : [];
   const catalog = new Map<string, PriceableProduct>(productRows.map((p) => [p.id, toPriceable(p)]));
 
+  // Baris hadiah memakai penerima yang tersimpan; baris biasa memakai pembeli.
   const inputs: CartLineInput[] = lines.map((line) => ({
     productId: line.productId,
     quantity: line.quantity,
-    targetUuid: options.targetUuid,
-    targetName: options.targetName,
+    targetUuid: line.targetUuid ?? options.targetUuid,
+    targetName: line.targetName ?? options.targetName,
   }));
 
   const frozen = season ? isPurchaseFrozen(season) : false;
-  const owned = season && options.targetUuid ? await ownedMap([options.targetUuid], season.id) : new Map();
+  const targetUuids = [...new Set(inputs.map((input) => input.targetUuid).filter(Boolean))];
+  const owned = season && targetUuids.length > 0 ? await ownedMap(targetUuids, season.id) : new Map();
 
   const subtotalGuess = inputs.reduce((sum, input) => {
     const p = catalog.get(input.productId);

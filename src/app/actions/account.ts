@@ -119,6 +119,18 @@ export async function revokeAllOtherSessionsAction(): Promise<void> {
   revalidatePath("/dashboard/keamanan");
 }
 
+export async function unlinkDiscordAction(): Promise<void> {
+  const viewer = await requireViewer();
+  await db.update(users).set({ discordId: null, discordUsername: null, updatedAt: new Date() }).where(eq(users.id, viewer.user.id));
+  await writeAudit({
+    actor: { id: viewer.user.id, label: viewer.user.email },
+    action: "account.discord-unlinked",
+    targetType: "user",
+    targetId: viewer.user.id,
+  });
+  revalidatePath("/dashboard/keamanan");
+}
+
 export async function startTotpSetupAction(): Promise<AccountState> {
   try {
     const viewer = await requireViewer();

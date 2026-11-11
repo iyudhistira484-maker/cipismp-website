@@ -55,6 +55,8 @@ const envSchema = z.object({
   MIDTRANS_SERVER_KEY: z.string().optional(),
   MIDTRANS_CLIENT_KEY: z.string().optional(),
   FAKE_PROVIDER_MODE: z.enum(["auto", "manual"]).default("auto"),
+  DISCORD_CLIENT_ID: z.string().optional(),
+  DISCORD_CLIENT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

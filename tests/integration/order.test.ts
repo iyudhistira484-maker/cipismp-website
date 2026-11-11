@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, like } from "drizzle-orm";
 import { db } from "@/server/db";
 import { entitlements, jobs, legalAcceptances, orderItems, orders, payments, products, seasons } from "@/server/db/schema";
-import { createOrder, CheckoutError } from "@/server/orders";
+import { createOrder, CheckoutError, fulfillPaidOrder } from "@/server/orders";
 import { getSettings } from "@/server/settings";
 import { databaseUrl, uniqueSuffix } from "./helpers";
 
@@ -142,6 +142,46 @@ describe.skipIf(!enabled)("pembuatan order (server-side totals)", () => {
     expect(created.totalIdr).toBe(35_000);
     const order = await db.query.orders.findFirst({ where: eq(orders.id, created.order.id) });
     expect(order?.subtotalIdr).toBe(35_000);
+  });
+
+  it("hadiah: pembayaran mengirim entitlement ke UUID penerima, bukan pembeli", async () => {
+    const recipientName = `Teman${suffix.slice(0, 4)}`;
+    const created = await createOrder({
+      ...baseInput,
+      items: [{ productId: rank2, targetName: recipientName }],
+    });
+
+    const item = await db.query.orderItems.findFirst({ where: eq(orderItems.orderId, created.order.id) });
+    expect(item?.targetName).toBe(recipientName);
+    expect(item?.meta?.giftFromName).toBe(PLAYER);
+
+    const order = await db.query.orders.findFirst({ where: eq(orders.id, created.order.id) });
+    expect(order?.mcName).toBe(PLAYER);
+    expect(item?.targetUuid).not.toBe(order?.mcUuid);
+
+    await fulfillPaidOrder({
+      orderId: created.order.id,
+      paymentId: null,
+      amountIdr: created.totalIdr,
+      method: "TEST",
+    });
+
+    const granted = await db.query.entitlements.findFirst({
+      where: and(eq(entitlements.uuid, item!.targetUuid), eq(entitlements.productId, rank2)),
+    });
+    expect(granted).toBeDefined();
+    expect(granted?.playerName).toBe(recipientName);
+
+    const buyerEntitlement = await db.query.entitlements.findFirst({
+      where: and(eq(entitlements.uuid, order!.mcUuid), eq(entitlements.productId, rank2)),
+    });
+    expect(buyerEntitlement).toBeUndefined();
+  });
+
+  it("menolak hadiah untuk akun Minecraft sendiri", async () => {
+    await expect(
+      createOrder({ ...baseInput, items: [{ productId: rank1, targetName: PLAYER }] }),
+    ).rejects.toThrow(/tidak boleh sama/i);
   });
 
   it("menyimpan persetujuan dokumen legal (syarat, privasi, penjualan)", async () => {

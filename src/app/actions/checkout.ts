@@ -67,7 +67,11 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
 
   try {
     const result = await createOrder({
-      items: lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+      items: lines.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+        targetName: line.isGift ? line.targetName : null,
+      })),
       mcName: parsed.data.mcName,
       email: parsed.data.email,
       couponCode: parsed.data.couponCode ?? null,
