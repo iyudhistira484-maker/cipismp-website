@@ -46,7 +46,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               {items.map((item) => (
                 <tr key={item.id}>
                   <Td className="text-ink">{item.nameSnapshot}</Td>
-                  <Td>{item.targetName}</Td>
+                  <Td>
+                    {item.targetName}
+                    {item.meta?.giftFromName ? (
+                      <span className="block text-2xs text-muted-2">hadiah dari {item.meta.giftFromName}</span>
+                    ) : null}
+                  </Td>
                   <Td className="tabular-nums">{formatRp(item.unitPriceIdr)}</Td>
                   <Td className="tabular-nums">{item.quantity}</Td>
                   <Td className="tabular-nums text-ink">{formatRp(item.lineTotalIdr)}</Td>
