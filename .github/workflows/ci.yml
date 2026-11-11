@@ -110,7 +110,8 @@ jobs:
       - name: Laporkan kegagalan e2e (annotation)
         if: steps.e2e.outcome == 'failure'
         run: |
-          tail -n 12 e2e.log | awk '{ print "::error::" $0 }'
+          grep -n -A4 "Error:" e2e.log | head -n 20 | awk '{ print "::error::" $0 }'
+          grep -nE "webServer|Timed out|ECONNREFUSED|net::" e2e.log | head -n 6 | awk '{ print "::error::" $0 }'
       - name: Gagal bila e2e error
         if: steps.e2e.outcome == 'failure'
         run: exit 1
@@ -150,9 +151,8 @@ jobs:
       - name: Laporkan error kompilasi (annotation)
         if: steps.build.outcome == 'failure'
         run: |
-          grep -nE "error:|What went wrong|Execution failed|Could not resolve|FAILURE" plugin-build.log \
-            | tail -n 10 \
-            | awk '{ print "::error::" $0 }'
+          grep -n -A6 "Could not resolve io.papermc" plugin-build.log | tail -n 10 | awk '{ print "::error::" $0 }'
+          grep -n "error:" plugin-build.log | head -n 8 | awk '{ print "::error::" $0 }'
           if [ ! -s plugin-build.log ]; then echo "::error::log kompilasi kosong"; fi
       - name: Gagal bila kompilasi error
         if: steps.build.outcome == 'failure'
