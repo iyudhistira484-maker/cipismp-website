@@ -1,0 +1,143 @@
+# Panduan admin CipiSMP Store
+
+Panduan ini untuk staf non-teknis. Semua tombol yang dijelaskan di sini bisa dipakai tanpa
+menyentuh database atau kode. Kalau ragu, **berhenti dan tanyakan ke Owner** — beberapa
+tindakan tidak bisa dibatalkan.
+
+## Masuk ke panel
+
+1. Buka `https://<domain-toko>/masuk`.
+2. Masuk dengan email dan password akun staf.
+3. Masukkan 6 digit dari aplikasi authenticator (Google Authenticator, Aegis, 1Password).
+   2FA wajib untuk staf dan tidak bisa dimatikan sendiri.
+4. Menu di kiri: Ringkasan, Pesanan, Pengiriman, Produk, Season, Pelanggan, Kupon,
+   Pembayaran, Server, Staf, Audit log. Menu yang tidak muncul berarti role-mu tidak berhak.
+
+Role:
+- **Support** — melihat pesanan/pelanggan, mengirim ulang pengiriman, memberi comp.
+- **Admin** — semua di atas + menandai lunas manual, mengubah produk/season/kupon, pengaturan.
+- **Owner** — semua + kredensial gateway dan mengubah role staf.
+
+## Halaman Ringkasan
+
+- **Pendapatan hari ini / total** dihitung dari order yang sudah dibayar.
+- **Menunggu bayar** = order yang belum dibayar. Tidak perlu ditindak sampai lewat batas waktu.
+- **Perlu perhatian** = order gagal + pengiriman gagal permanen. Target harian: 0.
+- Kotak season menunjukkan season aktif dan tanggal berakhirnya. Kalau tidak ada season
+  aktif, toko tidak bisa menjual — hubungi Owner.
+- Di kanan bawah ada **Comp manual**: memberi rank/kit gratis. Selalu isi alasan; alasan
+  masuk ke audit log dan tidak bisa dihapus.
+
+## Menangani pesanan
+
+Buka **Pesanan**, cari dengan nomor order, email, atau nama pemain.
+
+1. **Pesanan normal:** status berubah sendiri dari PENDING → PAID → DELIVERING → DELIVERED.
+2. **Tandai lunas manual** — hanya setelah kamu melihat dana masuk di dashboard gateway.
+   Tulis alasan yang bisa dicek orang lain, misalnya "Transfer BCA 25.000, ref 88213,
+   terverifikasi di dashboard Tripay". Salah menekan tombol ini berarti item terkirim tanpa uang.
+3. **Batalkan order** — hanya untuk PENDING/EXPIRED. Order yang sudah dibayar **tidak bisa**
+   dibatalkan dan **tidak ada refund**.
+4. **Catatan internal** — untuk tim, tidak terlihat pembeli. Pakai untuk mencatat hasil
+   pengecekan gateway, nomor tiket, atau keputusan sengketa.
+
+## Kalau item belum masuk
+
+1. Buka detail pesanan → bagian **Pengiriman**.
+2. Baca kolom error: biasanya plugin server mati atau RCON salah.
+3. Setelah masalah server diperbaiki, tekan **Kirim ulang**.
+4. Bila pemain sedang offline, plugin akan mengantre dan mengirim saat pemain login.
+   Beri tahu pemain: "rank akan masuk otomatis saat kamu login berikutnya".
+5. Kalau sudah 3× gagal, eskalasi ke Admin/Owner; jangan memberi comp sebagai pengganti
+   kecuali Owner memutuskan.
+
+Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diterima`,
+`Gagal (retry)`, `Gagal permanen`. Angka **Gagal permanen** harus 0 setiap hari.
+
+## Produk
+
+**Produk** menampilkan rank dan kit beserta harga, status, dan jumlah terjual.
+
+- Menambah produk: isi formulir di kanan, simpan sebagai **Draft** dulu, cek tampilan di
+  `/rank` atau `/kit`, lalu ubah ke **Published**.
+- Menyembunyikan produk: tombol tempat sampah (soft delete). Riwayat order tetap utuh.
+  Jangan menghapus produk yang masih dipakai season aktif tanpa bicara ke Owner.
+- Mengubah harga tidak mengubah order yang sudah dibuat.
+- Perubahan **tier** rank harus hati-hati: tier menentukan siapa boleh upgrade ke siapa.
+
+## Season
+
+Season menentukan masa berlaku rank/kit. Tidak ada carry-over dan tidak ada refund saat
+season berakhir.
+
+- Season baru biasanya dibuat sebagai **Upcoming** dengan tanggal mulai/selesai (WIB).
+- Mengakhiri season **selalu** lewat panel **Transisi season**:
+  1. Pilih season, tekan **Pratinjau dampak** → lihat jumlah entitlement dan pemain.
+  2. Jalankan **Simulasi** untuk memastikan angka masuk akal.
+  3. Pilih **Eksekusi sungguhan**, ketik `AKHIRI SEASON`, isi alasan, kirim.
+  4. Buka Ringkasan: season berikutnya harus ACTIVE dan pengiriman REVOKE muncul.
+- Jangan mengakhiri season saat sedang ramai pembelian tanpa pengumuman; pembelian
+  diblokir otomatis pada *freeze window* (bawaan 3 hari terakhir).
+
+## Kupon
+
+- **Persen** (1–100) atau **nominal** (minimal Rp 1.000).
+- **Kuota total** 0 berarti tanpa batas; **batas per pembeli** membatasi pemakaian per akun.
+- Centang **Hanya rank** atau **Hanya kit** bila kupon tidak boleh dipakai untuk jenis lain.
+- Nonaktifkan kupon yang sudah tidak dipakai; jangan menghapusnya karena riwayat pemakaian
+  diperlukan untuk pembukuan.
+
+## Pelanggan
+
+- Pencarian berdasarkan email/username.
+- Kolom **Total belanja** = jumlah order yang dibayar (bukan termasuk yang gagal/batal).
+- **Email terverifikasi** harus "Ya" untuk pembelian dengan akun. Pembeli tamu tetap
+  dilayani lewat tautan pesanan publik.
+- Akun yang dihapus tetap menyisakan order untuk pembukuan; ini normal.
+
+## Pembayaran
+
+- Gateway menampilkan status aktif, mode (sandbox/live), dan URL webhook.
+- **Hanya Owner** yang boleh melihat/mengubah kredensial.
+- Daftar **Pembayaran menunggu** menyorot `UNDERPAID` (dana kurang). Verifikasi di dashboard
+  gateway: bila pembeli memang kurang bayar, hubungi pembeli lewat email; jangan tandai lunas.
+- **Webhook terakhir** menunjukkan apakah signature valid. Banyak `invalid` berarti
+  kredensial gateway tidak cocok dengan yang tersimpan.
+- **Tidak ada tombol refund.** Jangan menjanjikan pengembalian dana kepada pembeli.
+
+## Server & plugin
+
+- Isi host/port Java dan Bedrock, URL plugin, secret, dan kredensial RCON.
+- **Uji plugin** dan **Uji RCON** harus hijau setelah setiap perubahan.
+- Mengganti secret plugin harus dilakukan bersama pemilik server Minecraft (nilai yang
+  sama di `.env` dan `config.yml`), lalu restart keduanya.
+- Panduan pemasangan plugin ada di halaman yang sama.
+
+## Staf
+
+- Menambah staf: minta orang tersebut mendaftar akun biasa, aktifkan 2FA, lalu Owner
+  mengubah role-nya di halaman ini.
+- Mencabut akses: pilih **Cabut akses** → role menjadi Pelanggan. Riwayat kerjanya tetap
+  tercatat di audit log.
+- Tidak bisa mengubah role akun sendiri; ini pengaman agar tidak ada yang mengunci dirinya.
+- Akun Owner hanya diganti lewat CLI (`npm run seed:owner`) oleh Admin teknis.
+
+## Audit log
+
+Setiap tindakan penting tercatat: siapa (email), apa (aksi), pada apa (order/produk/season),
+alasan, dan IP. Gunakan filter untuk mencari, misalnya `season.transition` atau
+`order.manual-paid`. Log tidak bisa dihapus dari panel.
+
+## Aturan yang tidak boleh dilanggar
+
+1. **Tidak ada refund** — jangan menjanjikan, memproses, atau mencatat pengembalian dana.
+2. **Jangan tandai lunas tanpa bukti** dari dashboard gateway.
+3. **Jangan bagikan kredensial** gateway atau secret plugin lewat chat.
+4. **Jangan hapus data** (order, produk, entitlement) untuk "membersihkan" tampilan.
+5. **Selalu isi alasan** pada comp, pembatalan, dan transisi season.
+
+## Kalau ada masalah
+
+Hubungi Admin/Owner dengan informasi: nomor order, nama pemain, waktu kejadian, dan
+tangkapan layar bagian yang bermasalah. Untuk gangguan server (plugin mati, RCON salah),
+gunakan `docs/RUNBOOK.md` bagian 2.

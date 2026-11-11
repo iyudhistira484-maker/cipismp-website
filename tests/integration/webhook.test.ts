@@ -59,6 +59,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
   }
 
   beforeAll(async () => {
+    if (!enabled) return; // jangan menyentuh database saat integrasi di-skip
     // Bersihkan sisa run sebelumnya agar unique index "satu season ACTIVE" tidak bentrok.
     await cleanup();
 
@@ -129,6 +130,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
   });
 
   afterAll(async () => {
+    if (!enabled) return;
     await db.delete(paymentEvents).where(eq(paymentEvents.provider, "FAKE"));
     await cleanup();
   });

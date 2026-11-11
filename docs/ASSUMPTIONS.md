@@ -122,3 +122,35 @@ enkripsi ulang (prosedur ada di `RUNBOOK.md`).
   `src/server/receipts/pdf.ts`) sehingga tidak ada layanan rendering pihak ketiga.
 - Playwright disiapkan untuk CI; sandbox pengembangan ini tidak mengunduh browser.
   Seluruh logika bisnis diuji dengan Vitest terhadap Postgres sungguhan.
+
+## 11. Linting: `tsc --noEmit` sebagai gerbang, tanpa ESLint
+
+**Keputusan:** kualitas kode dijaga oleh TypeScript strict (`npm run typecheck`), review,
+dan test; tidak ada konfigurasi ESLint di repo.
+
+**Alasan:** paket dan plugin ESLint tidak tersedia di lingkungan build saat proyek ini
+disusun, sehingga menambahkan konfigurasi tanpa bisa menjalankannya akan menjadi klaim
+palsu. Semua kode tetap lolos `tsc --noEmit` dengan `strict: true` sebelum di-commit.
+
+**Dampak:** CI menjalankan typecheck, test, build, dan Playwright. Bila nanti ESLint
+ditambahkan, pasang `eslint` + `eslint-config-next` dan tambahkan job terpisah di
+`.github/workflows/ci.yml`.
+
+## 12. Notifikasi staf: email + log, tanpa integrasi Discord wajib
+
+**Keputusan:** `alertStaff()` mengirim email ke `site.supportEmail` dan menulis notifikasi
+di database; Discord hanya tautan di footer.
+
+**Alasan:** brief menyebut Discord sebagai kanal opsional. Integrasi webhook Discord bisa
+ditambahkan di satu tempat (`src/server/notifications.ts`) tanpa mengubah domain lain.
+
+## 13. Batas uji yang bisa dijalankan di lingkungan ini
+
+Lingkungan penyusunan tidak memiliki Docker, Java, maupun Redis, sehingga:
+
+- `docker compose up` dan `./gradlew build` tidak dieksekusi di sini; keduanya ditulis
+  mengikuti dokumentasi resmi dan diverifikasi dengan pembacaan kode + parse YAML.
+- Plugin Java tidak dikompilasi; API yang dipakai (Paper 1.21, LuckPerms 5.4) adalah API
+  stabil dan setiap pemanggilan diperiksa manual.
+- Uji e2e Playwright ditulis dan dikonfigurasi, tetapi browser tidak bisa diunduh di
+  lingkungan ini; jalankan `npx playwright install chromium` lalu `npm run test:e2e`.

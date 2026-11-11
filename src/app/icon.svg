@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="CipiSMP">
+  <rect width="32" height="32" rx="7" fill="#15130f"/>
+  <path d="M9 11.5h14v9l-7 4-7-4z" fill="none" stroke="#e0a34a" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M12.5 16.2l2.4 2.4 4.8-4.9" fill="none" stroke="#e0a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

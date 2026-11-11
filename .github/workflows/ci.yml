@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "arena/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_URL: http://localhost:3000
+  SESSION_SECRET: ci-session-secret-0123456789abcdef0123456789
+  ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  EMAIL_PROVIDER: outbox
+  PAYMENT_DEFAULT_PROVIDER: FAKE
+  MINECRAFT_LOOKUP_MODE: mock
+  TURNSTILE_ENABLED: "0"
+  CRON_SECRET: ci-cron-secret
+
+jobs:
+  quality:
+    name: Typecheck, unit test, build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cipismp_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cipismp_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cipismp_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Terapkan migrasi ke database test
+        run: npx drizzle-kit migrate
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit + integration test
+        run: npm test
+      - name: Build produksi
+        run: npm run build
+
+  e2e:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cipismp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cipismp
+      OWNER_EMAIL: owner@cipismp.test
+      OWNER_USERNAME: owner
+      OWNER_PASSWORD: OwnerPassword123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx drizzle-kit migrate
+      - run: npm run db:seed
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
