@@ -74,14 +74,16 @@ export function Field({
     <div className={cn("space-y-1.5", className)}>
       {label ? (
         <div className="flex items-baseline justify-between gap-2">
-          <Label htmlFor={htmlFor} className="mb-0">
-            {label}
+          <span className="flex items-baseline gap-1">
+            <Label htmlFor={htmlFor} className="mb-0">
+              {label}
+            </Label>
             {required ? (
-              <span className="ml-1 text-accent" aria-hidden="true">
+              <span className="text-accent" aria-hidden="true">
                 *
               </span>
             ) : null}
-          </Label>
+          </span>
           {hint ? <span className="text-2xs text-muted-2">{hint}</span> : null}
         </div>
       ) : null}
