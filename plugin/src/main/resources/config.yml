@@ -1,0 +1,24 @@
+# CipiSMP Store Companion
+# Samakan shared-secret dengan PLUGIN_SHARED_SECRET di file .env website.
+
+website-url: "http://127.0.0.1:3000"
+shared-secret: "ganti-dengan-PLUGIN_SHARED_SECRET"
+
+http:
+  host: "127.0.0.1"
+  port: 8081
+  # Permintaan dengan selisih waktu lebih dari ini ditolak (anti replay).
+  max-skew-seconds: 300
+
+queue:
+  file: "pending-deliveries.yml"
+  # Batas pengiriman tertunda per pemain agar file antrean tidak tumbuh tanpa batas.
+  max-per-player: 20
+
+luckperms:
+  # Bila LuckPerms terpasang, perintah `lp user <player> parent add|remove <group>`
+  # dijalankan langsung lewat API (atomik) alih-alih sebagai perintah konsol.
+  use-api: true
+
+verify:
+  timeout-seconds: 10
