@@ -121,18 +121,20 @@ jobs:
         with:
           gradle-version: "8.10.2"
       - name: Kompilasi plugin
-        working-directory: plugin
+        id: build
+        continue-on-error: true
         run: |
           set -o pipefail
-          gradle build --no-daemon --console=plain --stacktrace 2>&1 | tee ../plugin-build.log
-      - name: Unggah log kompilasi
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: plugin-build-log
-          path: plugin-build.log
-          if-no-files-found: ignore
-          retention-days: 7
+          gradle build --no-daemon --console=plain 2>&1 | tee ../plugin-build.log
+      - name: Laporkan error kompilasi (annotation)
+        if: steps.build.outcome == 'failure'
+        run: |
+          grep -nE "error:|What went wrong|Execution failed|Could not resolve|warning:" plugin-build.log \
+            | tail -n 10 \
+            | awk '{ print "::error::" $0 }' || echo "::error::Tidak ada baris error yang cocok di log"
+      - name: Gagal bila kompilasi error
+        if: steps.build.outcome == 'failure'
+        run: exit 1
       - name: Simpan JAR
         uses: actions/upload-artifact@v4
         with:
@@ -148,17 +150,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - name: Validasi docker-compose.yml
+        id: compose
+        continue-on-error: true
         run: |
           set -o pipefail
           docker compose config 2>&1 | tee compose-config.log
-      - name: Unggah log compose
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compose-config-log
-          path: compose-config.log
-          if-no-files-found: ignore
-          retention-days: 7
+      - name: Laporkan error compose (annotation)
+        if: steps.compose.outcome == 'failure'
+        run: |
+          tail -n 6 compose-config.log | awk '{ print "::error::" $0 }'
+      - name: Gagal bila compose tidak valid
+        if: steps.compose.outcome == 'failure'
+        run: exit 1
       - name: Build image produksi
         uses: docker/build-push-action@v6
         with:
