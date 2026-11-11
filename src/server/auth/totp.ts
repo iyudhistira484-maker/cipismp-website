@@ -85,11 +85,3 @@ export function otpauthUri(secret: string, account: string, issuer = "CipiSMP St
   return `otpauth://totp/${label}?${params.toString()}`;
 }
 
-/** Kode pemulihan (10 karakter, sekali pakai) untuk 2FA. */
-export function generateRecoveryCodes(count = 8): string[] {
-  const ALPHA = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  return Array.from({ length: count }, () => {
-    const bytes = randomBytes(10);
-    return [...bytes].map((b) => ALPHA[b % ALPHA.length]).join("").replace(/(.{5})(.{5})/, "$1-$2");
-  });
-}

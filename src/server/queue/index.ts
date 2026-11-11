@@ -16,8 +16,7 @@ export type JobType =
   | "order.expire"
   | "payment.reconcile"
   | "season.reminders"
-  | "season.transition"
-  | "mc.refresh-profiles";
+  | "season.transition";
 
 export interface EnqueueOptions {
   runAt?: Date;

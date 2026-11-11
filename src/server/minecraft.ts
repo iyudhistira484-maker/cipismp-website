@@ -181,3 +181,12 @@ export async function verifiedProfilesForUser(userId: string) {
 export function headUrl(uuidOrName: string, size = 96): string {
   return `https://mc-heads.net/avatar/${encodeURIComponent(uuidOrName)}/${size}`;
 }
+
+/** Pencarian profil tanpa melempar error (dipakai route lookup). */
+export async function getProfileByUuidSafe(uuid: string) {
+  try {
+    return await findProfileByUuid(uuid);
+  } catch {
+    return null;
+  }
+}

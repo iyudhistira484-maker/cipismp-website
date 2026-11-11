@@ -440,9 +440,8 @@ export const deliveries = pgTable(
   "deliveries",
   {
     id: text("id").primaryKey(),
-    orderId: text("order_id")
-      .notNull()
-      .references(() => orders.id, { onDelete: "cascade" }),
+    // Nullable: perintah pencabutan saat transisi season tidak terikat order.
+    orderId: text("order_id").references(() => orders.id, { onDelete: "cascade" }),
     orderItemId: text("order_item_id").references(() => orderItems.id, { onDelete: "set null" }),
     seasonId: text("season_id").references(() => seasons.id, { onDelete: "set null" }),
     uuid: text("uuid").notNull(),
@@ -653,3 +652,19 @@ export type Job = typeof jobs.$inferSelect;
 export type MinecraftProfile = typeof minecraftProfiles.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Server = typeof servers.$inferSelect;
+
+/**
+ * Kredensial gateway pembayaran. Disimpan terenkripsi (AES-256-GCM) dan hanya
+ * bisa diubah oleh Owner. Mode sandbox/live diatur per provider.
+ */
+export const paymentCredentials = pgTable("payment_credentials", {
+  id: text("id").primaryKey(),
+  provider: paymentProviderEnum("provider").notNull().unique(),
+  mode: text("mode").notNull().default("sandbox"),
+  enabled: boolean("enabled").notNull().default(false),
+  configEncrypted: text("config_encrypted").notNull(),
+  updatedAt: updatedAt(),
+  updatedBy: text("updated_by"),
+});
+
+export type PaymentCredential = typeof paymentCredentials.$inferSelect;

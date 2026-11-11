@@ -44,6 +44,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  CRON_SECRET: z.string().min(16).optional(),
   SEED_OWNER_EMAIL: z.string().email().optional(),
   SEED_OWNER_USERNAME: z.string().optional(),
   SEED_OWNER_PASSWORD: z.string().optional(),
