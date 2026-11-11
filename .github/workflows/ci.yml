@@ -87,13 +87,33 @@ jobs:
       - run: npx drizzle-kit migrate
       - run: npm run db:seed
       - name: Pasang browser Playwright
+        id: pwinstall
+        continue-on-error: true
         run: |
           set -o pipefail
           npx playwright install --with-deps chromium 2>&1 | tee playwright-install.log
+      - name: Laporkan error instalasi browser (annotation)
+        if: steps.pwinstall.outcome == 'failure'
+        run: |
+          tail -n 10 playwright-install.log | awk '{ print "::error::" $0 }'
+      # Instalasi browser gagal tidak memblokir job; kegagalan nyata akan muncul di test:e2e.
+
       - run: npm run build
-      - run: npm run test:e2e
+      - name: Jalankan e2e
+        id: e2e
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee e2e.log
         env:
           CI: "true"
+      - name: Laporkan kegagalan e2e (annotation)
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          tail -n 12 e2e.log | awk '{ print "::error::" $0 }'
+      - name: Gagal bila e2e error
+        if: steps.e2e.outcome == 'failure'
+        run: exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -123,15 +143,17 @@ jobs:
       - name: Kompilasi plugin
         id: build
         continue-on-error: true
+        working-directory: plugin
         run: |
           set -o pipefail
-          gradle build --no-daemon --console=plain 2>&1 | tee ../plugin-build.log
+          gradle build --no-daemon --console=plain 2>&1 | tee "$GITHUB_WORKSPACE/plugin-build.log"
       - name: Laporkan error kompilasi (annotation)
         if: steps.build.outcome == 'failure'
         run: |
-          grep -nE "error:|What went wrong|Execution failed|Could not resolve|warning:" plugin-build.log \
+          grep -nE "error:|What went wrong|Execution failed|Could not resolve|FAILURE" plugin-build.log \
             | tail -n 10 \
-            | awk '{ print "::error::" $0 }' || echo "::error::Tidak ada baris error yang cocok di log"
+            | awk '{ print "::error::" $0 }'
+          if [ ! -s plugin-build.log ]; then echo "::error::log kompilasi kosong"; fi
       - name: Gagal bila kompilasi error
         if: steps.build.outcome == 'failure'
         run: exit 1
@@ -149,6 +171,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Siapkan .env dari contoh
+        run: cp .env.example .env
       - name: Validasi docker-compose.yml
         id: compose
         continue-on-error: true
