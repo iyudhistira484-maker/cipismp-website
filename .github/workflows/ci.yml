@@ -86,11 +86,21 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx drizzle-kit migrate
       - run: npm run db:seed
-      - run: npx playwright install --with-deps chromium
+      - name: Pasang browser Playwright
+        run: |
+          set -o pipefail
+          npx playwright install --with-deps chromium 2>&1 | tee playwright-install.log
       - run: npm run build
       - run: npm run test:e2e
         env:
           CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-install-log
+          path: playwright-install.log
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -112,7 +122,17 @@ jobs:
           gradle-version: "8.10.2"
       - name: Kompilasi plugin
         working-directory: plugin
-        run: gradle build --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle build --no-daemon --console=plain --stacktrace 2>&1 | tee ../plugin-build.log
+      - name: Unggah log kompilasi
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-build-log
+          path: plugin-build.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Simpan JAR
         uses: actions/upload-artifact@v4
         with:
@@ -128,7 +148,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - name: Validasi docker-compose.yml
-        run: docker compose config --quiet
+        run: |
+          set -o pipefail
+          docker compose config 2>&1 | tee compose-config.log
+      - name: Unggah log compose
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-config-log
+          path: compose-config.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Build image produksi
         uses: docker/build-push-action@v6
         with:
