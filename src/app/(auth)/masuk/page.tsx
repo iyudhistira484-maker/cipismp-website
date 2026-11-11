@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/store/auth-forms";
 import { getViewer } from "@/server/auth/guard";
-import { safeNext } from "@/app/actions/auth";
+import { safeNext } from "@/lib/safe-redirect";
 
 export const metadata: Metadata = { title: "Masuk", robots: { index: false, follow: false } };
 

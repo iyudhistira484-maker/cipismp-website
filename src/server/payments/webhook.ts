@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "../db";
 import { orders, paymentEvents, payments } from "../db/schema";
@@ -32,6 +33,9 @@ export async function handleProviderWebhook(
   const parsed: WebhookResult = await adapter.verifyWebhook(rawBody, headers);
 
   const eventId = ids.paymentEvent();
+  // Event dengan signature tidak valid TIDAK boleh memakai dedupe key asli: bila dipakai,
+  // penyerang bisa mengirim payload palsu lebih dulu dan memblokir event asli dari gateway.
+  const dedupeKey = parsed.signatureValid ? parsed.dedupeKey : `INVALID:${parsed.dedupeKey}:${randomUUID()}`;
   const inserted = await db
     .insert(paymentEvents)
     .values({
@@ -39,7 +43,7 @@ export async function handleProviderWebhook(
       provider,
       eventType: parsed.eventType,
       signatureValid: parsed.signatureValid,
-      dedupeKey: parsed.dedupeKey,
+      dedupeKey,
       rawPayload: parsed.raw,
       headers,
       ip,

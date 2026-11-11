@@ -2,7 +2,7 @@
   "name": "cipismp-store",
   "version": "1.0.0",
   "private": true,
-  "description": "CipiSMP Store — webstore ranks & kits untuk server Minecraft CipiSMP",
+  "description": "CipiSMP Store \u2014 webstore ranks & kits untuk server Minecraft CipiSMP",
   "engines": {
     "node": ">=20.11"
   },
@@ -52,6 +52,7 @@
     "next": "15.5.29",
     "nodemailer": "6.10.1",
     "pg": "^8.16.3",
+    "qrcode": "^1.5.4",
     "react": "19.1.10",
     "react-dom": "19.1.10",
     "tailwind-merge": "2.6.0",
@@ -62,6 +63,7 @@
     "@types/node": "22.15.3",
     "@types/nodemailer": "6.4.17",
     "@types/pg": "^8.15.5",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "19.1.9",
     "@types/react-dom": "19.1.7",
     "autoprefixer": "10.4.21",

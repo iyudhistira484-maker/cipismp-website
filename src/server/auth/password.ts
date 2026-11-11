@@ -1,6 +1,5 @@
 import { argon2id } from "@noble/hashes/argon2";
 import { randomBytes } from "node:crypto";
-import { sha256 } from "../crypto";
 
 /** Parameter argon2id mengikuti rekomendasi OWASP (19 MiB, t=2, p=1). */
 const MEMORY_KIB = Number(process.env.ARGON2_MEMORY_KIB ?? 19456);
@@ -90,8 +89,7 @@ export function checkPasswordLocal(password: string, context: { email?: string; 
  */
 export async function isPasswordBreached(password: string, timeoutMs = 2500): Promise<boolean> {
   try {
-    const digest = sha256(password).toUpperCase(); // SHA-256 tidak dipakai HIBP; lihat catatan di bawah
-    void digest;
+    // HIBP memakai SHA-1; hanya 5 karakter pertama hash yang dikirim (k-anonymity).
     const sha1 = await sha1Hex(password);
     const prefix = sha1.slice(0, 5);
     const controller = new AbortController();

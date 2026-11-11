@@ -28,6 +28,8 @@ export function clampNonNegative(n: number): number {
 
 /** Mengubah input pengguna ("20.000", "Rp 20.000", "20000") menjadi integer. */
 export function parseIdr(input: string): number | null {
+  // Nilai negatif harus ditolak, bukan dipaksa menjadi positif oleh pembersihan.
+  if (input.includes("-")) return null;
   const cleaned = input.replace(/[^\d]/g, "");
   if (!cleaned) return null;
   const value = Number.parseInt(cleaned, 10);

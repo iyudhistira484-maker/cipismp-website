@@ -19,18 +19,12 @@ import { verifyUserTotp } from "@/server/auth/twofactor";
 import { verifyTurnstile } from "@/server/auth/turnstile";
 import { mergeGuestCart, GUEST_COOKIE } from "@/server/cart";
 import { cookies } from "next/headers";
+import { safeNext } from "@/lib/safe-redirect";
 
 export interface AuthState {
   error?: string;
   success?: string;
   fields?: Record<string, string>;
-}
-
-/** Hanya izinkan redirect internal (mencegah open redirect). */
-export function safeNext(next: string | null | undefined): string {
-  if (!next) return "/dashboard";
-  if (!next.startsWith("/") || next.startsWith("//")) return "/dashboard";
-  return next;
 }
 
 async function guardMutation(rateKey: string, limit: number, windowSeconds: number): Promise<string> {

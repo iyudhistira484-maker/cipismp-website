@@ -136,7 +136,7 @@ export class MidtransAdapter implements PaymentAdapter {
     return {
       signatureValid,
       eventType: `notification:${transactionStatus || "unknown"}`,
-      dedupeKey: `MIDTRANS:${String(payload.transaction_id ?? orderId)}:${transactionStatus}:${fraudStatus}:${statusCode}`,
+      dedupeKey: `MIDTRANS:${String(payload.transaction_id ?? orderId)}:${transactionStatus}:${fraudStatus}:${statusCode}:${String(payload.gross_amount ?? "")}`,
       providerRef: String(payload.transaction_id ?? "") || null,
       orderNumber: orderId || null,
       status: mapMidtransStatus(transactionStatus, fraudStatus),

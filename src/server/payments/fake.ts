@@ -46,7 +46,9 @@ export class FakeAdapter implements PaymentAdapter {
     return {
       signatureValid: signature === expected && rawBody.length > 0,
       eventType: `fake:${String(payload.status ?? "unknown")}`,
-      dedupeKey: `FAKE:${String(payload.reference ?? "")}:${String(payload.status ?? "")}`,
+      // Nominal ikut jadi bagian dedupe key: pembayaran kurang lalu dilunasi harus diproses,
+      // sementara replay event identik tetap diabaikan.
+      dedupeKey: `FAKE:${String(payload.reference ?? "")}:${String(payload.status ?? "")}:${String(payload.amount ?? "")}`,
       providerRef: String(payload.reference ?? "") || null,
       orderNumber: String(payload.merchant_ref ?? "") || null,
       status:

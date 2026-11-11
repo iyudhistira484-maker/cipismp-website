@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/server/auth/session";
 import { MfaForm } from "@/components/store/auth-forms";
-import { safeNext } from "@/app/actions/auth";
+import { safeNext } from "@/lib/safe-redirect";
 
 export const metadata: Metadata = { title: "Verifikasi 2FA", robots: { index: false, follow: false } };
 
