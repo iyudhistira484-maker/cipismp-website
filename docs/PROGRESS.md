@@ -19,8 +19,8 @@ Diperbarui setiap akhir langkah. Status: ✅ selesai · 🚧 sedang dikerjakan �
 ## Test
 
 ```
-npm test                          # 96 unit; integrasi di-skip tanpa database
-TEST_DATABASE_URL=... npm test    # 118 test (96 unit + 22 integrasi)
+npm test                          # 98 unit; integrasi di-skip tanpa database
+TEST_DATABASE_URL=... npm test    # 120 test (98 unit + 22 integrasi)
 npm run test:e2e                  # Playwright smoke (butuh browser)
 ```
 
@@ -147,4 +147,4 @@ dicentang saat go-live di `docs/GO_LIVE.md`.
   kupon opsional dibatasi ke season dan ditegakkan lagi saat preview/checkout.
 - [x] Halaman publik `/ulasan` (feed dimoderasi, ringkasan rating, pagination) dan edit ulasan milik sendiri; perubahan kembali ke antrean moderasi.
 - [x] UI admin untuk mengelola metode pembayaran QRIS / VA / e-wallet per Tripay/Midtrans; checkout memfilter dan memvalidasi pilihan di server.
-- [ ] Ilustrasi raster yang berbeda pada setiap kartu produk katalog.
+- [x] Enam ilustrasi raster unik untuk kartu katalog Iron, Gold, Diamond, Starter, Builder, dan Explorer; aset dioptimalkan lewat `next/image`.

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowUpRight, Clock, Layers } from "lucide-react";
 import type { Product } from "@/server/db/schema";
 import type { KitItem } from "@/server/db/schema";
@@ -9,6 +10,7 @@ import { formatRp } from "@/lib/money";
 import { activeUntilLabel } from "@/lib/seasons";
 import { cn } from "@/lib/utils";
 import { RatingInline } from "@/components/ui/stars";
+import { getProductArtwork } from "@/lib/product-artwork";
 
 export function RankCard({
   product,
@@ -21,6 +23,8 @@ export function RankCard({
   highlighted?: boolean;
   rating?: { count: number; average: number };
 }) {
+  const artwork = getProductArtwork(product.slug);
+
   return (
     <article
       className={cn(
@@ -29,20 +33,28 @@ export function RankCard({
       )}
     >
       {highlighted ? (
-        <span className="absolute right-4 top-4 z-10 rounded-full bg-accent px-2 py-0.5 text-2xs font-semibold text-accent-ink">
+        <span className="absolute right-4 top-4 z-10 rounded-full bg-accent px-2 py-0.5 text-2xs font-semibold text-accent-ink shadow-pop">
           Paling seimbang
         </span>
       ) : null}
-      <div className="relative overflow-hidden border-b border-line/70 px-5 pb-5 pt-6">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.22]"
-          style={{
-            background:
-              "radial-gradient(120px 120px at 78% 12%, rgba(224,168,78,0.35), transparent 70%)",
-          }}
-        />
-        <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={62} />
-        <h3 className="mt-4 font-display text-[22px] leading-tight text-ink">{product.name}</h3>
+      {artwork ? (
+        <div className="relative aspect-[16/10] overflow-hidden border-b border-line/70 bg-bg">
+          <Image
+            src={artwork}
+            alt=""
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/80 via-bg/5 to-transparent" />
+          <div className="absolute bottom-3 left-4">
+            <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={54} />
+          </div>
+        </div>
+      ) : null}
+      <div className="relative overflow-hidden border-b border-line/70 px-5 pb-5 pt-4">
+        {!artwork ? <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={62} /> : null}
+        <h3 className={cn("font-display text-[22px] leading-tight text-ink", !artwork && "mt-4")}>{product.name}</h3>
         <p className="mt-1.5 min-h-[40px] text-pretty text-[13px] leading-relaxed text-muted">{product.tagline}</p>
         {rating && rating.count > 0 ? (
           <div className="mt-2">
@@ -98,21 +110,44 @@ export function KitCard({
   season: { name: string; endAt: Date } | null;
   rating?: { count: number; average: number };
 }) {
+  const artwork = getProductArtwork(product.slug);
+  const itemPreviewCount = artwork ? 4 : 8;
+
   return (
     <article className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-line-strong">
-      <div className="border-b border-line/70 bg-bg/40 p-4">
-        <div className="grid grid-cols-4 gap-2" aria-hidden>
-          {items.slice(0, 8).map((item) => (
+      {artwork ? (
+        <div className="relative aspect-[16/10] overflow-hidden border-b border-line/70 bg-bg">
+          <Image
+            src={artwork}
+            alt=""
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/65 via-transparent to-transparent" />
+        </div>
+      ) : null}
+      <div className={cn("border-b border-line/70 bg-bg/40", artwork ? "px-3 py-2.5" : "p-4")}>
+        <div className={cn("gap-2", artwork ? "flex items-center" : "grid grid-cols-4")} aria-hidden>
+          {items.slice(0, itemPreviewCount).map((item) => (
             <div
               key={item.id}
-              className="grid aspect-square place-items-center rounded-[6px] border border-line/80 bg-surface-2/60 transition-colors group-hover:border-line-strong"
+              className={cn(
+                "grid place-items-center rounded-[6px] transition-colors group-hover:border-line-strong",
+                artwork
+                  ? "size-10 shrink-0 border border-transparent bg-transparent"
+                  : "aspect-square border border-line/80 bg-surface-2/60",
+              )}
             >
               <ItemArt itemKey={item.itemKey} className="size-7" title={item.name} />
             </div>
           ))}
+          {artwork && items.length > itemPreviewCount ? (
+            <span className="ml-auto text-2xs text-muted-2">+{items.length - itemPreviewCount} item lain</span>
+          ) : null}
         </div>
-        {items.length > 8 ? (
-          <p className="mt-2 text-2xs text-muted-2">+{items.length - 8} item lain</p>
+        {!artwork && items.length > itemPreviewCount ? (
+          <p className="mt-2 text-2xs text-muted-2">+{items.length - itemPreviewCount} item lain</p>
         ) : null}
       </div>
       <div className="flex flex-1 flex-col p-5">

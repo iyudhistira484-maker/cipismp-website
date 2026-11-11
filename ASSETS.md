@@ -42,8 +42,10 @@ label kecil (mis. kode verifikasi), tidak untuk teks isi.
 
 ## 5. Ilustrasi & gambar lain
 
-- Tidak ada foto, render 3D, atau ilustrasi stok. Semua panel visual dibentuk dari CSS
-  (border, gradien tipis, pola garis) dan SVG di repo.
+- Enam ilustrasi raster orisinal untuk kartu katalog ada di `public/images/products/`
+  (`iron`, `gold`, `diamond`, `starter`, `builder`, `explorer`). Dibuat khusus untuk proyek
+  dengan generasi AI, bergaya voxel generik; bukan tangkapan layar atau tekstur game pihak lain.
+  Pemetaan slug produk ke gambar ada di `src/lib/product-artwork.ts`.
 - Tangkapan layar di dokumentasi (bila ada) dibuat dari aplikasi ini sendiri.
 
 ## 6. Menambah aset baru
