@@ -121,7 +121,9 @@ export class TripayAdapter implements PaymentAdapter {
     const reference = typeof payload.reference === "string" ? payload.reference : null;
     const merchantRef = typeof payload.merchant_ref === "string" ? payload.merchant_ref : null;
     const rawStatus = typeof payload.status === "string" ? payload.status : "";
-    const totalAmount = typeof payload.total_amount === "number" ? payload.total_amount : null;
+    // Callback Tripay menggunakan field `amount` (bukan `total_amount`).
+    // Field `total_amount` tidak ada pada payload callback standard.
+    const totalAmount = typeof payload.amount === "number" ? payload.amount : null;
 
     return {
       signatureValid,

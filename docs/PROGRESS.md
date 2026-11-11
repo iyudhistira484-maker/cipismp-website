@@ -64,7 +64,7 @@ ulasan pembeli terverifikasi (hanya pembeli, satu ulasan per produk, moderasi).
   manual, kirim saat pemain login berikutnya, RCON fallback.
 - Endpoint `/api/plugin/verify` (HMAC + timestamp + nonce) untuk `/verify KODE` in-game.
 - Transisi season transaksional + dry-run, pencabutan entitlement, reminder 7/1 hari.
-- Plugin Paper (Java 17, Gradle): endpoint lokal HMAC + timestamp + nonce, antrean
+- Plugin Paper (Java 21, Gradle): endpoint lokal HMAC + timestamp + nonce, antrean
   persisten untuk pemain offline, LuckPerms API, `/verify`, `/cipistore queue|flush|reload`.
 
 ### Langkah 6 — Dashboard pemain
@@ -84,7 +84,8 @@ ulasan pembeli terverifikasi (hanya pembeli, satu ulasan per produk, moderasi).
 - `robots.txt`, `sitemap.xml`, favicon SVG, OG image, loading state, empty state.
 - `Dockerfile` multi-stage (runner/worker/migrate), `docker-compose.yml` (db, redis,
   migrate, web, worker, seed opsional), `.dockerignore`.
-- GitHub Actions CI: typecheck + migrasi + unit/integrasi + build, lalu Playwright smoke.
+- GitHub Actions CI: typecheck + migrasi + unit/integrasi + build, Playwright e2e,
+  kompilasi/test plugin Java, validasi Compose, dan build image produksi.
 - Playwright e2e (storefront, auth, admin gate) dan skrip k6 untuk uji beban katalog.
 - Dokumen: `README.md`, `ASSETS.md`, `GO_LIVE.md`, `RUNBOOK.md`, `ADMIN_GUIDE.md`.
 
@@ -129,6 +130,20 @@ Dimulai dari **admin lanjutan** (dipilih pengguna).
   mengatur identitas situs (nama, tagline, email bantuan, Discord, banner pengumuman) serta
   parameter pengiriman.
 
-### Berikutnya
-1. Kupon bertingkat (minimum belanja bertingkat / kupon eksklusif season).
-2. Ilustrasi raster per produk untuk kartu katalog (opsional; sprite + OG sudah ada).
+## Verifikasi Group B — 11 November 2026
+
+Automasi CI membuktikan build/typecheck/unit+integration, Docker Compose/image, plugin
+Paper (JDK 21 + Gradle + JUnit) dan 10 tes Playwright. Tes kontrak tanpa kredensial live
+juga mencakup tanda tangan/status Tripay & Midtrans, kesesuaian HMAC website↔plugin,
+Discord OAuth, Resend/SMTP, serta Cloudflare Turnstile. Job khusus mengunggah JAR plugin.
+
+Integrasi eksternal **belum dianggap live-terverifikasi** hanya dari mock/CI: transaksi
+Tripay/Midtrans, Discord app/redirect aktual, inbox Resend/SMTP dan Turnstile di domain
+publik, serta Paper/LuckPerms/RCON dan `/verify` di server Minecraft nyata tetap wajib
+dicentang saat go-live di `docs/GO_LIVE.md`.
+
+### Berikutnya — Group A (urutan yang diminta)
+1. Kupon bertingkat dan kupon eksklusif season.
+2. Halaman publik `/ulasan` dan fitur edit ulasan milik sendiri.
+3. UI admin untuk mengelola metode pembayaran (QRIS / VA / e-wallet).
+4. Ilustrasi raster yang berbeda pada setiap kartu produk katalog.

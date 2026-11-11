@@ -3,6 +3,16 @@
 Dokumen ini dipakai sekali saat pertama kali merilis toko ke produksi, lalu disimpan
 sebagai catatan audit. Centang setiap baris; jangan meluncurkan sebelum semuanya hijau.
 
+### Batas verifikasi otomatis vs. live
+
+GitHub Actions memverifikasi typecheck, migrasi + unit/integration test, build produksi,
+10 smoke test Playwright, validasi `docker compose config` + image produksi, serta build
+plugin Paper dengan JDK 21/Gradle/JUnit. Tes provider memakai mock jaringan untuk
+memastikan format signature, pemetaan status dan kontrak request; tes plugin membandingkan
+HMAC website dengan Java. CI **tidak** memakai credential live, akun Discord/Resend,
+widget Turnstile publik, atau server Minecraft, sehingga bagian transaksi/email/OAuth/
+Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produksi.
+
 ## 1. Infrastruktur
 
 - [ ] Server dengan Docker + Docker Compose, RAM ≥ 2 GB, disk ≥ 20 GB.
@@ -24,6 +34,8 @@ sebagai catatan audit. Centang setiap baris; jangan meluncurkan sebelum semuanya
 - [ ] `EMAIL_PROVIDER=resend` atau `smtp` (bukan `outbox`), kredensial terisi.
 - [ ] `MINECRAFT_LOOKUP_MODE=mojang`.
 - [ ] `TURNSTILE_ENABLED=1` beserta site/secret key.
+- [ ] Pada staging/domain yang terdaftar, form menerima token Turnstile valid dan menolak
+      token kosong/tidak valid; matikan hanya bila environment memang non-produksi.
 - [ ] `PAYMENT_DEFAULT_PROVIDER` sesuai gateway aktif, mode `live` untuk produksi.
 - [ ] `SEED_OWNER_*` terisi, password kuat, dan diganti setelah login pertama.
 
@@ -40,6 +52,9 @@ sebagai catatan audit. Centang setiap baris; jangan meluncurkan sebelum semuanya
 - [ ] Kredensial Tripay/Midtrans diisi di `/admin/pembayaran` dengan mode **live**.
 - [ ] URL webhook terdaftar di dashboard gateway:
       `https://<domain>/api/webhooks/tripay` atau `/api/webhooks/midtrans`.
+- [ ] Di sandbox masing-masing gateway, buat transaksi untuk metode yang dipakai dan
+      pastikan callback diterima; lakukan sekali di Tripay dan sekali di Midtrans jika
+      keduanya diaktifkan.
 - [ ] Uji transaksi nyata nominal kecil: order menjadi PAID, entitlement muncul, pengiriman
       terkirim, invoice PDF bisa diunduh, email masuk.
 - [ ] Uji webhook ganda: kirim ulang callback → tidak ada pengiriman kedua.

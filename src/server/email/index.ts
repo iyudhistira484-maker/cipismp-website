@@ -65,7 +65,8 @@ export async function deliverEmail(emailId: string): Promise<SendResult> {
   return result;
 }
 
-async function sendWithProvider(input: {
+/** Eksekutor provider email; diekspor agar kontrak Resend/SMTP bisa diuji tanpa kredensial live. */
+export async function sendWithProvider(input: {
   to: string;
   subject: string;
   html: string;
