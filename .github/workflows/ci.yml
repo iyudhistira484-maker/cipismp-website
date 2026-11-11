@@ -22,7 +22,9 @@ env:
 jobs:
   quality:
     name: Typecheck, unit test, build
-    runs-on: ubuntu-latest
+    # Runner 24.04 dipakai eksplisit: ubuntu-latest sudah mulai pindah ke 26.04,
+    # yang belum didukung Playwright maupun Postgres service image tertentu.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
@@ -57,7 +59,7 @@ jobs:
 
   e2e:
     name: Playwright smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: quality
     services:
       postgres:
