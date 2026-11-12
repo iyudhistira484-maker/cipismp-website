@@ -33,11 +33,14 @@ export function Stat({ label, value, hint, tone }: { label: string; value: strin
 
 export function Table({ head, children, empty }: { head: string[]; children: React.ReactNode; empty?: boolean }) {
   return (
+    <div className="min-w-0">
+    <p className="mb-2 text-[11px] text-muted-2">Geser tabel untuk melihat kolom lainnya →</p>
     <div className="dashboard-scroll min-w-0 max-h-[36rem] overflow-auto rounded-[16px] border border-line bg-white" tabIndex={0} role="region" aria-label="Tabel data, gulir untuk melihat semua kolom dan baris">
       <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-[12.5px]">
         <thead className="sticky top-0 z-10 bg-[#faf4f8] text-2xs uppercase tracking-wider text-muted-2"><tr>{head.map((cell) => <th key={cell} scope="col" className="px-4 py-3 font-semibold">{cell}</th>)}</tr></thead>
         <tbody className="divide-y divide-line/70">{empty ? <tr><td colSpan={head.length} className="px-4 py-7 text-center text-muted-2">Belum ada data.</td></tr> : children}</tbody>
       </table>
+    </div>
     </div>
   );
 }

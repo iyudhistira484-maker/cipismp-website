@@ -48,7 +48,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Akun">
           <dl className="grid gap-3 text-[12.5px] sm:grid-cols-2">
             <div><dt className="text-2xs uppercase tracking-wider text-muted-2">Email terverifikasi</dt><dd className="mt-1 text-ink">{customer.emailVerifiedAt ? formatDateTimeWIB(customer.emailVerifiedAt) : "Belum"}</dd></div>

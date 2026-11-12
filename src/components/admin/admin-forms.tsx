@@ -184,13 +184,13 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
         <Field label="Nama" htmlFor="product-name" required>
           <Input id="product-name" name="name" defaultValue={product?.name} required maxLength={40} />
         </Field>
-        <Field label="Slug" htmlFor="product-slug" hint="Dipakai di URL" required>
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Slug" htmlFor="product-slug" hint="Dipakai di URL" required>
           <Input id="product-slug" name="slug" defaultValue={product?.slug} required pattern="[a-z0-9-]{3,40}" />
         </Field>
         <Field label="Harga (Rp)" htmlFor="product-price" required>
           <Input id="product-price" name="priceIdr" defaultValue={product?.priceIdr ?? 25000} inputMode="numeric" required />
         </Field>
-        <Field label="Tier" htmlFor="product-tier" hint="Rank: makin besar makin tinggi">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Tier" htmlFor="product-tier" hint="Rank: makin besar makin tinggi">
           <Input id="product-tier" name="tier" type="number" min={0} max={20} defaultValue={product?.tier ?? 0} />
         </Field>
         <Field label="Warna badge" htmlFor="product-accent">
@@ -253,10 +253,10 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
         atau permission kit cipiprime dan cipi++. Perintah lain, termasuk parent set, ditahan. Gunakan
         {' '}{"{uuid}"} sebagai target bila nama Bedrock mengandung spasi; periksa group dan antrean di staging.
       </p>
-      <Field label="Perintah grant" htmlFor="product-grant" hint="Placeholder: {player}, {uuid}, {season}, {rank}, {kitname}">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Perintah grant" htmlFor="product-grant" hint="Placeholder: {player}, {uuid}, {season}, {rank}, {kitname}">
         <Textarea id="product-grant" name="grantTemplate" defaultValue={defaultGrant} rows={3} spellCheck={false} className="font-mono text-[12px]" />
       </Field>
-      <Field label="Perintah revoke" htmlFor="product-revoke" hint="Gunakan # di awal baris untuk komentar. Multi-baris didukung.">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Perintah revoke" htmlFor="product-revoke" hint="Gunakan # di awal baris untuk komentar. Multi-baris didukung.">
         <Textarea id="product-revoke" name="revokeTemplate" defaultValue={defaultRevoke} rows={3} spellCheck={false} className="font-mono text-[12px]" />
       </Field>
       <Field
@@ -391,7 +391,7 @@ export function SeasonTransitionPanel({ seasons }: { seasons: Array<{ id: string
     <div className="space-y-3">
       <StateAlert state={state} />
       <Field label="Season yang diakhiri" htmlFor="transition-season">
-        <Select id="transition-season" value={seasonId} onChange={(event) => setSeasonId(event.target.value)}>
+        <Select id="transition-season" value={seasonId} disabled={previewing} onChange={(event) => { setSeasonId(event.target.value); setPreview(empty); }}>
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>
               {season.name} — {season.status} (selesai {new Date(season.endAt).toLocaleDateString("id-ID")})
@@ -453,7 +453,7 @@ export function SeasonTransitionPanel({ seasons }: { seasons: Array<{ id: string
               onChange={() => setMode("dry-run")}
               className="accent-accent"
             />
-            Simulasi (tidak mengubah data)
+            Simulasi (tidak mengubah season atau entitlement)
           </label>
           <label className="flex items-center gap-2 text-[13px] text-muted">
             <input type="radio" name="mode" value="run" checked={mode === "run"} onChange={() => setMode("run")} className="accent-accent" />
@@ -512,7 +512,7 @@ export function CouponForm({ coupon, seasons }: { coupon?: CouponFormValues; sea
         <Field label="Kode" htmlFor="coupon-code" required>
           <Input id="coupon-code" name="code" defaultValue={coupon?.code} required placeholder="HEMAT10" />
         </Field>
-        <Field label="Season" htmlFor="coupon-season" hint="Kosong = semua season">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Season" htmlFor="coupon-season" hint="Kosong = semua season">
           <Select id="coupon-season" name="seasonId" defaultValue={coupon?.seasonId ?? ""}>
             <option value="">Semua season</option>
             {seasons.map((season) => (
@@ -534,7 +534,7 @@ export function CouponForm({ coupon, seasons }: { coupon?: CouponFormValues; sea
         <Field label="Minimum belanja dasar (Rp)" htmlFor="coupon-min">
           <Input id="coupon-min" name="minSubtotalIdr" defaultValue={coupon?.minSubtotalIdr ?? 0} inputMode="numeric" />
         </Field>
-        <Field label="Kuota total" htmlFor="coupon-max" hint="0 = tanpa batas">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Kuota total" htmlFor="coupon-max" hint="0 = tanpa batas">
           <Input id="coupon-max" name="maxRedemptions" type="number" min={0} defaultValue={coupon?.maxRedemptions ?? 0} />
         </Field>
         <Field label="Batas per pembeli" htmlFor="coupon-per-user">
@@ -608,7 +608,7 @@ export function CouponForm({ coupon, seasons }: { coupon?: CouponFormValues; sea
           <input type="checkbox" name="kitOnly" defaultChecked={coupon?.kitOnly ?? false} className="accent-accent" /> Keranjang berisi kit
         </label>
       </div>
-      <Field label="Cakupan potongan" htmlFor="coupon-scope" hint="Minimum belanja dan tingkat kupon selalu memakai subtotal seluruh keranjang. Jika tidak memilih jenis rank/kit, kedua pilihan menghasilkan nilai yang sama.">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Cakupan potongan" htmlFor="coupon-scope" hint="Minimum belanja dan tingkat kupon selalu memakai subtotal seluruh keranjang. Jika tidak memilih jenis rank/kit, kedua pilihan menghasilkan nilai yang sama.">
         <Select id="coupon-scope" name="discountScope" defaultValue={coupon?.eligibleItemsOnly ? "eligible" : "cart"}>
           <option value="cart">Seluruh keranjang</option><option value="eligible">Hanya jenis yang dipilih</option>
         </Select>
@@ -670,7 +670,7 @@ export function AutomaticDiscountForm({
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Season" htmlFor="auto-discount-season" hint="Kosong = semua season">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Season" htmlFor="auto-discount-season" hint="Kosong = semua season">
           <Select id="auto-discount-season" name="seasonId" defaultValue={discount?.seasonId ?? ""}>
             <option value="">Semua season</option>
             {seasons.map((season) => (
@@ -694,7 +694,7 @@ export function AutomaticDiscountForm({
             <option value="FIXED">Nominal</option>
           </Select>
         </Field>
-        <Field label="Nilai diskon" htmlFor="auto-discount-value" required hint="Persen 1–100; nominal min. Rp 1.000">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Nilai diskon" htmlFor="auto-discount-value" required hint="Persen 1–100; nominal min. Rp 1.000">
           <Input
             id="auto-discount-value"
             name="value"
@@ -731,7 +731,7 @@ export function AutomaticDiscountForm({
           <input type="checkbox" name="kitOnly" defaultChecked={discount?.kitOnly ?? false} className="accent-accent" /> Keranjang berisi kit
         </label>
       </div>
-      <Field label="Cakupan potongan" htmlFor="auto-discount-scope" hint="Minimum belanja memakai subtotal seluruh keranjang. Jika tidak memilih jenis rank/kit, kedua pilihan menghasilkan nilai yang sama.">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Cakupan potongan" htmlFor="auto-discount-scope" hint="Minimum belanja memakai subtotal seluruh keranjang. Jika tidak memilih jenis rank/kit, kedua pilihan menghasilkan nilai yang sama.">
         <Select id="auto-discount-scope" name="discountScope" defaultValue={discount?.eligibleItemsOnly ? "eligible" : "cart"}>
           <option value="cart">Seluruh keranjang</option><option value="eligible">Hanya jenis yang dipilih</option>
         </Select>
@@ -791,17 +791,17 @@ export function SiteSettingsForm({ settings }: { settings: SiteSettingsValues })
         <Field label="Nama situs" htmlFor="site-name">
           <Input id="site-name" name="siteName" defaultValue={settings.name} maxLength={40} required />
         </Field>
-        <Field label="Email bantuan" htmlFor="site-email" hint="Tampil di footer, FAQ, dan halaman bantuan">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Email bantuan" htmlFor="site-email" hint="Tampil di footer, FAQ, dan halaman bantuan">
           <Input id="site-email" name="supportEmail" type="email" defaultValue={settings.supportEmail} required />
         </Field>
-        <Field label="Tagline" htmlFor="site-tagline" hint="Maksimal 160 karakter">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Tagline" htmlFor="site-tagline" hint="Maksimal 160 karakter">
           <Input id="site-tagline" name="siteTagline" defaultValue={settings.tagline} maxLength={160} />
         </Field>
-        <Field label="URL Discord" htmlFor="site-discord" hint="Diawali https:// — boleh dikosongkan">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="URL Discord" htmlFor="site-discord" hint="Diawali https:// — boleh dikosongkan">
           <Input id="site-discord" name="discordUrl" defaultValue={settings.discordUrl} maxLength={200} />
         </Field>
       </div>
-      <Field label="Pengumuman di atas situs" htmlFor="site-announcement" hint="Kosongkan untuk menyembunyikan banner">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Pengumuman di atas situs" htmlFor="site-announcement" hint="Kosongkan untuk menyembunyikan banner">
         <Textarea
           id="site-announcement"
           name="announcement"
@@ -868,7 +868,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettingsValues 
         <Field label="Batas bayar (menit)" htmlFor="settings-expiry">
           <Input id="settings-expiry" name="orderExpiryMinutes" type="number" min={5} max={1440} defaultValue={settings.orderExpiryMinutes} />
         </Field>
-        <Field label="Usia minimum" htmlFor="settings-age" hint="Minimal 13 tahun">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Usia minimum" htmlFor="settings-age" hint="Minimal 13 tahun">
           <Input id="settings-age" name="minimumAge" type="number" min={13} max={21} defaultValue={settings.minimumAge} />
         </Field>
         <Field label="Freeze default (hari)" htmlFor="settings-freeze">
@@ -993,7 +993,7 @@ export function ProviderForm({
       </div>
       <StateAlert state={state} />
       {fields.map((field) => (
-        <Field key={field.name} label={field.label} htmlFor={`${provider}-${field.name}`} hint={field.hint}>
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" key={field.name} label={field.label} htmlFor={`${provider}-${field.name}`} hint={field.hint}>
           <Input
             id={`${provider}-${field.name}`}
             name={field.name}
@@ -1064,16 +1064,16 @@ export function ServerSettingsForm({ server }: { server?: ServerFormValues }) {
           atur <span className="font-mono">website-url</span> dan <span className="font-mono">shared-secret</span> di config plugin.
           Secret harus sama dengan <span className="font-mono">PLUGIN_SHARED_SECRET</span> di environment website.
         </p>
-        <Field label="Host RCON" htmlFor="server-rcon-host" hint="Hanya untuk perintah kit yang diizinkan; rank tidak dikirim melalui RCON.">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Host RCON" htmlFor="server-rcon-host" hint="Pada mode offline, pengiriman RCON ditahan. Jangan gunakan untuk melewati antrean plugin.">
           <Input id="server-rcon-host" name="rconHost" defaultValue={server?.rconHost ?? ""} />
         </Field>
         <Field label="Port RCON" htmlFor="server-rcon-port">
           <Input id="server-rcon-port" name="rconPort" type="number" defaultValue={server?.rconPort ?? 25575} />
         </Field>
-        <Field label="Password RCON" htmlFor="server-rcon-pass" hint={server?.rconPasswordSet ? "Sudah diatur." : undefined}>
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Password RCON" htmlFor="server-rcon-pass" hint={server?.rconPasswordSet ? "Sudah diatur." : undefined}>
           <Input id="server-rcon-pass" name="rconPassword" type="password" autoComplete="new-password" />
         </Field>
-        <Field label="URL status API" htmlFor="server-status-url" hint="Opsional, untuk status pemain online">
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="URL status API" htmlFor="server-status-url" hint="Opsional, untuk status pemain online">
           <Input id="server-status-url" name="statusApiUrl" defaultValue={server?.statusApiUrl ?? ""} />
         </Field>
       </div>
@@ -1108,10 +1108,10 @@ export function StaffMinecraftRegisterForm({ staff }: { staff: Array<{ id: strin
           {staff.map((member) => <option key={member.id} value={member.id}>{member.username} — {member.email}</option>)}
         </Select>
       </Field>
-      <Field label="UUID Minecraft" htmlFor="protected-uuid" required hint="Gunakan UUID asli Java atau Floodgate; bukan username.">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="UUID Minecraft" htmlFor="protected-uuid" required hint="Gunakan UUID asli Java atau Floodgate; bukan username.">
         <Input id="protected-uuid" name="uuid" required maxLength={36} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
       </Field>
-      <Field label="Label akun" htmlFor="protected-label" required hint="Contoh: utama atau alternatif; jangan isi password.">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Label akun" htmlFor="protected-label" required hint="Contoh: utama atau alternatif; jangan isi password.">
         <Input id="protected-label" name="label" required maxLength={64} />
       </Field>
       <Field label="Alasan / sumber verifikasi" htmlFor="protected-reason" required>
@@ -1150,7 +1150,7 @@ export function PromoteCustomerForm({ userId, username, ready }: { userId: strin
           <option value="" disabled>Pilih role</option><option value="ADMIN">Admin</option><option value="SUPPORT">Support</option>
         </Select>
       </Field>
-      <Field label="Alasan dan verifikasi identitas" htmlFor="promotion-reason" required hint="Catat bagaimana identitas dan kebutuhan akses staf diperiksa.">
+      <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Alasan dan verifikasi identitas" htmlFor="promotion-reason" required hint="Catat bagaimana identitas dan kebutuhan akses staf diperiksa.">
         <Textarea id="promotion-reason" name="reason" required minLength={10} maxLength={500} rows={2} disabled={!ready} />
       </Field>
       <CheckboxField name="confirmed" required disabled={!ready} label={`Saya sudah memverifikasi ${username} dan memahami hak akses yang diberikan.`} />
@@ -1243,7 +1243,7 @@ export function CompForm({ products }: { products: Array<{ id: string; name: str
         </Select>
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="UUID pemain" htmlFor="comp-uuid" hint="Java/Floodgate UUID" required>
+        <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="UUID pemain" htmlFor="comp-uuid" hint="Java/Floodgate UUID" required>
           <Input id="comp-uuid" name="uuid" required placeholder="069a79f4-44e9-4726-a5be-fca90e38aaf5" />
         </Field>
         <Field label="Nama pemain" htmlFor="comp-name" required>

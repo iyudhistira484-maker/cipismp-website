@@ -16,9 +16,9 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
   if (viewer.user.role !== "CUSTOMER" && !viewer.user.totpEnabledAt) {
     return (
       <div className="space-y-6">
-        <header><p className="eyebrow">Keamanan admin</p><h1 className="mt-2 font-display text-h1 text-ink">Aktifkan 2FA</h1></header>
+        <header className="rounded-[22px] border border-[#efdee8] bg-gradient-to-br from-[#fff3f8] via-[#fffafd] to-[#f2edf9] p-6 sm:p-8"><p className="eyebrow">Keamanan admin</p><h1 className="mt-2 font-display text-h1 text-ink">Aktifkan 2FA<span className="text-accent">.</span></h1><p className="mt-2 text-[13px] leading-relaxed text-muted">Selesaikan pengaturan keamanan sebelum membuka data operasional.</p></header>
         <Alert tone="warning">Demi keamanan, aktifkan 2FA sebelum menggunakan panel admin.</Alert>
-        <TotpPanel enabled={false} isStaff />
+        <TotpPanel enabled={false} isStaff customer />
       </div>
     );
   }
@@ -36,11 +36,11 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
 
   return (
     <div className="space-y-8">
-      <header className={customer ? "relative overflow-hidden rounded-[22px] border border-[#efdee8] bg-gradient-to-br from-[#fff3f8] via-[#fffafd] to-[#f2edf9] p-6 sm:p-8" : undefined}>
+      <header className="relative overflow-hidden rounded-[22px] border border-[#efdee8] bg-gradient-to-br from-[#fff3f8] via-[#fffafd] to-[#f2edf9] p-6 sm:p-8">
         <p className="eyebrow">Keamanan</p>
-        <h1 className="mt-2 font-display text-h1 text-ink">Akun dan sesi{customer ? <span className="text-accent">.</span> : null}</h1>
+        <h1 className="mt-2 font-display text-h1 text-ink">Akun dan sesi<span className="text-accent">.</span></h1>
         <p className="mt-2 text-[14px] leading-relaxed text-muted">Ubah password, kelola sesi aktif, dan aktifkan 2FA.</p>
-        {customer ? <p className="mt-4 flex items-start gap-2 text-[12px] leading-relaxed text-muted"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent-strong" aria-hidden />Jangan bagikan password atau kode 2FA kepada siapa pun.</p> : null}
+        <p className="mt-4 flex items-start gap-2 text-[12px] leading-relaxed text-muted"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent-strong" aria-hidden />Jangan bagikan password atau kode 2FA kepada siapa pun.</p>
       </header>
 
       {params["email-berubah"] ? (
@@ -60,9 +60,9 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
         </Alert>
       ) : null}
 
-      <AccountSecurityForms email={viewer.user.email} verified={Boolean(viewer.user.emailVerifiedAt)} customer={customer} />
+      <AccountSecurityForms email={viewer.user.email} verified={Boolean(viewer.user.emailVerifiedAt)} customer />
 
-      <section aria-labelledby="discord" className={customer ? "rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-6" : "rounded-lg border border-line p-4"}>
+      <section aria-labelledby="discord" className="rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-6">
         <h2 id="discord" className="font-display text-h3 text-ink">Discord</h2>
         {discord.discordId ? (
           <div className="mt-2 space-y-3">
@@ -93,9 +93,9 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
         )}
       </section>
 
-      <TotpPanel enabled={Boolean(viewer.user.totpEnabledAt)} isStaff={viewer.user.role !== "CUSTOMER"} customer={customer} />
+      <TotpPanel enabled={Boolean(viewer.user.totpEnabledAt)} isStaff={viewer.user.role !== "CUSTOMER"} customer />
 
-      <section aria-labelledby="sesi" className={customer ? "rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-6" : undefined}>
+      <section aria-labelledby="sesi" className="rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="sesi" className="font-display text-h3 text-ink">Sesi aktif</h2>
           <form action={revokeAllOtherSessionsAction}>

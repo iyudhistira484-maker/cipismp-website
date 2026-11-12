@@ -20,7 +20,7 @@ export default async function AdminSeasonPage({ searchParams }: { searchParams: 
         description="Rank dan kit hanya berlaku di season yang sedang aktif. Tidak ada carry-over dan tidak ada refund saat season berakhir."
       />
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
           <Table head={["Season", "Status", "Periode", "Freeze", "Entitlement aktif", "Aksi"]} empty={seasons.length === 0}>
             {seasons.map((season) => (

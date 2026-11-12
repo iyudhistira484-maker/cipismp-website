@@ -34,7 +34,7 @@ export default async function AdminAutomaticDiscountsPage({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Table head={["Nama", "Potongan", "Syarat", "Season", "Periode", "Status", "Aksi"]} empty={discounts.length === 0}>
           {discounts.map((discount) => (
             <tr key={discount.id}>

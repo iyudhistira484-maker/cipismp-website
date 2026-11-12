@@ -20,7 +20,7 @@ export default async function AdminCouponsPage({ searchParams }: { searchParams:
     <>
       <AdminPageHeader title="Kupon" description="Diskon tidak pernah membuat total negatif. Kuota dan batas per pembeli ditegakkan di server." />
 
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Table head={["Kode", "Diskon", "Season", "Kuota", "Terpakai", "Total diskon", "Periode", "Status", "Aksi"]} empty={coupons.length === 0}>
           {coupons.map((coupon) => (
             <tr key={coupon.id}>

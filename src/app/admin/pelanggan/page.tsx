@@ -24,8 +24,8 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
         actions={<ExportLink type="customers" label="Ekspor CSV" />}
       />
 
-      <form className="mb-4 flex flex-wrap items-end gap-2" method="get">
-        <Field label="Cari pelanggan" htmlFor="customer-q" className="min-w-64 flex-1">
+      <form className="mb-4 flex flex-wrap items-end gap-3 rounded-[20px] border border-line bg-white p-5 shadow-card" method="get">
+        <Field label="Cari pelanggan" htmlFor="customer-q" className="min-w-0 flex-[1_1_16rem]">
           <Input id="customer-q" name="q" defaultValue={params.q ?? ""} placeholder="email atau username" />
         </Field>
         <Button type="submit" variant="secondary">Cari</Button>

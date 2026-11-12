@@ -37,7 +37,7 @@ export default async function AdminStaffPage() {
 
       {!canManage ? <Alert tone="warning">Hanya Owner yang bisa mengubah role staf.</Alert> : null}
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Table head={["Email", "Username", "Role", "2FA", "Login terakhir", "Ubah role"]} empty={staff.length === 0}>
           {staff.map((member) => (
             <tr key={member.id}>
@@ -84,7 +84,7 @@ export default async function AdminStaffPage() {
 
       <Card className="mt-4" title="UUID Minecraft staf dan akun alternatif" description="Hanya Owner dapat mengelola daftar ini. Data tidak membuktikan kepemilikan: verifikasi setiap UUID dan terus perbarui daftar. Akun yang tidak terdata tetap tidak terdeteksi.">
         <Alert tone="warning">Setelah role staf menjadi Pelanggan, pembatasan dari daftar ini berhenti untuk akun tersebut. Jika dipromosikan kembali, pembatasan aktif lagi. Perubahan tidak membatalkan perintah yang sudah berada di antrean plugin lama; periksa sebelum mengubah data.</Alert>
-        <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_2fr]">
+        <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
           <StaffMinecraftRegisterForm staff={staff} />
           <Table head={["Staf", "Label", "UUID", "Status", "Hapus"]} empty={protectedAccounts.length === 0}>
             {protectedAccounts.map((account) => (

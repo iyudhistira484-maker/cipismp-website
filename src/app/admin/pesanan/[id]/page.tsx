@@ -42,7 +42,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           <Card title="Item">
             <Table head={["Produk", "Penerima", "Harga", "Jumlah", "Subtotal"]} empty={items.length === 0}>

@@ -19,8 +19,8 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
         description="Setiap aksi staf dan sistem yang mengubah uang, entitlement, atau pengaturan dicatat di sini. Log tidak bisa dihapus dari panel."
       />
 
-      <form className="mb-4 flex flex-wrap items-end gap-2" method="get">
-        <Field label="Filter aksi" htmlFor="audit-action" className="min-w-64 flex-1">
+      <form className="mb-4 flex flex-wrap items-end gap-3 rounded-[20px] border border-line bg-white p-5 shadow-card" method="get">
+        <Field label="Filter aksi" htmlFor="audit-action" className="min-w-0 flex-[1_1_16rem]">
           <Input id="audit-action" name="action" defaultValue={params.action ?? ""} placeholder="order.manual-paid, season.transition, product.updated" />
         </Field>
         <Button type="submit" variant="secondary">Terapkan</Button>

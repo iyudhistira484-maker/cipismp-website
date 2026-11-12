@@ -22,7 +22,7 @@ export default async function AdminDeliveryPage() {
         description="Periksa hasil di server sebelum kirim ulang. Pengiriman RCON yang SENT atau hasilnya tidak pasti memerlukan rekonsiliasi manual; jangan pindah metode untuk mem-bypass antrean."
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-4 grid gap-3 min-[380px]:grid-cols-2 xl:grid-cols-5">
         <Stat label="Antrean" value={String(stats.QUEUED ?? 0)} />
         <Stat label="Terkirim" value={String(stats.SENT ?? 0)} />
         <Stat label="Diterima" value={String(stats.DELIVERED ?? 0)} tone="success" />
