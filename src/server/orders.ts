@@ -28,7 +28,9 @@ import { getSettings } from "./settings";
 import { loadAutomaticDiscounts } from "./discounts";
 import { buildGrantCommands, buildRevokeCommands } from "./delivery/commands";
 import { deliveryCommandsAreSafe } from "./delivery/command-safety";
+import { offlinePluginReady } from "./delivery/plugin-readiness";
 import { resolvePlayer, upsertProfile } from "./minecraft";
+import { env } from "./env";
 import { hasKnownStaffRankRestriction } from "./staff-rank";
 import { priceCart, type CouponInput, type PriceableProduct } from "@/lib/pricing";
 import { canPurchase } from "@/lib/seasons";
@@ -104,9 +106,14 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     throw new CheckoutError("Metode pembayaran yang dipilih tidak aktif. Muat ulang checkout lalu pilih metode lain.");
   }
 
+  if (env.MINECRAFT_LOOKUP_MODE === "offline") {
+    const server = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
+    if (!offlinePluginReady(server)) throw new CheckoutError("Pengiriman sementara tidak siap. Plugin, LoginSecurity, dan Floodgate harus terhubung; coba lagi nanti.");
+  }
+
   const player = await resolvePlayer(input.mcName);
-  if (player.edition === "BEDROCK" && player.source !== "cache") {
-    throw new CheckoutError("Akun Bedrock harus diverifikasi in-game sebelum pembelian agar pengiriman sampai ke UUID yang benar.", { mcName: "Hubungkan akun Bedrock melalui dashboard terlebih dahulu." });
+  if ((player.edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") && player.source !== "cache") {
+    throw new CheckoutError("Akun Minecraft harus diverifikasi in-game sebelum pembelian agar pengiriman sampai ke UUID server yang benar.", { mcName: "Hubungkan akun melalui dashboard terlebih dahulu." });
   }
 
   // Resolusi penerima per item: hadiah diverifikasi ke UUID masing-masing agar aturan
@@ -116,8 +123,8 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     const giftName = item.targetName?.trim();
     if (giftName) {
       const recipient = await resolvePlayer(giftName);
-      if (recipient.edition === "BEDROCK" && recipient.source !== "cache") {
-        throw new CheckoutError("Penerima Bedrock harus memverifikasi akun in-game sebelum menerima hadiah.");
+      if ((recipient.edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") && recipient.source !== "cache") {
+        throw new CheckoutError("Penerima harus memverifikasi akun Minecraft in-game sebelum menerima hadiah.");
       }
       if (recipient.uuid === player.uuid) {
         throw new CheckoutError("Penerima hadiah tidak boleh sama dengan akun Minecraft kamu sendiri.", {

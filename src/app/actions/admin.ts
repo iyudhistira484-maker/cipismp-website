@@ -17,12 +17,15 @@ import { updateCouponPreservingOrderReferences } from "@/server/coupon-admin";
 import { redeliver } from "@/server/delivery";
 import { buildGrantCommands, buildRevokeCommands, validateTemplate } from "@/server/delivery/commands";
 import { containsRankChange, deliveryCommandsAreSafe } from "@/server/delivery/command-safety";
+import { offlinePluginReady } from "@/server/delivery/plugin-readiness";
 import { grantEntitlement } from "@/server/entitlements";
 import { hasKnownStaffRankRestriction } from "@/server/staff-rank";
 import { registerStaffMinecraftAccount, removeStaffMinecraftAccount } from "@/server/staff-minecraft-accounts";
 import { previewTransition, runSeasonTransition } from "@/server/seasons/transition";
 import { enqueue } from "@/server/queue";
 import { getSettings, updateSettings } from "@/server/settings";
+import { env } from "@/server/env";
+import { resolvePlayer } from "@/server/minecraft";
 import { saveProviderConfig, getAvailableProviders, PROVIDER_LABEL, type ProviderId } from "@/server/payments";
 import { encryptSecret, decryptSecret } from "@/server/crypto";
 import { testRcon } from "@/server/admin/server-test";
@@ -1507,6 +1510,14 @@ export async function adminGrantCompAction(_prev: AdminState, formData: FormData
         reason: String(formData.get("reason") ?? "").trim(),
       });
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Data comp tidak valid." };
+    if (env.MINECRAFT_LOOKUP_MODE === "offline") {
+      const server = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
+      if (!offlinePluginReady(server)) return { error: "Plugin dan sistem autentikasi belum siap untuk comp." };
+      const resolved = await resolvePlayer(parsed.data.playerName);
+      if (resolved.source !== "cache" || resolved.uuid.toLowerCase() !== parsed.data.uuid.toLowerCase()) {
+        return { error: "Pemain dan UUID comp harus cocok dengan profil server yang sudah diverifikasi ulang." };
+      }
+    }
 
     const product = await db.query.products.findFirst({ where: eq(products.id, parsed.data.productId) });
     if (!product) return { error: "Produk tidak ditemukan." };

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { clientIp } from "@/server/csrf";
 import { rateLimit } from "@/server/rate-limit";
 import { InvalidUsernameError, getProfileByUuidSafe, resolvePlayer } from "@/server/minecraft";
+import { env } from "@/server/env";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
 
   try {
     const player = await resolvePlayer(parsed.data.name);
+    if (env.MINECRAFT_LOOKUP_MODE === "offline" && player.source !== "cache") {
+      return NextResponse.json({ ok: false, message: "Akun belum diverifikasi di server. Hubungkan melalui dashboard terlebih dahulu." }, { status: 422 });
+    }
     const profile = await getProfileByUuidSafe(player.uuid);
     return NextResponse.json({
       ok: true,

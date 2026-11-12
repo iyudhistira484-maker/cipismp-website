@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "../db";
-import { deliveries, deliveryAttempts, orders, servers } from "../db/schema";
+import { deliveries, deliveryAttempts, minecraftProfiles, orders, servers } from "../db/schema";
 import { ids } from "../ids";
 import { alertStaff } from "../notifications";
 import { getSettings } from "../settings";
@@ -10,6 +10,7 @@ import { markOrderDeliveredIfComplete } from "./index";
 import { markOrderFailed } from "./order-failure";
 import { containsRankGrant, deliveryCommandsAreSafe, STAFF_RANK_DELIVERY_MESSAGE, UNSAFE_DELIVERY_MESSAGE } from "./command-safety";
 import { knownStaffDeliveryQuery } from "../staff-rank";
+import { env } from "../env";
 
 const MAX_POLL_BATCH = 10;
 const DELIVERY_LEASE_MS = 3 * 60_000;
@@ -37,7 +38,7 @@ export interface PluginPollResult {
 }
 
 /** Record the plugin's outbound check-in, then atomically lease due deliveries. */
-export async function pollPluginDeliveries(input: { version: string; limit: number }): Promise<PluginPollResult> {
+export async function pollPluginDeliveries(input: { version: string; limit: number; identityProtocol?: number; authReady?: boolean }): Promise<PluginPollResult> {
   const server = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
   if (!server) throw new Error("Server default belum dikonfigurasi di panel admin.");
 
@@ -47,10 +48,14 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
     .set({
       pluginLastSeenAt: now,
       pluginVersion: input.version.slice(0, 64) || null,
+      pluginIdentityProtocol: input.identityProtocol ?? null,
+      pluginAuthReady: input.authReady === true,
     })
     .where(eq(servers.id, server.id));
 
-  if (server.deliveryMode !== "PLUGIN") return { enabled: false, deliveries: [] };
+  if (server.deliveryMode !== "PLUGIN" || (env.MINECRAFT_LOOKUP_MODE === "offline" && (input.identityProtocol !== 2 || input.authReady !== true))) {
+    return { enabled: false, deliveries: [] };
+  }
 
   const settings = await getSettings();
   const maxAttempts = Math.max(1, settings.delivery.maxAttempts);
@@ -111,6 +116,16 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
 
     const output: ClaimedPluginDelivery[] = [];
     for (const delivery of due) {
+      if (env.MINECRAFT_LOOKUP_MODE === "offline") {
+        const [profile] = await tx.select({ id: minecraftProfiles.id }).from(minecraftProfiles).where(and(
+          eq(sql`lower(${minecraftProfiles.uuid})`, delivery.uuid.toLowerCase()),
+          eq(minecraftProfiles.identityVerifiedVersion, 2), isNotNull(minecraftProfiles.userId), isNotNull(minecraftProfiles.verifiedAt),
+        )).limit(1);
+        if (!profile) {
+          await tx.update(deliveries).set({ nextAttemptAt: new Date(now.getTime() + 60_000), lastError: "Identitas server perlu diverifikasi ulang; rekonsiliasi mungkin diperlukan.", updatedAt: now }).where(eq(deliveries.id, delivery.id));
+          continue;
+        }
+      }
       if (delivery.commands.length === 0) {
         const error = "Tidak ada perintah untuk dijalankan.";
         await tx
@@ -249,7 +264,7 @@ export async function acknowledgePluginDelivery(input: PluginDeliveryAck): Promi
       // The plugin has durably queued the command, not executed it. Poll again
       // later: after login the plugin's completion marker acknowledges execution.
       // Offline checks are not failures and must not exhaust the retry budget.
-      await tx.update(deliveries).set({ status: "QUEUED", attempts: 0, nextAttemptAt: new Date(now.getTime() + 5 * 60_000), lastError: null, updatedAt: now }).where(eq(deliveries.id, delivery.id));
+      await tx.update(deliveries).set({ status: "QUEUED", attempts: 0, nextAttemptAt: new Date(now.getTime() + 60_000), lastError: null, updatedAt: now }).where(eq(deliveries.id, delivery.id));
       await tx.insert(deliveryAttempts).values({ id: ids.deliveryAttempt(), deliveryId: delivery.id, attempt: input.attempt, ok: true, output: "Perintah disimpan plugin sampai pemain login; belum dikonfirmasi dijalankan.", durationMs: input.durationMs });
       return { accepted: true, status: "QUEUED", orderId: delivery.orderId };
     }

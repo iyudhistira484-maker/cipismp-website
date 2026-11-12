@@ -35,7 +35,7 @@ const envSchema = z.object({
   PAYMENT_DEFAULT_PROVIDER: z.enum(["TRIPAY", "MIDTRANS", "FAKE"]).default("FAKE"),
   TRIPAY_MODE: z.enum(["sandbox", "live"]).default("sandbox"),
   MIDTRANS_MODE: z.enum(["sandbox", "live"]).default("sandbox"),
-  MINECRAFT_LOOKUP_MODE: z.enum(["mojang", "mock"]).default("mock"),
+  MINECRAFT_LOOKUP_MODE: z.enum(["mojang", "offline", "mock"]).default("mock"),
   PLUGIN_SHARED_SECRET: z.string().min(16).optional(),
   REDIS_URL: z.string().optional(),
   WORKER_ENABLED: boolish,

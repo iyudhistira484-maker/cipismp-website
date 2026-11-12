@@ -12,6 +12,7 @@ import { execRconCommands } from "./rcon";
 import { markOrderFailed } from "./order-failure";
 import { containsRankChange, containsRankGrant, deliveryCommandsAreSafe, STAFF_RANK_DELIVERY_MESSAGE, UNSAFE_DELIVERY_MESSAGE } from "./command-safety";
 import { knownStaffDeliveryQuery } from "../staff-rank";
+import { env } from "../env";
 
 export interface DeliveryOutcome {
   ok: boolean;
@@ -66,6 +67,12 @@ export async function processDelivery(deliveryId: string): Promise<DeliveryOutco
     if (delivery.orderId) await markOrderDeliveredIfComplete(delivery.orderId);
     logger.info("delivery_waiting_for_plugin_poll", { deliveryId: delivery.id });
     return { ok: true, queuedForPluginPoll: true };
+  }
+
+  // RCON cannot establish an authenticated LoginSecurity session, even for kits.
+  // Hold legacy work rather than executing or silently converting uncertain work.
+  if (env.MINECRAFT_LOOKUP_MODE === "offline") {
+    return { ok: false, error: "Server offline memerlukan plugin dan sesi LoginSecurity; RCON tidak diizinkan. Rekonsiliasi diperlukan." };
   }
 
   // Claim before opening RCON. If the worker dies after sending a command,

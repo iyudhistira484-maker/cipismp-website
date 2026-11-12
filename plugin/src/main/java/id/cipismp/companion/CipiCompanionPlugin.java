@@ -27,7 +27,8 @@ public final class CipiCompanionPlugin extends JavaPlugin {
                 getConfig().getString("queue.file", "pending-deliveries.yml"),
                 getConfig().getInt("queue.max-per-player", 20));
         LuckPermsHook luckPerms = getConfig().getBoolean("luckperms.use-api", true) ? LuckPermsHook.tryHook(getLogger()) : null;
-        deliveries = new DeliveryService(this, queue, luckPerms);
+        PlayerIdentity identity = new PlayerIdentity(this);
+        deliveries = new DeliveryService(this, queue, luckPerms, identity);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this, deliveries), this);
 
         boolean secretValid = secret.length() >= 16 && !PLACEHOLDER_SECRETS.contains(secret);
@@ -46,7 +47,7 @@ public final class CipiCompanionPlugin extends JavaPlugin {
         }
 
         VerifyService verifyService = new VerifyService(this, websiteUrl, secret, getConfig().getInt("verify.timeout-seconds", 10));
-        registerCommand("verify", new VerifyCommand(this, verifyService));
+        registerCommand("verify", new VerifyCommand(this, verifyService, identity));
         registerCommand("cipistore", new AdminCommand(this, queue, deliveries));
 
         if (getConfig().getBoolean("polling.enabled", true)) {
@@ -55,6 +56,7 @@ public final class CipiCompanionPlugin extends JavaPlugin {
                     websiteUrl,
                     secret,
                     deliveries,
+                    identity,
                     getConfig().getBoolean("live-status.enabled", false)
                             ? new PlayerStatusSnapshot(this, luckPerms, getConfig().getStringList("live-status.kit-names"))
                             : null,

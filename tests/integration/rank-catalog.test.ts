@@ -41,8 +41,8 @@ describe.skipIf(!enabled)("katalog rank dan otomatisasi LuckPerms", () => {
         .select({ kind: commandTemplates.kind, template: commandTemplates.template })
         .from(commandTemplates)
         .where(eq(commandTemplates.productId, product!.id));
-      expect(templates).toContainEqual({ kind: "GRANT", template: `lp user {player} parent add ${rank.group}` });
-      expect(templates).toContainEqual({ kind: "REVOKE", template: `lp user {player} parent remove ${rank.group}` });
+      expect(templates).toContainEqual({ kind: "GRANT", template: `lp user {uuid} parent add ${rank.group}` });
+      expect(templates).toContainEqual({ kind: "REVOKE", template: `lp user {uuid} parent remove ${rank.group}` });
     }
   });
 });

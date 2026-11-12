@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 const payloadSchema = z.object({
   version: z.string().max(64).optional().default("unknown"),
   limit: z.number().int().min(1).max(10).optional().default(5),
+  identityProtocol: z.number().int().optional(),
+  authReady: z.boolean().optional(),
 });
 
 /** Companion-plugin initiated HTTPS poll; no inbound port on the Minecraft host is needed. */

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "id.cipismp"
-version = "1.0.0"
+version = "1.1.0"
 
 // Keep the existing 1.21.4 build while providing an explicit 26.1.2 build.
 // Newer Paper APIs require Java 25; selecting the target must not silently

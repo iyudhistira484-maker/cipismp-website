@@ -35,6 +35,7 @@ public final class DeliveryPoller {
     private final String websiteUrl;
     private final String secret;
     private final DeliveryService deliveries;
+    private final PlayerIdentity identity;
     private final PlayerStatusSnapshot playerStatus;
     private final int intervalSeconds;
     private final int batchSize;
@@ -49,6 +50,7 @@ public final class DeliveryPoller {
             String websiteUrl,
             String secret,
             DeliveryService deliveries,
+            PlayerIdentity identity,
             PlayerStatusSnapshot playerStatus,
             int intervalSeconds,
             int batchSize,
@@ -57,6 +59,7 @@ public final class DeliveryPoller {
         this.websiteUrl = trimTrailingSlash(websiteUrl);
         this.secret = secret;
         this.deliveries = deliveries;
+        this.identity = identity;
         this.playerStatus = playerStatus;
         this.intervalSeconds = Math.max(5, Math.min(60, intervalSeconds));
         this.batchSize = Math.max(1, Math.min(10, batchSize));
@@ -103,6 +106,8 @@ public final class DeliveryPoller {
     private void pollOnce() throws Exception {
         JsonObject payload = new JsonObject();
         payload.addProperty("version", plugin.getDescription().getVersion());
+        payload.addProperty("identityProtocol", 2);
+        payload.addProperty("authReady", identity.readyOnMainThread());
         payload.addProperty("limit", batchSize);
         JsonObject response = post(POLL_PATH, payload);
         if (!response.has("ok") || !response.get("ok").getAsBoolean()) {

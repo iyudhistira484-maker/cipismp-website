@@ -127,6 +127,20 @@
       "when": 1794450373261,
       "tag": "0017_green_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794457685074,
+      "tag": "0018_pink_jack_murdock",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794458002022,
+      "tag": "0019_low_kid_colt",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { getCartIdentity, getCartLines } from "@/server/cart";
 import { priceCurrentCart } from "@/server/pricing-service";
 import { normalizeUsername } from "@/server/minecraft";
 import { getViewer } from "@/server/auth/guard";
+import { env } from "@/server/env";
 
 export interface PreviewResult {
   ok: boolean;
@@ -51,9 +52,13 @@ export async function previewTotalsAction(input: {
   try {
     const { resolvePlayer } = await import("@/server/minecraft");
     const player = await resolvePlayer(input.mcName);
+    if (env.MINECRAFT_LOOKUP_MODE === "offline" && player.source !== "cache") {
+      return { ...empty, errors: ["Hubungkan akun Minecraft di dashboard sebelum checkout."] };
+    }
     uuid = player.uuid;
     name = player.name;
   } catch {
+    if (env.MINECRAFT_LOOKUP_MODE === "offline") return { ...empty, errors: ["Nama atau profil Minecraft tidak dapat dipastikan. Hubungi bantuan."] };
     try {
       const normalized = normalizeUsername(input.mcName);
       const { deterministicUuid } = await import("@/server/minecraft");

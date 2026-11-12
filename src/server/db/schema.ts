@@ -196,6 +196,8 @@ export const minecraftProfiles = pgTable(
     displayName: text("display_name").notNull(),
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     verifiedAt: ts("verified_at"),
+    // Null for legacy links; v2 requires LoginSecurity and Floodgate-aware plugin.
+    identityVerifiedVersion: integer("identity_verified_version"),
     lastSyncedAt: ts("last_synced_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -291,6 +293,8 @@ export const servers = pgTable("servers", {
   pluginSecret: text("plugin_secret"),
   pluginLastSeenAt: ts("plugin_last_seen_at"),
   pluginVersion: text("plugin_version"),
+  pluginIdentityProtocol: integer("plugin_identity_protocol"),
+  pluginAuthReady: boolean("plugin_auth_ready"),
   rconHost: text("rcon_host"),
   rconPort: integer("rcon_port").default(25575),
   rconPassword: text("rcon_password"),

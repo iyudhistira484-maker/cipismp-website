@@ -104,19 +104,21 @@ async function fetchMojang(name: string, timeoutMs = 4000): Promise<MojangProfil
 export async function resolvePlayer(rawName: string): Promise<ResolvedPlayer> {
   const { name, edition } = normalizeUsername(rawName);
 
-  if (edition === "BEDROCK") {
-    // Only a successful in-game verification can establish a real Floodgate UUID.
+  if (edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") {
+    // In offline mode only a freshly authenticated v2 plugin identity is usable
+    // for checkout. Older links and guessed UUIDs must be verified again.
     const profiles = await db.select().from(minecraftProfiles).where(and(
-      eq(minecraftProfiles.edition, "BEDROCK"),
+      eq(minecraftProfiles.edition, edition),
       eq(sql`lower(${minecraftProfiles.displayName})`, name.toLowerCase()),
       isNotNull(minecraftProfiles.verifiedAt),
       isNotNull(minecraftProfiles.userId),
+      env.MINECRAFT_LOOKUP_MODE === "offline" ? eq(minecraftProfiles.identityVerifiedVersion, 2) : undefined,
     )).limit(2);
-    if (profiles.length > 1) throw new InvalidUsernameError("Nama Bedrock memiliki beberapa profil. Hubungi bantuan.");
+    if (profiles.length > 1) throw new InvalidUsernameError("Nama Minecraft memiliki beberapa profil. Hubungi bantuan.");
     if (profiles[0]) return { uuid: profiles[0].uuid, name: profiles[0].displayName, edition, source: "cache" };
   }
 
-  if (env.MINECRAFT_LOOKUP_MODE === "mock" || edition === "BEDROCK") {
+  if (env.MINECRAFT_LOOKUP_MODE === "mock" || env.MINECRAFT_LOOKUP_MODE === "offline" || edition === "BEDROCK") {
     return {
       uuid: deterministicUuid(name, edition),
       name: edition === "BEDROCK" ? name : name,
@@ -166,7 +168,8 @@ export async function verifiedProfilesForUser(userId: string) {
   return db
     .select()
     .from(minecraftProfiles)
-    .where(and(eq(minecraftProfiles.userId, userId), isNotNull(minecraftProfiles.verifiedAt)));
+    .where(and(eq(minecraftProfiles.userId, userId), isNotNull(minecraftProfiles.verifiedAt),
+      env.MINECRAFT_LOOKUP_MODE === "offline" ? eq(minecraftProfiles.identityVerifiedVersion, 2) : undefined));
 }
 
 /** URL avatar (skin head). Sumber pihak ketiga — didokumentasikan di ASSETS.md. */

@@ -6,7 +6,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Mengirim pengiriman yang tertunda ketika pemain akhirnya login. */
+/** Membersihkan marker selesai; pengiriman menunggu lease website baru setelah login. */
 public final class PlayerJoinListener implements Listener {
     private final JavaPlugin plugin;
     private final DeliveryService deliveries;
@@ -18,7 +18,7 @@ public final class PlayerJoinListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
-        // Ditunda satu tick agar pemain benar-benar siap menerima item/perintah.
+        // Tunda satu detik sebelum memeriksa salinan lokal; tidak mengeksekusi perintah.
         org.bukkit.Bukkit.getScheduler().runTaskLater(
                 plugin, () -> deliveries.flushQueued(event.getPlayer()), 20L);
     }

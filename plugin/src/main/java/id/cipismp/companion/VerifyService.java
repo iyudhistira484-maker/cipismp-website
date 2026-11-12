@@ -2,7 +2,6 @@ package id.cipismp.companion;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.net.URI;
@@ -36,12 +35,13 @@ public final class VerifyService {
 
     public record Outcome(boolean ok, String message) {}
 
-    public Outcome verify(Player player, String code) {
+    public Outcome verify(String uuid, String playerName, String edition, String code) {
         JsonObject payload = new JsonObject();
         payload.addProperty("code", code);
-        payload.addProperty("uuid", player.getUniqueId().toString());
-        payload.addProperty("player", player.getName());
-        payload.addProperty("edition", isBedrock(player.getUniqueId()) ? "BEDROCK" : "JAVA");
+        payload.addProperty("uuid", uuid);
+        payload.addProperty("player", playerName);
+        payload.addProperty("edition", edition);
+        payload.addProperty("identityVersion", 2);
         String body = payload.toString();
 
         String timestamp = Long.toString(System.currentTimeMillis() / 1000L);
@@ -69,8 +69,4 @@ public final class VerifyService {
         }
     }
 
-    /** Floodgate menandai pemain Bedrock dengan awalan titik pada nama. */
-    private static boolean isBedrock(UUID uuid) {
-        return uuid.version() == 3;
-    }
 }

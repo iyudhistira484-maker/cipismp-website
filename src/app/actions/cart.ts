@@ -7,6 +7,7 @@ import { getProductById } from "@/server/catalog";
 import { getActiveSeason } from "@/server/catalog";
 import { getSettings } from "@/server/settings";
 import { InvalidUsernameError, resolvePlayer } from "@/server/minecraft";
+import { env } from "@/server/env";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { headers } from "next/headers";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -40,6 +41,9 @@ export async function addToCartAction(_prev: CartActionState, formData: FormData
     if (!settings.features.gifting) return { error: "Fitur hadiah sedang dinonaktifkan." };
     try {
       const recipient = await resolvePlayer(giftName);
+      if (env.MINECRAFT_LOOKUP_MODE === "offline" && recipient.source !== "cache") {
+        return { error: "Penerima harus menghubungkan akun Minecraft di server sebelum menerima hadiah." };
+      }
       gift = { uuid: recipient.uuid, name: recipient.name };
     } catch (error) {
       if (error instanceof InvalidUsernameError) return { error: error.message };

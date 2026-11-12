@@ -39,7 +39,7 @@ izin/template/audit.
 
 ### Langkah 1 — Fondasi
 - Skema database lengkap, migrasi SQL versioned, seed idempoten (Season 1, 4 rank, 2 kit,
-  template perintah LuckPerms/EssentialsX, kupon contoh, owner dari env).
+  template perintah LuckPerms/PlayerKits dan owner dari env; promosi tidak dibuat otomatis).
 - Token desain + komponen dasar + 40 sprite item Minecraft self-hosted + logo CipiSMP.
 - Beranda: hero asimetris, status server live, kartu rank & kit, cara kerja, FAQ.
 

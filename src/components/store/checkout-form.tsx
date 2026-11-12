@@ -123,7 +123,7 @@ export function CheckoutForm({
               htmlFor="mcName"
               required
               error={state.fields?.mcName ?? lookupError ?? undefined}
-              hint="Bedrock: tulis dengan titik (mis. .CipiPlayer) dan verifikasi in-game melalui dashboard sebelum checkout."
+              hint="Java dan Bedrock: hubungkan akun lewat dashboard sebelum checkout. Untuk Bedrock tulis titik, misalnya .CipiPlayer."
             >
               <div className="flex gap-2">
                 <Input

@@ -7,7 +7,8 @@ import { writeAudit } from "@/server/audit";
 
 export const dynamic = "force-dynamic";
 
-const payloadSchema = z.object({ code: z.string().max(64), uuid: z.string().max(64), player: z.string().max(32) });
+const payloadSchema = z.object({ code: z.string().max(64), uuid: z.string().max(64), player: z.string().max(32),
+  edition: z.enum(["JAVA", "BEDROCK"]).optional(), identityVersion: z.literal(2).optional() });
 
 /** Only the authenticated companion may supply the player's in-game identity. */
 export async function POST(request: Request) {

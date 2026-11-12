@@ -16,7 +16,7 @@ import java.util.logging.Level;
 
 /**
  * Antrean persisten: pengiriman untuk pemain yang sedang offline disimpan ke disk
- * agar tidak hilang saat server restart, lalu dikirim ketika pemain login.
+ * agar tidak hilang saat server restart; eksekusi menunggu lease baru dari website.
  */
 public final class QueueStore {
     private final JavaPlugin plugin;

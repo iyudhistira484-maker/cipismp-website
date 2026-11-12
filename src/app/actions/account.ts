@@ -16,6 +16,7 @@ import { enforceRateLimit } from "@/server/rate-limit";
 import { sha256 } from "@/server/crypto";
 import { ids } from "@/server/ids";
 import { resolvePlayer } from "@/server/minecraft";
+import { env } from "@/server/env";
 import { generateVerifyCode } from "@/lib/utils";
 import { writeAudit } from "@/server/audit";
 import { logoutAction } from "./auth";
@@ -290,7 +291,7 @@ export async function startMinecraftVerificationAction(
       tokenHash: sha256(code),
       userId: viewer.user.id,
       email: player.name,
-      payload: { uuid: player.uuid, playerName: player.name, edition: player.edition },
+      payload: { uuid: player.uuid, playerName: player.name, edition: player.edition, identityMode: env.MINECRAFT_LOOKUP_MODE },
       expiresAt: new Date(Date.now() + 15 * 60_000),
     });
 
@@ -316,7 +317,7 @@ export async function checkMinecraftVerificationAction(): Promise<AccountState> 
     .select()
     .from(minecraftProfiles)
     .where(eq(minecraftProfiles.userId, viewer.user.id));
-  const verified = profiles.filter((p) => p.verifiedAt);
+  const verified = profiles.filter((p) => p.verifiedAt && (env.MINECRAFT_LOOKUP_MODE !== "offline" || p.identityVerifiedVersion === 2));
   if (verified.length === 0) return { error: "Belum ada akun yang terverifikasi. Selesaikan langkah di server." };
   revalidatePath("/dashboard/minecraft");
   return { success: `Terverifikasi: ${verified.map((p) => p.displayName).join(", ")}` };

@@ -2,14 +2,13 @@
  * Seed data CipiSMP Store — idempoten, aman dijalankan berulang.
  * Melengkapi data default yang belum ada tanpa menimpa perubahan dari dashboard admin.
  * Membuat: pengaturan toko, server, Season 1, 4 rank, 2 kit, template perintah,
- * kupon contoh, dan akun Owner dari env (SEED_OWNER_*). Tidak ada kredensial hardcoded.
+ * dan akun Owner dari env (SEED_OWNER_*). Promosi tidak dibuat secara otomatis.
  */
 import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { db, pool } from "../src/server/db";
 import {
   commandTemplates,
-  coupons,
   kitItems,
   products,
   servers,
@@ -87,8 +86,8 @@ async function seedProducts() {
       maxPerSeason: 1,
     });
     await upsertCommands(productId, {
-      grant: `lp user {player} parent add ${rank.groupName}`,
-      revoke: `lp user {player} parent remove ${rank.groupName}`,
+      grant: `lp user {uuid} parent add ${rank.groupName}`,
+      revoke: `lp user {uuid} parent remove ${rank.groupName}`,
     });
   }
 
@@ -127,8 +126,8 @@ async function seedProducts() {
       })),
     );
     await upsertCommands(productId, {
-      grant: `lp user {player} permission set ${kit.permissionNode} true`,
-      revoke: `lp user {player} permission unset ${kit.permissionNode}`,
+      grant: `lp user {uuid} permission set ${kit.permissionNode} true`,
+      revoke: `lp user {uuid} permission unset ${kit.permissionNode}`,
     });
   }
 }
@@ -149,26 +148,6 @@ async function upsertCommands(
         target: [commandTemplates.productId, commandTemplates.kind],
         set: { template: entry.template, updatedAt: new Date() },
       });
-  }
-}
-
-async function seedCoupons() {
-  const samples = [
-    {
-      code: "SEASON1AWAL",
-      type: "PERCENT" as const,
-      value: 10,
-      minSubtotalIdr: 25_000,
-      maxRedemptions: 100,
-      maxPerUser: 1,
-      active: true,
-    },
-  ];
-  for (const coupon of samples) {
-    await db
-      .insert(coupons)
-      .values({ id: ids.coupon(), ...coupon })
-      .onConflictDoNothing({ target: coupons.code });
   }
 }
 
@@ -203,7 +182,6 @@ async function main() {
   await seedServer();
   const seasonId = await seedSeason();
   await seedProducts();
-  await seedCoupons();
   await seedOwner();
   console.log(`[seed] Selesai. Season aktif: ${seasonId}`);
   await pool.end();

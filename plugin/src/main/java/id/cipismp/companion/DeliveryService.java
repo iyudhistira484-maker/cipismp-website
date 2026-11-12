@@ -19,12 +19,14 @@ public final class DeliveryService {
     private final JavaPlugin plugin;
     private final QueueStore queue;
     private final LuckPermsHook luckPerms;
+    private final PlayerIdentity identity;
     private final ExecutionGuard executionGuard;
 
-    public DeliveryService(JavaPlugin plugin, QueueStore queue, LuckPermsHook luckPerms) {
+    public DeliveryService(JavaPlugin plugin, QueueStore queue, LuckPermsHook luckPerms, PlayerIdentity identity) {
         this.plugin = plugin;
         this.queue = queue;
         this.luckPerms = luckPerms;
+        this.identity = identity;
         this.executionGuard = new ExecutionGuard(plugin.getDataFolder().toPath());
     }
 
@@ -67,35 +69,32 @@ public final class DeliveryService {
         if (!CommandSafety.allowed(delivery.commands(), delivery.player(), uuid)) {
             return Result.error("Perintah atau target tidak sesuai daftar aman; perlu rekonsiliasi staf.");
         }
-        Player player = Bukkit.getPlayer(uuid);
-        if (player == null || !player.isOnline()) {
+        Player player = identity.findOnlinePlayer(uuid);
+        if (player == null || !identity.loggedInOnMainThread(player)) {
             if (!queue.enqueue(delivery)) return Result.error("Antrean lokal plugin penuh; pengiriman akan dicoba lagi.");
-            plugin.getLogger().info("Pengiriman " + delivery.deliveryId() + " diantrekan untuk " + delivery.player() + ".");
+            plugin.getLogger().info("Pengiriman " + delivery.deliveryId() + " menunggu pemain login melalui LoginSecurity.");
             return Result.queued();
         }
         Result result = executeGuarded(delivery, player);
-        if (result.ok() && !queue.removeCompleted(delivery.uuid(), delivery.deliveryId())) {
+        if (result.ok() && result.applied() > 0 && !queue.removeCompleted(delivery.uuid(), delivery.deliveryId())) {
             plugin.getLogger().warning("Marker tersimpan tetapi antrean " + delivery.deliveryId() + " belum bisa dibersihkan.");
         }
         return result;
     }
 
-    /** Kirim pengiriman kit tertunda; perubahan rank menunggu lease website baru. */
+    /** Clean completed markers only; all pending deliveries require a fresh website lease. */
     public void flushQueued(Player player) {
+        if (!identity.loggedInOnMainThread(player)) return;
         List<Delivery> pending = queue.pending(player.getUniqueId().toString());
         if (pending.isEmpty()) return;
-        plugin.getLogger().info("Mengirim " + pending.size() + " pengiriman tertunda untuk " + player.getName() + ".");
+        plugin.getLogger().info("Memeriksa " + pending.size() + " pengiriman tersimpan untuk " + player.getName() + ".");
         for (Delivery delivery : pending) {
             Integer completed = queue.completedApplied(delivery.deliveryId());
-            // An old offline copy can outlive a new staff restriction, cancellation,
-            // or the website's retry state. Never execute a rank change from that
-            // copy; wait for a fresh website poll/lease and its current checks.
-            if (completed == null && CommandSafety.needsFreshRankLease(delivery.commands())) {
-                plugin.getLogger().info("Rank " + delivery.deliveryId() + " menunggu pemeriksaan ulang dan lease website; tidak dijalankan dari antrean lokal.");
-                continue;
-            }
-            Result result = completed != null ? Result.ok(completed) : executeGuarded(delivery, player);
-            if (result.ok()) {
+            // Any offline copy may outlive cancellation, restrictions or a new
+            // lease. Only a fresh website lease may authorize its execution.
+            if (completed == null) continue;
+            Result result = Result.ok(completed);
+            if (result.ok() && result.applied() > 0) {
                 if (!queue.markCompleted(delivery.deliveryId(), result.applied())) {
                     plugin.getLogger().severe("Perintah " + delivery.deliveryId()
                             + " telah dijalankan tetapi marker gagal disimpan; perlu pemeriksaan manual sebelum restart.");
@@ -112,6 +111,9 @@ public final class DeliveryService {
     private Result executeGuarded(Delivery delivery, Player player) {
         Integer completed = queue.completedApplied(delivery.deliveryId());
         if (completed != null) return Result.ok(completed);
+        if (!identity.loggedInOnMainThread(player)) {
+            return queue.enqueue(delivery) ? Result.queued() : Result.error("Antrean lokal plugin penuh; pengiriman akan dicoba lagi.");
+        }
         // Also protect deliveries persisted by an older plugin, and recheck the
         // actual online UUID/name before creating an execution marker.
         if (!player.getUniqueId().toString().equalsIgnoreCase(delivery.uuid())
@@ -142,6 +144,12 @@ public final class DeliveryService {
     private Result runOnMainThread(Delivery delivery, Player player) {
         CompletableFuture<Result> future = new CompletableFuture<>();
         Runnable execute = () -> {
+            // A logout/reconnect between the preliminary check and execution must not
+            // cause commands to run. The intent remains for manual reconciliation.
+            if (!identity.loggedIn(player) || !player.getUniqueId().toString().equalsIgnoreCase(delivery.uuid())) {
+                future.complete(Result.error("LoginSecurity tidak mengonfirmasi sesi saat eksekusi; perlu rekonsiliasi."));
+                return;
+            }
             List<Map<String, String>> failures = new ArrayList<>();
             int applied = 0;
             for (String raw : delivery.commands()) {

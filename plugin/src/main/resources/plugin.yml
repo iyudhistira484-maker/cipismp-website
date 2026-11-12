@@ -5,7 +5,7 @@ api-version: '1.21'
 authors: [CipiSMP]
 description: Companion plugin untuk CipiSMP Store (pengiriman rank/kit dan verifikasi akun).
 website: https://cipismp.my.id
-softdepend: [LuckPerms, PlayerKits2]
+softdepend: [LuckPerms, PlayerKits2, LoginSecurity, floodgate]
 commands:
   verify:
     description: Hubungkan akun Minecraft-mu dengan CipiSMP Store memakai kode dari dashboard.
