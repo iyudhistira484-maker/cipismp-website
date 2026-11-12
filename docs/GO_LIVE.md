@@ -43,7 +43,7 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 ## 3. Database & data awal
 
 - [ ] Sebelum migrasi ke database yang sudah berisi data, cocokkan tabel journal Drizzle,
-      schema aktual, dan data produksi dengan seluruh migrasi (`0000`–`0017`) pada salinan
+      schema aktual, dan data produksi dengan seluruh migrasi (`0000`–`0019`) pada salinan
       backup terisolasi. Periksa khususnya `0006_product_artwork.sql` (rebrand rank + data),
       `0007_cipi_kits.sql` (upsert kit), `0008_cipi_rank_catalog.sql` (harga/tier/template rank),
       dan `0009_plugin_polling.sql` (heartbeat plugin + token lease delivery);
@@ -113,8 +113,8 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 - [ ] Pastikan hosting Minecraft tidak perlu membuka port HTTP inbound untuk website.
 - [ ] Uji webhook pembayaran rank pada staging: webhook memverifikasi pembayaran lalu
       mengantrekan delivery; setelah plugin polling, tepat satu perintah
-      `lp user <player> parent add <vip|mvp|elite|legend>` dijalankan. Uji ACK hilang/retry
-      tanpa eksekusi ganda, pemain offline (queue persisten sampai login), upgrade (group rank
+      `lp user <uuid> parent add <vip|mvp|elite|legend>` dijalankan. Uji ACK hilang/retry
+      dan rekonsiliasi hasil yang tidak pasti; exactly-once belum terbukti. Uji pemain offline, upgrade (group rank
       lama dicabut, group baru dipasang), dan REVOKE `parent remove` untuk group rank saat akhir season.
       Pengaturan group/inheritance sebenarnya tetap harus diperiksa agar group staf tidak berubah.
 - [ ] Uji pembelian kit di staging: pembayaran sukses memberi permission tepat pada pemain

@@ -51,6 +51,7 @@ export function CatalogToolbar({ type, query, count }: { type: "rank" | "kit"; q
 }
 
 export function CatalogEmpty({ type, query }: { type: "rank" | "kit"; query: string }) {
+  // Native navigation avoids intermittent stalled client-router transitions on the streamed catalog.
   const searched = Boolean(query.trim());
-  return <div className="mt-5 rounded-[20px] border border-dashed border-[#e8d6e2] bg-white px-6 py-12 text-center"><p className="font-display text-[17px] text-ink">{searched ? <>Tidak ada {type} yang cocok dengan “<span className="break-all">{query}</span>”.</> : <>Belum ada {type} yang tersedia.</>}</p>{searched ? <Link href={`/${type}`} className="mt-3 inline-block text-[12px] font-semibold text-accent-strong hover:underline">Tampilkan semua {type}</Link> : null}</div>;
+  return <div className="mt-5 rounded-[20px] border border-dashed border-[#e8d6e2] bg-white px-6 py-12 text-center"><p className="font-display text-[17px] text-ink">{searched ? <>Tidak ada {type} yang cocok dengan “<span className="break-all">{query}</span>”.</> : <>Belum ada {type} yang tersedia.</>}</p>{searched ? <a href={`/${type}`} className="mt-3 inline-block text-[12px] font-semibold text-accent-strong hover:underline">Tampilkan semua {type}</a> : null}</div>;
 }

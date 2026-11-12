@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight, Clock, Layers } from "lucide-react";
 import type { Product } from "@/server/db/schema";
@@ -12,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { RatingInline } from "@/components/ui/stars";
 import { getProductArtwork } from "@/lib/product-artwork";
 
+// Use document navigation: catalog client-router transitions can stall in production.
 export function RankCard({
   product,
   season,
@@ -87,13 +87,13 @@ export function RankCard({
           </p>
         ) : null}
 
-        <Link
+        <a
           href={`/rank/${product.slug}`}
           className="mt-4 inline-flex h-10 items-center justify-between rounded-md border border-line-strong bg-bg/40 px-3.5 text-[13px] font-medium text-ink transition-colors duration-150 hover:border-accent/50 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           Lihat detail
           <ArrowUpRight className="size-4" aria-hidden />
-        </Link>
+        </a>
       </div>
     </article>
   );
@@ -165,13 +165,13 @@ export function KitCard({
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-5">
           <p className="font-display text-[22px] leading-none text-ink">{formatRp(product.priceIdr)}</p>
-          <Link
+          <a
             href={`/kit/${product.slug}`}
             className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-2 text-[12.5px] font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
           >
             Isi kit
             <ArrowUpRight className="size-3.5" aria-hidden />
-          </Link>
+          </a>
         </div>
         {season ? (
           <p className="mt-3 border-t border-line/70 pt-3 text-2xs leading-relaxed text-muted-2">

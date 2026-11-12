@@ -53,13 +53,11 @@ Buka **Pesanan**, cari dengan nomor order, email, atau nama pemain.
 
 ## Kalau akses atau reward belum masuk
 
-1. Buka detail pesanan → bagian **Pengiriman**.
-2. Baca kolom error: biasanya plugin server mati atau RCON salah.
-3. Setelah masalah server diperbaiki, tekan **Kirim ulang**.
-4. Bila pemain sedang offline, plugin akan mengantre dan menjalankan perintah saat pemain login.
-   Untuk kit PlayerKits, pastikan grant permission berhasil; isi reward dan cooldown 5 jam dikonfigurasi di PlayerKits server.
-5. Kalau sudah 3× gagal, eskalasi ke Admin/Owner; jangan memberi comp sebagai pengganti
-   kecuali Owner memutuskan.
+1. Buka detail pesanan → bagian **Pengiriman** dan catat nomor pesanan, status, waktu dan error tanpa membagikan data sensitif.
+2. **Jangan langsung menekan Kirim ulang**, mengirim comp, atau mengubah status untuk hasil yang belum pasti. Eskalasi ke Admin/Owner dan ikuti `docs/RUNBOOK.md`: cocokkan status pembayaran, lease/ACK, antrean website dan plugin, marker intent/selesai, serta keadaan LuckPerms/PlayerKits di server.
+3. Status `SENT`, timeout, ACK hilang, restart atau eksekusi sebagian tidak membuktikan perintah belum berjalan. Jika hasilnya tidak pasti, hentikan pengiriman terkait dan lakukan rekonsiliasi manual sebelum keputusan retry; jangan retry massal. Catat tindakan dan hasilnya.
+4. Untuk pemain offline, rank maupun kit menunggu login LoginSecurity dan lease website berikutnya saat pemain tetap online (biasanya sekitar satu menit atau lebih). Antrean lokal lama perlu direkonsiliasi; login saja tidak membuktikan pengiriman sukses. Untuk kit, periksa permission, reward dan cooldown 5 jam di PlayerKits.
+5. Jika tetap gagal atau menyangkut pembayaran/staf, eskalasi ke Owner. Jangan memberi comp sebagai pengganti kecuali Owner memutuskan setelah rekonsiliasi.
 
 Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diterima`,
 `Gagal (retry)`, `Gagal permanen`. Angka **Gagal permanen** harus 0 setiap hari.

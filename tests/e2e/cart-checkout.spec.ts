@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createHash, randomBytes } from "node:crypto";
 import { Pool } from "pg";
 
@@ -11,6 +11,18 @@ const buyer = `P${suffix}`;
 const recipient = `R${suffix}`;
 let pool: Pool;
 let seasonFrozen = false;
+
+async function requireCheckoutForm(page: Page) {
+  const summary = page.getByRole("complementary", { name: "Ringkasan pesanan" });
+  const unavailable = page.getByRole("heading", { name: "Belum ada metode pembayaran aktif" });
+  // Streaming can render the unavailable state after goto resolves; wait for either state.
+  await expect(summary.or(unavailable)).toBeVisible({ timeout: 20_000 });
+  if (process.env.E2E_REQUIRE_CHECKOUT === "1") {
+    await expect(summary).toBeVisible();
+  } else if (await unavailable.isVisible()) {
+    test.skip(true, "Tidak ada gateway pada lingkungan ini.");
+  }
+}
 function offlineUuid(name: string) {
   const bytes = createHash("md5").update(`OfflinePlayer:${name}`).digest();
   bytes[6] = (bytes[6]! & 0x0f) | 0x30; bytes[8] = (bytes[8]! & 0x3f) | 0x80;
@@ -64,7 +76,7 @@ test.describe("keranjang dan checkout", () => {
     await expect(page.getByText("Subtotal harga katalog")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.goto("/checkout");
-    if (await page.getByRole("heading", { name: "Belum ada metode pembayaran aktif" }).isVisible()) test.skip(true, "Tidak ada gateway pada lingkungan ini.");
+    await requireCheckoutForm(page);
     const summary = page.getByRole("complementary", { name: "Ringkasan pesanan" });
     await expect(summary.getByText(`Hadiah untuk ${recipient}`)).toBeVisible();
     await expect(summary.getByText(`Untuk ${buyer}`)).toHaveCount(2);
@@ -83,7 +95,7 @@ test.describe("keranjang dan checkout", () => {
   test("kupon tidak valid tidak ditampilkan sebagai total nol", async ({ page }) => {
     test.skip(seasonFrozen, "Season seed sedang freeze.");
     await page.goto("/checkout");
-    if (await page.getByRole("heading", { name: "Belum ada metode pembayaran aktif" }).isVisible()) test.skip(true, "Tidak ada gateway pada lingkungan ini.");
+    await requireCheckoutForm(page);
     const coupon = page.getByLabel(/Kode kupon/);
     if (!(await coupon.count())) test.skip(true, "Kupon dinonaktifkan.");
     await coupon.fill("KUPONTIDAKADA123");
@@ -96,7 +108,7 @@ test.describe("keranjang dan checkout", () => {
 
   test("respons pencarian yang terlambat tidak mengubah pemain yang baru diketik", async ({ page }) => {
     await page.goto("/checkout");
-    if (await page.getByRole("heading", { name: "Belum ada metode pembayaran aktif" }).isVisible()) test.skip(true, "Tidak ada gateway pada lingkungan ini.");
+    await requireCheckoutForm(page);
     let release!: () => void;
     let intercepted!: () => void;
     const gate = new Promise<void>((resolve) => { release = resolve; });
