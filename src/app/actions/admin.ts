@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { automaticDiscounts, commandTemplates, coupons, deliveries, entitlements, kitItems, minecraftProfiles, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
+import { auditLogs, automaticDiscounts, commandTemplates, coupons, deliveries, entitlements, kitItems, minecraftProfiles, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
 import { requireStaff, requirePermissionApi } from "@/server/auth/guard";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -1349,6 +1349,35 @@ export async function adminTestServerAction(_prev: AdminState, formData: FormDat
 
 /* -------------------------------------------------------------------- staf */
 
+/** Promote an existing, verified account; never creates or merges an account. */
+export async function adminPromoteCustomerAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    const viewer = await requirePermissionApi("staff.write");
+    const userId = String(formData.get("userId") ?? "");
+    const role = String(formData.get("role") ?? "");
+    const reason = String(formData.get("reason") ?? "").trim();
+    if (role !== "ADMIN" && role !== "SUPPORT") return { error: "Pilih role Admin atau Support." };
+    if (reason.length < 10 || reason.length > 500) return { error: "Alasan harus 10–500 karakter." };
+    if (formData.get("confirmed") !== "on") return { error: "Konfirmasi identitas dan akses diperlukan." };
+    if (!userId || userId === viewer.user.id) return { error: "Pilih akun pelanggan lain." };
+    return await db.transaction(async (tx): Promise<AdminState> => {
+      const [target] = await tx.select().from(users).where(eq(users.id, userId)).limit(1).for("update");
+      if (!target || target.role !== "CUSTOMER" || target.deletedAt) return { error: "Akun pelanggan tidak tersedia untuk promosi." };
+      if (!target.emailVerifiedAt || !target.totpEnabledAt) return { error: "Akun harus memverifikasi email dan mengaktifkan 2FA sebelum dipromosikan." };
+      await tx.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, userId));
+      await tx.insert(auditLogs).values({ id: ids.audit(), actorId: actor.id, actorLabel: actor.label,
+        action: "staff.role-changed", targetType: "user", targetId: userId,
+        before: { role: target.role }, after: { role }, reason, ip });
+      return { success: "Akses staf diperbarui. Daftarkan UUID Minecraft yang sudah diverifikasi di halaman Staf." };
+    });
+  } catch (error) {
+    if (error instanceof Error && ["ForbiddenError", "UnauthenticatedError", "RateLimitError"].includes(error.name)) return fail(error);
+    logger.error("staff_promotion_failed", { errorType: error instanceof Error ? error.name : "unknown" });
+    return { error: "Akses staf tidak dapat diperbarui. Coba lagi atau periksa log server." };
+  }
+}
+
 export async function adminSetRoleAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
   try {
     const { ip, actor } = await guard();
@@ -1358,25 +1387,20 @@ export async function adminSetRoleAction(_prev: AdminState, formData: FormData):
     if (!STAFF_ROLES.includes(role) && role !== "CUSTOMER") return { error: "Role tidak dikenal." };
     if (userId === viewer.user.id) return { error: "Tidak bisa mengubah role akun sendiri." };
 
-    const target = await db.query.users.findFirst({ where: eq(users.id, userId) });
-    if (!target) return { error: "Pengguna tidak ditemukan." };
-    if (target.role === "OWNER" && viewer.user.role !== "OWNER") {
-      return { error: "Hanya Owner yang bisa mengubah akun Owner." };
-    }
     if (role === "OWNER") return { error: "Hanya boleh ada satu Owner; gunakan CLI seed-owner untuk mengganti." };
-
-    await db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, userId));
-    await writeAudit({
-      actor,
-      action: "staff.role-changed",
-      targetType: "user",
-      targetId: userId,
-      before: { role: target.role },
-      after: { role },
-      ip,
+    const result = await db.transaction(async (tx): Promise<AdminState> => {
+      const [target] = await tx.select().from(users).where(eq(users.id, userId)).limit(1).for("update");
+      if (!target || target.deletedAt) return { error: "Pengguna tidak ditemukan." };
+      if (target.role === "CUSTOMER") return { error: "Gunakan formulir promosi pelanggan yang memeriksa email dan 2FA." };
+      if (target.role === "OWNER") return { error: "Gunakan CLI seed-owner untuk mengganti akun Owner." };
+      await tx.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, userId));
+      await tx.insert(auditLogs).values({ id: ids.audit(), actorId: actor.id, actorLabel: actor.label,
+        action: "staff.role-changed", targetType: "user", targetId: userId,
+        before: { role: target.role }, after: { role }, ip });
+      return { success: `Role ${target.email} diubah menjadi ${role}.` };
     });
-    revalidatePath("/admin/staf");
-    return { success: `Role ${target.email} diubah menjadi ${role}.` };
+    if (result.success) revalidatePath("/admin/staf");
+    return result;
   } catch (error) {
     return fail(error);
   }

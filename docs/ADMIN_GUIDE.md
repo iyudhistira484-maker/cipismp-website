@@ -259,3 +259,9 @@ Log tidak bisa dihapus dari panel.
 Hubungi Admin/Owner dengan informasi: nomor order, nama pemain, waktu kejadian, dan
 tangkapan layar bagian yang bermasalah. Untuk gangguan server (plugin mati, RCON salah),
 gunakan `docs/RUNBOOK.md` bagian 2.
+
+### Menyiapkan akun staf website
+
+Setiap staf mendaftar sendiri dengan email masing-masing, memverifikasi email, dan mengaktifkan 2FA pada akun tersebut. Owner harus memastikan identitas orangnya melalui jalur terpisah; email terverifikasi saja bukan bukti bahwa pengguna tersebut staf. Setelah identitas dikonfirmasi, Owner membuka **Pelanggan → detail akun**, memilih Admin atau Support pada **Berikan akses website staf**, mengisi alasan dan konfirmasi. Pemberian role serta audit disimpan bersama dalam satu transaksi. Formulir hanya dapat digunakan Owner dan menolak akun yang belum verifikasi email/2FA, sudah dihapus atau bukan pelanggan. Role Owner tidak dapat diberikan lewat formulir ini.
+
+Akun yang sama dipromosikan, tidak dibuatkan atau digabung secara diam-diam. Setelah promosi, Owner perlu mendaftarkan UUID utama dan alternatif di **Staf**, lalu meninjau antrean; jangan menganggap akun yang belum didaftarkan otomatis terlindungi. Akses website tidak mengubah grup LuckPerms. Bila akses dicabut, akun website yang sama kembali menjadi Pelanggan. Akun OWNER bootstrap dan pergantiannya mengikuti prosedur operator; jangan membuat akun tambahan atau mengubah owner produksi tanpa verifikasi dan persetujuan.

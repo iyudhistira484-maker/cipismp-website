@@ -18,6 +18,7 @@ import {
   adminMarkPaidAction,
   adminPreviewTransitionAction,
   adminRedeliverAction,
+  adminPromoteCustomerAction,
   adminRegisterStaffMinecraftAction,
   adminRemoveStaffMinecraftAction,
   adminRevokeAllStaffSessionsAction,
@@ -1133,6 +1134,27 @@ export function StaffMinecraftRemoveForm({ uuid }: { uuid: string }) {
       <CheckboxField name="confirmed" required label="Saya sudah memeriksa identitas dan antrean." />
       <SubmitButton size="sm" variant="secondary">Hapus UUID</SubmitButton>
       <StateAlert state={state} />
+    </form>
+  );
+}
+
+export function PromoteCustomerForm({ userId, username, ready }: { userId: string; username: string; ready: boolean }) {
+  const [state, action] = useActionState(adminPromoteCustomerAction, empty);
+  useEffect(() => { if (state.success) window.location.assign("/admin/staf"); }, [state.success]);
+  return (
+    <form action={action} className="mt-4 space-y-3">
+      <input type="hidden" name="userId" value={userId} />
+      <StateAlert state={state} />
+      <Field label="Role website" htmlFor="promotion-role" required>
+        <Select id="promotion-role" name="role" required defaultValue="" disabled={!ready}>
+          <option value="" disabled>Pilih role</option><option value="ADMIN">Admin</option><option value="SUPPORT">Support</option>
+        </Select>
+      </Field>
+      <Field label="Alasan dan verifikasi identitas" htmlFor="promotion-reason" required hint="Catat bagaimana identitas dan kebutuhan akses staf diperiksa.">
+        <Textarea id="promotion-reason" name="reason" required minLength={10} maxLength={500} rows={2} disabled={!ready} />
+      </Field>
+      <CheckboxField name="confirmed" required disabled={!ready} label={`Saya sudah memverifikasi ${username} dan memahami hak akses yang diberikan.`} />
+      <SubmitButton size="sm" disabled={!ready}>Berikan akses staf</SubmitButton>
     </form>
   );
 }

@@ -9,7 +9,7 @@ import { formatRp } from "@/lib/money";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader, Card, Table, Td } from "@/components/admin/shell";
-import { RevokeEntitlementButton } from "@/components/admin/admin-forms";
+import { PromoteCustomerForm, RevokeEntitlementButton } from "@/components/admin/admin-forms";
 
 export const metadata = { title: "Detail pelanggan" };
 
@@ -71,6 +71,13 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
           </Table>
         </Card>
       </div>
+
+      {hasPermission(viewer.user.role, "staff.write") && !customer.deletedAt ? (
+        <Card title="Berikan akses website staf" className="mt-4" description="Hanya Owner dapat menaikkan akun yang sama menjadi staf. Pastikan identitas orangnya secara terpisah; email terverifikasi bukan bukti bahwa ia staf. Admin dapat mengelola produk, diskon dan pengaturan. Setelah promosi, daftarkan UUID di halaman Staf; ini tidak mengubah grup Minecraft.">
+          {!customer.emailVerifiedAt || !customer.totpEnabledAt ? <p className="text-2xs text-danger">Pelanggan harus memverifikasi email dan mengaktifkan 2FA sendiri sebelum dapat dipromosikan.</p> : null}
+          <PromoteCustomerForm userId={customer.id} username={customer.username} ready={Boolean(customer.emailVerifiedAt && customer.totpEnabledAt)} />
+        </Card>
+      ) : null}
 
       {canReadOrders ? (
         <Card title="Pesanan akun" className="mt-4" description="Maksimal 50 pesanan terbaru yang dibuat saat login ke akun ini.">

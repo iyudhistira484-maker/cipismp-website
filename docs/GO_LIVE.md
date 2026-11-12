@@ -33,7 +33,7 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
       Hosting Minecraft dapat melakukan DNS + koneksi keluar HTTPS ke `APP_URL`.
 - [ ] `CRON_SECRET` ≥ 16 karakter.
 - [ ] `EMAIL_PROVIDER=resend` atau `smtp` (bukan `outbox`), kredensial terisi.
-- [ ] `MINECRAFT_LOOKUP_MODE=mojang`.
+- [ ] **STOP untuk CipiSMP offline-mode:** `MINECRAFT_LOOKUP_MODE=mojang` tidak sesuai dengan UUID Java offline; `mock` juga hanya untuk dev/test dan bukan solusi produksi. Mode offline produksi dan pemeriksaan LoginSecurity/Floodgate belum diimplementasikan atau diuji. Jangan aktifkan checkout/pengiriman produksi sampai keduanya dirancang, diimplementasikan dan diuji di staging.
 - [ ] `TURNSTILE_ENABLED=1` beserta site/secret key.
 - [ ] Pada staging/domain yang terdaftar, form menerima token Turnstile valid dan menolak
       token kosong/tidak valid; matikan hanya bila environment memang non-produksi.
