@@ -89,11 +89,33 @@ test.describe("timeline pesanan", () => {
     await page.goto(`/pesanan/${publicToken}`);
     await expect(page.getByRole("link", { name: "Buka pembayaran" })).toHaveAttribute("href", "https://example.test/bayar");
     await expect(page.getByRole("button", { name: "Batalkan pesanan" })).toHaveCount(0);
+    const form = { token: publicToken };
+    const origin = process.env.E2E_PREVIEW_ORIGIN ?? baseURL!;
+    const anonymous = await context.request.post("/api/orders/cancel", { form, headers: { origin } });
+    expect(anonymous.status()).toBe(403);
+    await context.addCookies([{ name: "cipi_session", value: otherSessionToken, url: baseURL! }]);
+    const other = await context.request.post("/api/orders/cancel", { form, headers: { origin } });
+    expect(other.status()).toBe(403);
     await context.addCookies([{ name: "cipi_session", value: sessionToken, url: baseURL! }]);
+    const crossOrigin = await context.request.post("/api/orders/cancel", { form, headers: { origin: "https://attacker.example" } });
+    expect(crossOrigin.status()).toBe(403);
+    expect((await pool.query("select status from orders where id=$1", [orderId])).rows[0].status).toBe("PENDING");
     await page.reload();
     await page.getByRole("button", { name: "Batalkan pesanan" }).click();
     await expect(page.getByRole("heading", { name: "Pesanan dibatalkan" })).toBeVisible();
     await expect(page.getByRole("region", { name: /Perjalanan pesanan/ }).locator('li[aria-current="step"]')).toContainText("Perlu perhatian");
+  });
+
+  test("pemegang tautan tamu dapat membatalkan pesanan tamu yang menunggu", async ({ page }) => {
+    await pool.query("update orders set user_id=null, status='PENDING', paid_at=null, delivered_at=null where id=$1", [orderId]);
+    await pool.query("update payments set status='PENDING' where id=$1", [`payment-${suffix}`]);
+    try {
+      await page.goto(`/pesanan/${publicToken}`);
+      await page.getByRole("button", { name: "Batalkan pesanan" }).click();
+      await expect(page.getByRole("heading", { name: "Pesanan dibatalkan" })).toBeVisible();
+    } finally {
+      await pool.query("update orders set user_id=$1 where id=$2", [userId, orderId]);
+    }
   });
 
   test("tautan publik salah dan pesanan akun lain tidak membuka rincian", async ({ page, context, baseURL }) => {
