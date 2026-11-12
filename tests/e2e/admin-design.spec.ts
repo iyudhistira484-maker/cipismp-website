@@ -60,6 +60,45 @@ test.describe("tampilan dan akses panel admin", () => {
     await expect(page.getByLabel("Cari", { exact: true })).toHaveValue("");
   });
 
+  test("tombol sidebar desktop bisa disembunyikan dan dibuka lagi", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await context.addCookies([{ name: "cipi_session", value: fixtures.OWNER.token, url: baseURL! }]);
+    await page.goto("/admin", { waitUntil: "load", timeout: 60_000 });
+    const sidebar = page.locator("#admin-sidebar");
+    const hide = page.getByRole("button", { name: "Sembunyikan navigasi admin" });
+    await expect(hide).toHaveAttribute("aria-expanded", "true");
+    await hide.focus();
+    await page.keyboard.press("Enter");
+    const show = page.getByRole("button", { name: "Tampilkan navigasi admin" });
+    await expect(show).toHaveAttribute("aria-expanded", "false");
+    await expect(sidebar).toBeHidden();
+    await expect(page.getByRole("heading", { name: "Ringkasan toko." })).toBeVisible();
+    await show.click();
+    await expect(sidebar).toBeVisible();
+    await expect(hide).toHaveAttribute("aria-expanded", "true");
+    await page.getByRole("navigation", { name: "Navigasi admin" }).getByRole("link", { name: "Pesanan", exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/pesanan/);
+  });
+
+  test("ikon navigasi mobile membuka menu yang sama", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await context.addCookies([{ name: "cipi_session", value: fixtures.OWNER.token, url: baseURL! }]);
+    await page.goto("/admin", { waitUntil: "load", timeout: 60_000 });
+    const toggle = page.getByRole("button", { name: "Buka navigasi admin" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await expect(page.getByRole("button", { name: "Tutup navigasi admin" })).toHaveAttribute("aria-expanded", "true");
+    const nav = page.getByRole("navigation", { name: "Navigasi admin" });
+    await expect(nav).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Pesanan", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Tutup navigasi admin" }).click();
+    await expect(nav).toBeHidden();
+    await page.getByRole("button", { name: "Buka navigasi admin" }).click();
+    await nav.getByRole("link", { name: "Pesanan", exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/pesanan/);
+    await expect(page.getByRole("button", { name: "Buka navigasi admin" })).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("izin staf dan 2FA tetap ditegakkan", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "cipi_session", value: fixtures.SUPPORT.token, url: baseURL! }]);
     await page.goto("/admin", { waitUntil: "domcontentloaded" });

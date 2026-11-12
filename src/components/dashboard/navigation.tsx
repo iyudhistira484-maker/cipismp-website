@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import { BarChart3, Bell, Boxes, CalendarClock, ChevronDown, CreditCard, Gamepad2, Gift, LayoutDashboard, LifeBuoy, Megaphone, MessageSquare, Package, PackageCheck, Percent, ReceiptText, ScrollText, Server, Settings2, ShieldCheck, Ticket, UserRound, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/store/logout-button";
@@ -40,17 +39,16 @@ export function DashboardNavigation({ items, label }: { items: DashboardNavItem[
 }
 
 /** Compact, grouped navigation for staff on small screens. Items remain permission-filtered by the server. */
-export function AdminMobileNavigation({ items, name, role }: { items: DashboardNavItem[]; name: string; role: string }) {
+export function AdminMobileNavigation({ items, name, role, open, setOpen }: { items: DashboardNavItem[]; name: string; role: string; open: boolean; setOpen: (open: boolean) => void }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
   const groups = [...new Set(items.map((item) => item.group))];
   const current = items.find((item) => !item.href.includes("#") && (pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`))));
   return (
     <div className="lg:hidden">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="admin-mobile-navigation" className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#e8dce6] bg-[#faf5f9] px-4 py-3 text-left text-[13px] font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="admin-mobile-navigation" className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#e8dce6] bg-[#faf5f9] px-4 py-3 text-left text-[13px] font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
         <span><span className="mr-2 text-[10px] font-semibold uppercase tracking-wider text-muted-2">Menu</span>{" "}{current?.label ?? "Panel admin"}</span><ChevronDown className={cn("size-4 shrink-0 text-accent-strong transition-transform", open && "rotate-180")} aria-hidden />
       </button>
-      <nav id="admin-mobile-navigation" aria-label="Navigasi admin" hidden={!open} className="dashboard-scroll mt-2 max-h-[60vh] overflow-y-auto rounded-xl border border-line bg-white p-3 shadow-card">
+      <nav id="admin-mobile-navigation" aria-label="Navigasi admin" tabIndex={-1} hidden={!open} className="dashboard-scroll mt-2 max-h-[60vh] overflow-y-auto rounded-xl border border-line bg-white p-3 shadow-card">
         <div className="grid gap-4 sm:grid-cols-2">{groups.map((group) => <div key={group}><p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[.13em] text-muted-2">{group}</p><div className="space-y-0.5">{items.filter((item) => item.group === group).map((item) => {
           const Icon = icons[item.icon] ?? LayoutDashboard;
           const active = current?.href === item.href;
