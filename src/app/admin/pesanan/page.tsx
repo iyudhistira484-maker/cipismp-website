@@ -52,9 +52,9 @@ export default async function AdminOrdersPage({
         </Field>
         <Button type="submit" variant="secondary">Terapkan</Button>
         {params.q || params.status ? (
-          <Link href="/admin/pesanan" className="text-2xs text-muted underline-offset-2 hover:text-accent hover:underline">
+          <a href="/admin/pesanan" className="text-2xs text-muted underline-offset-2 hover:text-accent hover:underline">
             Reset
-          </Link>
+          </a>
         ) : null}
       </form>
 

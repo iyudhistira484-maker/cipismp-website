@@ -57,6 +57,7 @@ test.describe("tampilan dan akses panel admin", () => {
     await page.getByRole("button", { name: "Terapkan" }).click();
     await expect(page.getByText("Belum ada data.")).toBeVisible();
     await page.getByRole("link", { name: "Reset" }).click();
+    await expect(page).toHaveURL(/\/admin\/pesanan$/);
     await expect(page.getByLabel("Cari", { exact: true })).toHaveValue("");
   });
 
