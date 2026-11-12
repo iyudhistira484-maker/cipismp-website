@@ -57,9 +57,14 @@ Gejala: `/admin/server` menunjukkan check-in plugin lebih lama dari 60 detik, at
    diantrekan plugin: perintah masih dapat dieksekusi setelah pemain login. Hentikan proses
    yang relevan dan rekonsiliasi antrean, marker dan hasil in-game sebelum perubahan metode;
    pastikan RCON aman dan proses transisi disetujui operator.
-5. Delivery pemain offline di-ACK setelah antrean lokal berhasil disimpan ke disk; perintah
-   dijalankan saat pemain login. Jika antrean penuh atau disk gagal ditulis, plugin mengirim
-   kegagalan; perbaiki ruang antrean/disk lalu pantau `/admin/pengiriman`.
+5. Delivery pemain offline di-ACK sebagai **belum selesai** setelah antrean lokal tersimpan.
+   Kit dapat diproses saat login. Paket yang memuat perubahan rank tidak dijalankan langsung
+   dari antrean lokal, termasuk melalui `/cipistore flush`: pemain harus tetap online sampai
+   website memberikan lease baru setelah pemeriksaan ulang (penundaan normal sekitar lima menit
+   atau lebih). Jika website menahan delivery, salinan lokal tetap ada dan perlu rekonsiliasi;
+   jangan hapus atau kirim ulang tanpa memeriksa status dan bukti eksekusi. Plugin lama tidak
+   mempunyai pengaman ini. Jika antrean penuh atau disk gagal ditulis, perbaiki dan pantau
+   `/admin/pengiriman`.
 6. Plugin baru menyimpan intent sebelum perintah dan menolak replay jika hasilnya belum
    pasti; marker selesai memungkinkan ACK dikirim ulang. Timeout/partial/crash atau gagal
    simpan marker bisa memerlukan rekonsiliasi manual meskipun tidak ada perintah yang berjalan.

@@ -7,6 +7,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CommandSafetyTest {
     private static final UUID UUID_VALUE = UUID.fromString("33333333-3333-4333-8333-333333333333");
+    @Test void rankCommandsInAnOfflineQueueRequireFreshWebsiteLease() {
+        assertTrue(CommandSafety.needsFreshRankLease(List.of("lp user Player parent add vip")));
+        assertTrue(CommandSafety.needsFreshRankLease(List.of("LP USER Player PARENT REMOVE LEGEND")));
+        assertTrue(CommandSafety.needsFreshRankLease(List.of("lp user Player permission set playerkits.kits.cipiprime true", "lp user Player parent add mvp")));
+        assertFalse(CommandSafety.needsFreshRankLease(List.of("lp user Player permission unset playerkits.kits.cipi++")));
+        // Unrecognized commands remain rejected by allowed(), not executed as kits.
+        assertFalse(CommandSafety.allowed(List.of("lp user Player parent set vip"), "Player", UUID_VALUE));
+    }
+
     @Test void allowsOnlyKnownCatalogCommandsForTheRecipient() {
         assertTrue(CommandSafety.allowed(List.of("lp user Player parent add vip", "lp user Player parent remove mvp"), "Player", UUID_VALUE));
         assertTrue(CommandSafety.allowed(List.of("lp user " + UUID_VALUE + " permission set playerkits.kits.cipi++ true"), "Player", UUID_VALUE));

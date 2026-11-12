@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { auditLogs, minecraftProfiles, staffMinecraftAccounts, users } from "@/server/db/schema";
 import { adminRegisterStaffMinecraftAction, adminRemoveStaffMinecraftAction } from "@/app/actions/admin";
 import { hasKnownStaffRankRestriction, knownStaffDeliveryQuery } from "@/server/staff-rank";
+import { registerStaffMinecraftAccount, removeStaffMinecraftAccount } from "@/server/staff-minecraft-accounts";
 import type { Permission, Role } from "@/server/rbac";
 import { databaseUrl, uniqueSuffix } from "./helpers";
 
@@ -57,6 +58,9 @@ describe.skipIf(!databaseUrl())("daftar UUID Minecraft staf", () => {
     expect(await hasKnownStaffRankRestriction(null, [uuid.toUpperCase()])).toBe(true);
     await db.insert(minecraftProfiles).values({ id: profileId, uuid, displayName: `Alt${suffix.slice(0, 4)}`, edition: "JAVA", userId: customer, verifiedAt: new Date() });
     expect(await hasKnownStaffRankRestriction(customer, [other])).toBe(true);
+    await db.update(minecraftProfiles).set({ verifiedAt: null }).where(eq(minecraftProfiles.id, profileId));
+    expect(await hasKnownStaffRankRestriction(customer, [other])).toBe(false);
+    await db.update(minecraftProfiles).set({ verifiedAt: new Date() }).where(eq(minecraftProfiles.id, profileId));
     expect((await db.execute(knownStaffDeliveryQuery(uuid, null))).rows[0]?.restricted).toBe(true);
     await db.update(users).set({ role: "CUSTOMER" }).where(eq(users.id, staff));
     try {
@@ -64,6 +68,14 @@ describe.skipIf(!databaseUrl())("daftar UUID Minecraft staf", () => {
       expect(await hasKnownStaffRankRestriction(customer, [other])).toBe(false);
       expect((await db.execute(knownStaffDeliveryQuery(uuid, null))).rows[0]?.restricted).toBe(false);
     } finally { await db.update(users).set({ role: "SUPPORT" }).where(eq(users.id, staff)); }
+  });
+  it("membatalkan pendaftaran dan penghapusan jika insert audit gagal", async () => {
+    // A nonexistent actor violates the audit foreign key after the registry write.
+    const actor = { id: `missing-${suffix}`, label: "invalid actor" };
+    await expect(registerStaffMinecraftAccount({ uuid: other, staffUserId: staff, label: "uji", reason: "Alasan pengujian audit", actor, ip: "127.0.0.1" })).rejects.toThrow();
+    expect(await db.query.staffMinecraftAccounts.findFirst({ where: eq(staffMinecraftAccounts.uuid, other) })).toBeUndefined();
+    await expect(removeStaffMinecraftAccount({ uuid, reason: "Alasan pengujian audit", actor, ip: "127.0.0.1" })).rejects.toThrow();
+    expect(await db.query.staffMinecraftAccounts.findFirst({ where: eq(staffMinecraftAccounts.uuid, uuid) })).toBeTruthy();
   });
   it("penghapusan perlu owner, alasan, konfirmasi dan audit", async () => {
     const noConfirm = form({ uuid, reason: "Data akun sudah dikonfirmasi" });

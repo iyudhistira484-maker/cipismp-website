@@ -15,6 +15,11 @@ public final class CommandSafety {
 
     private CommandSafety() {}
 
+    /** Rank changes from persisted offline queues must be leased again by the website. */
+    public static boolean needsFreshRankLease(List<String> commands) {
+        return commands != null && commands.stream().anyMatch(command -> command != null && RANK.matcher(command).matches());
+    }
+
     public static boolean allowed(List<String> commands, String player, UUID uuid) {
         if (commands == null || commands.isEmpty() || player == null || uuid == null) return false;
         for (String command : commands) {

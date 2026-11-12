@@ -73,16 +73,27 @@ public final class DeliveryService {
             plugin.getLogger().info("Pengiriman " + delivery.deliveryId() + " diantrekan untuk " + delivery.player() + ".");
             return Result.queued();
         }
-        return executeGuarded(delivery, player);
+        Result result = executeGuarded(delivery, player);
+        if (result.ok() && !queue.removeCompleted(delivery.uuid(), delivery.deliveryId())) {
+            plugin.getLogger().warning("Marker tersimpan tetapi antrean " + delivery.deliveryId() + " belum bisa dibersihkan.");
+        }
+        return result;
     }
 
-    /** Kirim semua pengiriman tertunda untuk pemain yang baru login. */
+    /** Kirim pengiriman kit tertunda; perubahan rank menunggu lease website baru. */
     public void flushQueued(Player player) {
         List<Delivery> pending = queue.pending(player.getUniqueId().toString());
         if (pending.isEmpty()) return;
         plugin.getLogger().info("Mengirim " + pending.size() + " pengiriman tertunda untuk " + player.getName() + ".");
         for (Delivery delivery : pending) {
             Integer completed = queue.completedApplied(delivery.deliveryId());
+            // An old offline copy can outlive a new staff restriction, cancellation,
+            // or the website's retry state. Never execute a rank change from that
+            // copy; wait for a fresh website poll/lease and its current checks.
+            if (completed == null && CommandSafety.needsFreshRankLease(delivery.commands())) {
+                plugin.getLogger().info("Rank " + delivery.deliveryId() + " menunggu pemeriksaan ulang dan lease website; tidak dijalankan dari antrean lokal.");
+                continue;
+            }
             Result result = completed != null ? Result.ok(completed) : executeGuarded(delivery, player);
             if (result.ok()) {
                 if (!queue.markCompleted(delivery.deliveryId(), result.applied())) {

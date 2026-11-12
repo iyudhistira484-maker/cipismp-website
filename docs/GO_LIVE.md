@@ -125,7 +125,7 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
       per pemain per season.
 - [ ] Di akhir season uji transisi pada staging: job REVOKE berjalan dan kedua permission
       kit benar-benar hilang dari pemain (bukan hanya entitlement web yang nonaktif).
-- [ ] Uji pemain offline: pembelian tetap tercatat, perintah dikirim saat pemain login.
+- [ ] Uji pemain offline: pembelian tetap tercatat. Kit dapat berjalan saat login; paket rank hanya diproses setelah polling dan lease website berikutnya saat pemain masih online. Periksa juga penahanan UUID yang didaftarkan saat pemain offline, antrean lokal yang tertinggal dan rekonsiliasinya.
 - [ ] Uji `/verify KODE`: akun Minecraft terhubung ke dashboard.
 
 ## 7. Worker & job terjadwal

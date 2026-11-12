@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/server/db";
-import { deliveries, deliveryAttempts, pluginNonces, products, servers, minecraftProfiles, users } from "@/server/db/schema";
+import { deliveries, deliveryAttempts, pluginNonces, products, servers, minecraftProfiles, staffMinecraftAccounts, users } from "@/server/db/schema";
 import { computePluginSignature } from "@/server/delivery/plugin-auth";
 import { verifyAndConsumePluginRequest } from "@/server/delivery/plugin-request";
 import { acknowledgePluginDelivery, pollPluginDeliveries } from "@/server/delivery/polling";
@@ -16,6 +16,7 @@ const retryDeliveryId = `poll-retry-${suffix}`;
 const offlineDeliveryId = `poll-offline-${suffix}`;
 const pluginNonce = `poll-nonce-${suffix}`;
 const unsafeId = `poll-unsafe-${suffix}`, staffId = `poll-staff-${suffix}`, staffDeliveryId = `poll-staff-delivery-${suffix}`;
+const offlineRestrictedId = `poll-offline-restricted-${suffix}`;
 let productId = "";
 let previousDefaultServerIds: string[] = [];
 
@@ -61,8 +62,9 @@ describe.skipIf(!enabled)("plugin delivery polling (HMAC, claim, ACK, retry)", (
   afterAll(async () => {
     if (!enabled) return;
     await db.delete(pluginNonces).where(eq(pluginNonces.nonce, pluginNonce));
-    await db.delete(deliveryAttempts).where(inArray(deliveryAttempts.deliveryId, [onlineDeliveryId, retryDeliveryId, offlineDeliveryId, unsafeId, staffDeliveryId]));
-    await db.delete(deliveries).where(inArray(deliveries.id, [onlineDeliveryId, retryDeliveryId, offlineDeliveryId, unsafeId, staffDeliveryId]));
+    await db.delete(deliveryAttempts).where(inArray(deliveryAttempts.deliveryId, [onlineDeliveryId, retryDeliveryId, offlineDeliveryId, unsafeId, staffDeliveryId, offlineRestrictedId]));
+    await db.delete(deliveries).where(inArray(deliveries.id, [onlineDeliveryId, retryDeliveryId, offlineDeliveryId, unsafeId, staffDeliveryId, offlineRestrictedId]));
+    await db.delete(staffMinecraftAccounts).where(eq(staffMinecraftAccounts.staffUserId, staffId));
     await db.delete(minecraftProfiles).where(eq(minecraftProfiles.id, staffId));
     await db.delete(users).where(eq(users.id, staffId));
     await db.delete(servers).where(eq(servers.id, serverId));
@@ -157,6 +159,21 @@ describe.skipIf(!enabled)("plugin delivery polling (HMAC, claim, ACK, retry)", (
     expect(second.leaseToken).not.toBe(first.leaseToken);
     expect(await acknowledgePluginDelivery(ack)).toMatchObject({ accepted: false });
     expect(await acknowledgePluginDelivery({ ...ack, leaseToken: second.leaseToken, attempt: second.attempt, queuedOffline: false, applied: 1 })).toMatchObject({ accepted: true, status: "DELIVERED" });
+  });
+
+  it("memeriksa ulang UUID staf setelah ACK antrean offline sebelum memberi lease baru", async () => {
+    await addDelivery(offlineRestrictedId);
+    const claim = (await pollPluginDeliveries({ version: "test", limit: 10 })).deliveries.find((row) => row.deliveryId === offlineRestrictedId)!;
+    expect(claim).toBeTruthy();
+    expect(await acknowledgePluginDelivery({ deliveryId: offlineRestrictedId, leaseToken: claim.leaseToken, attempt: claim.attempt, ok: true, applied: 0, queuedOffline: true, durationMs: 0 })).toMatchObject({ accepted: true, status: "QUEUED" });
+    await db.insert(users).values({ id: staffId, email: `${staffId}@example.test`, username: `st${suffix}`, passwordHash: "test", role: "SUPPORT" });
+    await db.insert(staffMinecraftAccounts).values({ uuid: "33333333-3333-4333-8333-333333333333", staffUserId: staffId, label: "alternatif" });
+    await db.update(deliveries).set({ nextAttemptAt: new Date(Date.now() - 1000) }).where(eq(deliveries.id, offlineRestrictedId));
+    const second = await pollPluginDeliveries({ version: "test", limit: 10 });
+    expect(second.deliveries.some((item) => item.deliveryId === offlineRestrictedId)).toBe(false);
+    expect(await db.query.deliveries.findFirst({ where: eq(deliveries.id, offlineRestrictedId) })).toMatchObject({ status: "DEAD" });
+    await db.delete(staffMinecraftAccounts).where(eq(staffMinecraftAccounts.staffUserId, staffId));
+    await db.delete(users).where(eq(users.id, staffId));
   });
 
   it("mengembalikan kegagalan ke retry setelah jeda dan mengklaim dengan nomor attempt baru", async () => {

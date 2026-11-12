@@ -41,8 +41,8 @@ public final class AdminCommand implements CommandExecutor {
                 }
                 int before = queue.pendingFor(target.getUniqueId().toString());
                 deliveries.flushQueued(target);
-                sender.sendMessage(Component.text("Mengirim " + before + " pengiriman tertunda untuk "
-                        + target.getName() + ".", NamedTextColor.GREEN));
+                sender.sendMessage(Component.text("Memeriksa " + before + " pengiriman tertunda untuk "
+                        + target.getName() + "; rank menunggu pemeriksaan ulang website.", NamedTextColor.GREEN));
             }
             case "reload" -> {
                 plugin.reloadConfig();
