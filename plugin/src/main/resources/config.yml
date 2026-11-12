@@ -1,0 +1,33 @@
+# CipiSMP Store Companion
+# Plugin membuat koneksi keluar HTTPS ke website; hosting Minecraft tidak perlu membuka port HTTP masuk.
+# Samakan shared-secret dengan PLUGIN_SHARED_SECRET pada environment website.
+
+website-url: "https://cipismp.my.id"
+shared-secret: "ganti-dengan-PLUGIN_SHARED_SECRET"
+
+polling:
+  enabled: true
+  interval-seconds: 10
+  batch-size: 5
+  timeout-seconds: 15
+
+queue:
+  file: "pending-deliveries.yml"
+  # Batas pengiriman tertunda per pemain agar file antrean tidak tumbuh tanpa batas.
+  max-per-player: 20
+
+luckperms:
+  # Bila LuckPerms terpasang, perintah LuckPerms yang didukung diproses lewat API;
+  # perintah lain tetap dijalankan lewat konsol server.
+  use-api: true
+
+# Opsional, aktifkan hanya setelah menguji di staging. Membaca grup utama
+# LuckPerms dan teks cooldown PlayerKits2 1.23.1 untuk pemain online; tidak
+# menjalankan perintah dan bukan bukti pemain dapat mengklaim kit.
+live-status:
+  enabled: false
+  # Nama kit yang dikonfirmasi pemilik (maks. 5). Perubahan memerlukan restart plugin.
+  kit-names: ["cipiprime", "cipi++"]
+
+verify:
+  timeout-seconds: 10

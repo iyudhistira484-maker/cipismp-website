@@ -1,0 +1,265 @@
+# Panduan admin CipiSMP Store
+
+Panduan ini untuk staf non-teknis. Semua tombol yang dijelaskan di sini bisa dipakai tanpa
+menyentuh database atau kode. Kalau ragu, **berhenti dan tanyakan ke Owner** — beberapa
+tindakan tidak bisa dibatalkan.
+
+## Masuk ke panel
+
+1. Buka `https://<domain-toko>/masuk`.
+2. Masuk dengan email dan password akun staf.
+3. Masukkan 6 digit dari aplikasi authenticator (Google Authenticator, Aegis, 1Password).
+   2FA wajib untuk staf dan tidak bisa dimatikan sendiri.
+4. Menu di kiri: Ringkasan, Pesanan, Pengiriman, Produk, Season, Pelanggan, Kupon,
+   Pembayaran, Server, Staf, Audit log. Menu yang tidak muncul berarti role-mu tidak berhak.
+
+Role:
+- **Support** — melihat pesanan, pelanggan, pengiriman, dan audit; mengirim ulang pengiriman;
+  memberi comp serta mencabut entitlement.
+- **Admin** — semua di atas + ringkasan pendapatan, menandai lunas manual, mengelola produk,
+  season, kupon, ulasan, metode pembayaran, server, dan pengaturan toko. Kesiapan gateway,
+  daftar pembayaran menunggu, serta ringkasan webhook hanya tersedia untuk Owner.
+- **Owner** — semua + melihat/mengubah kredensial, menguji kesiapan gateway, melihat daftar
+  pembayaran menunggu/ringkasan webhook, mengelola role dan sesi staf.
+
+## Halaman Ringkasan
+
+- **Pendapatan hari ini / total** dihitung dari order yang sudah dibayar.
+- **Menunggu bayar** = order yang belum dibayar. Tidak perlu ditindak sampai lewat batas waktu.
+- **Perlu perhatian** = order gagal + pengiriman gagal permanen. Target harian: 0.
+- Kotak season menunjukkan season aktif dan tanggal berakhirnya. Kalau tidak ada season
+  aktif, toko tidak bisa menjual — hubungi Owner.
+- Di kanan bawah ada **Comp manual**: memberi rank/kit gratis. Selalu isi alasan; alasan
+  masuk ke audit log dan tidak bisa dihapus.
+
+## Ringkasan pendapatan
+
+Grafik batang di halaman **Ringkasan** menunjukkan pendapatan per hari (WIB) selama 30 hari
+terakhir, hanya dari order yang sudah dibayar. Klik **Lihat angka per hari** untuk melihat
+tabel angkanya. Untuk laporan bulanan, gunakan **Ekspor CSV** di halaman Pesanan.
+
+## Menangani pesanan
+
+Buka **Pesanan**, cari dengan nomor order, email, atau nama pemain.
+
+1. **Pesanan normal:** status berubah sendiri dari PENDING → PAID → DELIVERING → DELIVERED.
+2. **Tandai lunas manual** — hanya setelah kamu melihat dana masuk di dashboard gateway.
+   Tulis alasan yang bisa dicek orang lain, misalnya "Transfer BCA 25.000, ref 88213,
+   terverifikasi di dashboard Tripay". Salah menekan tombol ini berarti item terkirim tanpa uang.
+3. **Batalkan order** — hanya untuk PENDING/EXPIRED. Order yang sudah dibayar **tidak bisa**
+   dibatalkan dan **tidak ada refund**.
+4. **Catatan internal** — untuk tim, tidak terlihat pembeli. Pakai untuk mencatat hasil
+   pengecekan gateway, nomor tiket, atau keputusan sengketa.
+
+## Kalau akses atau reward belum masuk
+
+1. Buka detail pesanan → bagian **Pengiriman** dan catat nomor pesanan, status, waktu dan error tanpa membagikan data sensitif.
+2. **Jangan langsung menekan Kirim ulang**, mengirim comp, atau mengubah status untuk hasil yang belum pasti. Eskalasi ke Admin/Owner dan ikuti `docs/RUNBOOK.md`: cocokkan status pembayaran, lease/ACK, antrean website dan plugin, marker intent/selesai, serta keadaan LuckPerms/PlayerKits di server.
+3. Status `SENT`, timeout, ACK hilang, restart atau eksekusi sebagian tidak membuktikan perintah belum berjalan. Jika hasilnya tidak pasti, hentikan pengiriman terkait dan lakukan rekonsiliasi manual sebelum keputusan retry; jangan retry massal. Catat tindakan dan hasilnya.
+4. Untuk pemain offline, rank maupun kit menunggu login LoginSecurity dan lease website berikutnya saat pemain tetap online (biasanya sekitar satu menit atau lebih). Antrean lokal lama perlu direkonsiliasi; login saja tidak membuktikan pengiriman sukses. Untuk kit, periksa permission, reward dan cooldown 5 jam di PlayerKits.
+5. Jika tetap gagal atau menyangkut pembayaran/staf, eskalasi ke Owner. Jangan memberi comp sebagai pengganti kecuali Owner memutuskan setelah rekonsiliasi.
+
+Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diterima`,
+`Gagal (retry)`, `Gagal permanen`. Angka **Gagal permanen** harus 0 setiap hari.
+
+## Produk
+
+**Produk** menampilkan rank dan kit beserta harga, status, dan jumlah terjual.
+
+- Katalog rank dan urutannya: **Cute Cipi Rp10.000** (`vip`), **Pop Cipi Rp30.000** (`mvp`), **Milk Cipi Rp60.000** (`elite`), lalu **Star Cipi Rp100.000** (`legend`). Tier 1–4 mengikuti urutan ini agar pembelian rank berikutnya diperlakukan sebagai upgrade.
+- Keuntungan katalog mengikuti daftar pemilik: prefix tiap rank, limit auction, jumlah/baris AxVaults, command Essentials, BetterRTP, dan kit PlayerKits. Permission serta prefix group sudah dikonfigurasi pada LuckPerms server; katalog hanya menampilkan benefit dan sistem toko memasang group setelah pembayaran terverifikasi.
+- Form produk mengatur nama, slug, status, harga, tier/urutan, batas/cooldown, warna badge, ilustrasi lokal, tagline, deskripsi, keuntungan, dan apakah pengiriman perintah server dipakai.
+- Template rank standar menggunakan `lp user {uuid} parent add <group>` untuk GRANT dan `lp user {uuid} parent remove <group>` untuk REVOKE, hanya bagi `vip`, `mvp`, `elite`, atau `legend`. Jangan gunakan `parent set`: perintah itu dapat mengganti grup lain. Grup `freerank` khusus event dan tidak boleh ditambahkan, dicabut, atau diubah oleh otomatisasi toko. Perintah rank wajib melalui plugin yang telah diuji; RCON tidak diizinkan untuk perubahan rank. Periksa migrasi 0016, template kustom, dan antrean lama sebelum aktivasi karena perintah yang sudah tersalin tidak diperbarui otomatis. Uji di staging dan rekonsiliasi hasil yang tidak pasti.
+- Untuk kit, isi daftar item satu per baris dengan format `item_key | nama | jumlah | enchantment1,enchantment2 | lore1,lore2`. Kit tayang wajib punya minimal satu item.
+- Katalog kit saat ini: **CipiPrime** (Rp35.000, permission `playerkits.kits.cipiprime`) dan **Cipi++** (Rp75.000, permission `playerkits.kits.cipi++`). Pembelian membuka akses satu kali per pemain setiap season; template REVOKE mencabut permission saat season berakhir.
+- Cooldown klaim 5 jam dikelola oleh plugin **PlayerKits** di server, bukan oleh field cooldown toko. Pastikan reward dan cooldown di PlayerKits cocok dengan daftar item di halaman produk. Field admin `Cooldown pembelian ulang (jam)` harus tetap 0 untuk kedua kit.
+- Menambah produk: isi formulir di kanan, simpan sebagai **Draft** dulu, cek tampilan di
+  `/rank` atau `/kit`, uji template pengiriman, lalu ubah ke **Published**.
+- Menyembunyikan produk: tombol tempat sampah (soft delete). Riwayat order tetap utuh.
+  Produk yang dihapus bisa dipulihkan sebagai **Draft** dari baris yang sama.
+- Mengubah harga tidak mengubah order yang sudah dibuat. Mengganti slug mengubah URL; cek juga template grant yang mungkin memakai `{rank}`.
+- Perubahan **tier** rank harus hati-hati: tier menentukan siapa boleh upgrade ke siapa.
+
+## Season
+
+Season menentukan masa berlaku rank/kit. Tidak ada carry-over dan tidak ada refund saat
+season berakhir.
+
+- Season baru biasanya dibuat sebagai **Upcoming** dengan tanggal mulai/selesai (WIB).
+- Mengakhiri season **selalu** lewat panel **Transisi season**:
+  1. Pilih season, tekan **Pratinjau dampak** → lihat jumlah entitlement dan pemain.
+  2. Jalankan **Simulasi** untuk memastikan angka masuk akal.
+  3. Pilih **Eksekusi sungguhan**, ketik `AKHIRI SEASON`, isi alasan, kirim.
+  4. Buka Ringkasan: season berikutnya harus ACTIVE dan pengiriman REVOKE muncul.
+- Jangan mengakhiri season saat sedang ramai pembelian tanpa pengumuman; pembelian
+  diblokir otomatis pada *freeze window* (bawaan 3 hari terakhir).
+
+## Kupon
+
+- Tingkat dasar memakai **persen** (1–100) atau **nominal** (minimal Rp 1.000) dan ambang
+  minimum belanja. Maksimal dua tingkat tambahan; threshold harus meningkat, dan tier tertinggi
+  yang tercapai yang dipakai (diskon tidak dijumlahkan).
+- **Season** kosong berarti kupon berlaku lintas-season; pilih season untuk membatasi kupon
+  ke season tersebut. Season khusus yang bukan season aktif ditolak saat checkout.
+- **Kuota total** 0 berarti tanpa batas; **batas per pembeli** membatasi pemakaian per akun.
+- Centang **Hanya rank** atau **Hanya kit** bila kupon tidak boleh dipakai untuk jenis lain.
+- Nonaktifkan kupon yang sudah tidak dipakai; jangan menghapusnya karena riwayat pemakaian
+  diperlukan untuk pembukuan.
+
+## Pelanggan
+
+- Pencarian berdasarkan email/username.
+- Daftar menampilkan email, username, total belanja, jumlah order dibayar yang tertaut ke
+  akun, dan tanggal pendaftaran. Status verifikasi email/2FA ada di detail akun.
+- Pembeli tamu tetap dilayani lewat tautan pesanan publik dan tidak dihitung sebagai order
+  akun hanya karena memakai alamat email yang sama.
+- Akun staf tidak muncul di daftar pelanggan. Klik email untuk melihat profil Minecraft
+  tertaut, pesanan akun, dan entitlement rank/kit.
+- **Cabut** menonaktifkan entitlement dengan alasan wajib. Bila ada template REVOKE, perintah
+  diantrekan ke monitor pengiriman; cek hasilnya di `/admin/pengiriman`. Tanpa template,
+  akses di server harus dicabut manual. Ini bukan refund.
+- Akun yang dihapus tetap menyisakan order untuk pembukuan; ini normal.
+
+## Pembayaran
+
+- URL webhook dan status toggle aktif/nonaktif terlihat di halaman ini. Mode sandbox/live,
+  kesiapan gateway, dan tombol uji hanya terlihat untuk Owner.
+- Di bagian **Metode yang ditawarkan**, Admin/Owner dapat memilih QRIS, tiap bank Virtual
+  Account, dan e-wallet untuk Tripay/Midtrans. Metode yang tidak dicentang tidak muncul di
+  checkout; gateway tanpa metode terpilih juga disembunyikan. Simulasi hanya ada di dev.
+- **Hanya Owner** yang boleh melihat/mengubah kredensial gateway. Admin dapat mengatur metode
+  checkout, tetapi tidak membaca rahasia atau hasil uji provider.
+- Rincian **Pembayaran menunggu** dan ringkasan **Webhook terakhir** hanya tersedia untuk
+  Owner. Tampilan webhook dibatasi pada status signature dan hasil proses; payload mentah,
+  header, dan IP tidak ditampilkan di panel.
+- Status/referensi pembayaran untuk satu order tetap terlihat di detail Pesanan sesuai izin
+  `orders.read`; akses itu tidak membuka daftar rekonsiliasi atau payload webhook mentah. Detail
+  order hanya memilih field operasional yang dipakai panel—tanpa respons gateway mentah, URL checkout,
+  kode bayar, IP/UA order, metadata item penuh, atau perintah delivery.
+- `UNDERPAID` berarti dana kurang. Owner memverifikasi di dashboard gateway; bila pembeli
+  memang kurang bayar, hubungi pembeli lewat email dan jangan tandai lunas.
+- **Tidak ada tombol refund.** Jangan menjanjikan pengembalian dana kepada pembeli.
+
+## Server & plugin
+
+- Isi host/port Java dan Bedrock serta kredensial RCON bila menggunakan fallback. Metode
+  plugin memakai polling HTTPS keluar; URL plugin publik/port inbound tidak diperlukan.
+- **Cek status plugin** di `/admin/server` harus menunjukkan check-in kurang dari 60 detik.
+  **Uji RCON** dijalankan bila fallback RCON dipakai.
+- Secret plugin disimpan sebagai `PLUGIN_SHARED_SECRET` di environment website dan
+  `shared-secret` pada `plugins/CipiStoreCompanion/config.yml`; rotasi dikoordinasikan
+  bersama pemilik server lalu restart web dan plugin.
+- Pastikan hosting Minecraft mengizinkan DNS dan koneksi keluar HTTPS ke `APP_URL`.
+  Panduan pemasangan plugin ada di halaman yang sama.
+
+## Staf
+
+- Menambah staf: minta orang tersebut mendaftar akun biasa, aktifkan 2FA, lalu Owner
+  mengubah role-nya di halaman ini.
+- Mencabut akses: pilih **Cabut akses** → role menjadi Pelanggan. Riwayat kerjanya tetap
+  tercatat di audit log.
+- Tidak bisa mengubah role akun sendiri; ini pengaman agar tidak ada yang mengunci dirinya.
+- Akun Owner hanya diganti lewat CLI (`npm run seed:owner`) oleh Admin teknis.
+
+## Ekspor data (CSV)
+
+- **Pesanan → Ekspor CSV (100 hari)** mengunduh order 100 hari terakhir: nomor, waktu,
+  status, email, pemain, UUID, gateway, rincian uang, kupon, dan catatan admin.
+- **Pelanggan → Ekspor CSV** hanya memuat akun ber-role Pelanggan: email, username, tanggal
+  pendaftaran, serta total/jumlah order dibayar yang tertaut langsung ke akun. CSV ini tidak
+  memuat status verifikasi, 2FA, atau waktu login.
+- Berkas memakai pemisah koma, encoding UTF-8 (aman dibuka di Excel), dan teks yang mirip
+  formula otomatis dinetralkan.
+- Setiap ekspor tercatat di audit log (`data.export`) beserta jumlah baris dan rentang
+  tanggal, dan dibatasi 6 ekspor per menit per akun.
+- Data ini berisi informasi pribadi pembeli. Simpan hanya di tempat yang aman dan jangan
+  dibagikan ke publik.
+
+## Sesi staf
+
+Di bagian bawah halaman **Staf** ada tabel **Sesi staf aktif**: email, role, perangkat, IP,
+waktu aktif terakhir, dan status 2FA sesi.
+
+- **Cabut** pada satu baris mengeluarkan perangkat itu; orangnya harus login ulang + 2FA.
+- **Cabut semua sesi** di kolom role mengeluarkan semua perangkat staf tersebut sekaligus —
+  pakai bila perangkat hilang atau ada kecurigaan akun diambil alih.
+- Sesi milikmu sendiri tidak bisa dicabut dari sini; gunakan **Keluar** atau menu keamanan
+  di dashboard.
+- Sesi Owner tidak bisa dicabut oleh Admin; hanya Owner sendiri yang bisa.
+
+## Pengaturan toko
+
+Halaman **Pengaturan** (`/admin/pengaturan`) mengatur angka dan saklar yang berlaku langsung
+setelah disimpan:
+
+- **Pajak** (persen + label) dan **biaya layanan** (flat / persen / keduanya).
+- **Batas waktu bayar** order (menit), **usia minimum** pembeli, dan **freeze season**
+  (hari terakhir sebelum pergantian season saat pembelian dikunci).
+- **Gateway default** untuk checkout baru (kredensialnya tetap di halaman Pembayaran).
+- **Toggle fitur**: kupon, hadiah (gift), ulasan pembeli, login Discord.
+- **Identitas situs**: nama situs, tagline, email bantuan (footer/FAQ), URL Discord, dan
+  pengumuman banner di atas semua halaman toko (kosongkan untuk menyembunyikan).
+- **Pengiriman**: jumlah percobaan maksimal, jeda dasar (naik eksponensial), dan masa tunggu
+  sebelum dianggap offline. Setelah percobaan habis, pengiriman menjadi DEAD.
+
+Mematikan sebuah fitur langsung menyembunyikan UI-nya; data lama tidak dihapus. Perubahan
+tercatat di audit log (`settings.store`).
+
+## Ulasan pembeli
+
+Ulasan hanya bisa ditulis oleh pembeli produk tersebut (order berstatus lunas/terkirim),
+satu ulasan per akun per produk. Semua ulasan baru berstatus **Menunggu**.
+
+- Buka **Ulasan** → tab **Menunggu**. Setiap baris menampilkan produk, rating, isi ulasan,
+  penulis, dan nomor pesanan sumber verifikasi.
+- **Tampilkan** menerbitkan ulasan ke halaman produk; **Sembunyikan** menariknya kembali
+  (mis. berisi kata kasar, data pribadi, atau spam). Bisa dibalik kapan saja.
+- Nama penulis otomatis disamarkan (mis. “Budi” dari `Budi_S`) dan ulasan dari pembeli
+  terverifikasi diberi label **Pembelian terverifikasi**. Ulasan yang tampil di halaman produk
+  juga dikumpulkan di `/ulasan`; feed publik hanya memuat ulasan disetujui pada produk terbit.
+- Pemilik ulasan dapat mengeditnya dari `/ulasan` atau halaman produk. Setiap perubahan
+  mengembalikan ulasan ke status **Menunggu**, sehingga ulasan tidak tampil lagi sampai disetujui.
+- Menolak ulasan tanpa membuka debat: tidak ada fitur balasan publik; tanggapi lewat Discord.
+
+## Login Discord
+
+Login Discord bersifat opsional dan tidak pernah menggabungkan akun otomatis lewat email.
+
+1. Buat aplikasi di <https://discord.com/developers/applications>, ambil Client ID dan
+   Client Secret, lalu tambahkan redirect URI `https://<domain>/api/auth/discord/callback`.
+2. Isi `DISCORD_CLIENT_ID` dan `DISCORD_CLIENT_SECRET` di `.env`, restart aplikasi.
+3. Nyalakan toggle **Login Discord** di `/admin/pengaturan`.
+
+Pemain menautkan akun di **Dashboard → Keamanan**. Staf wajib mengaktifkan 2FA lebih dulu
+sebelum bisa menautkan (mencegah tautan Discord menjadi jalan pintas tanpa 2FA). Bila
+seseorang menekan tombol Discord tetapi akunnya belum tertaut, sistem mengarahkan mereka
+masuk dengan password dulu — bukan membuat akun baru.
+
+## Audit log
+
+Setiap tindakan penting tercatat: siapa (email), apa (aksi), pada apa (order/produk/season),
+alasan, dan IP. Gunakan filter untuk mencari, misalnya `season.transition` atau
+`order.manual-paid`. Aksi fitur baru juga tercatat: `payments.provider-saved`,
+`payments.methods-saved`, `review.submitted`, `review.edited`, `review.approved`,
+`review.hidden`, `account.login-discord`, `account.discord-linked`, `account.discord-unlinked`.
+Log tidak bisa dihapus dari panel.
+
+## Aturan yang tidak boleh dilanggar
+
+1. **Tidak ada refund** — jangan menjanjikan, memproses, atau mencatat pengembalian dana.
+2. **Jangan tandai lunas tanpa bukti** dari dashboard gateway.
+3. **Jangan bagikan kredensial** gateway atau secret plugin lewat chat.
+4. **Jangan hapus data** (order, produk, entitlement) untuk "membersihkan" tampilan.
+5. **Selalu isi alasan** pada comp, pembatalan, dan transisi season.
+
+## Kalau ada masalah
+
+Hubungi Admin/Owner dengan informasi: nomor order, nama pemain, waktu kejadian, dan
+tangkapan layar bagian yang bermasalah. Untuk gangguan server (plugin mati, RCON salah),
+gunakan `docs/RUNBOOK.md` bagian 2.
+
+### Menyiapkan akun staf website
+
+Setiap staf mendaftar sendiri dengan email masing-masing, memverifikasi email, dan mengaktifkan 2FA pada akun tersebut. Owner harus memastikan identitas orangnya melalui jalur terpisah; email terverifikasi saja bukan bukti bahwa pengguna tersebut staf. Setelah identitas dikonfirmasi, Owner membuka **Pelanggan → detail akun**, memilih Admin atau Support pada **Berikan akses website staf**, mengisi alasan dan konfirmasi. Pemberian role serta audit disimpan bersama dalam satu transaksi. Formulir hanya dapat digunakan Owner dan menolak akun yang belum verifikasi email/2FA, sudah dihapus atau bukan pelanggan. Role Owner tidak dapat diberikan lewat formulir ini.
+
+Akun yang sama dipromosikan, tidak dibuatkan atau digabung secara diam-diam. Setelah promosi, Owner perlu mendaftarkan UUID utama dan alternatif di **Staf**, lalu meninjau antrean; jangan menganggap akun yang belum didaftarkan otomatis terlindungi. Akses website tidak mengubah grup LuckPerms. Bila akses dicabut, akun website yang sama kembali menjadi Pelanggan. Akun OWNER bootstrap dan pergantiannya mengikuti prosedur operator; jangan membuat akun tambahan atau mengubah owner produksi tanpa verifikasi dan persetujuan.

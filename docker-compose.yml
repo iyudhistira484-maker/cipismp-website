@@ -1,0 +1,90 @@
+# CipiSMP Store — `docker compose up` setelah mengisi .env
+name: cipismp-store
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cipi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Isi POSTGRES_PASSWORD dengan password yang kuat di .env}
+      POSTGRES_DB: ${POSTGRES_DB:-cipismp}
+      TZ: Asia/Jakarta
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cipi} -d ${POSTGRES_DB:-cipismp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+  worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["npx", "tsx", "src/worker/index.ts"]
+
+  # Jalankan sekali untuk mengisi season, produk, dan akun owner:
+  #   docker compose run --rm seed
+  seed:
+    build:
+      context: .
+      target: worker
+    profiles: ["tools"]
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["npx", "tsx", "scripts/seed.ts"]
+
+volumes:
+  db-data:

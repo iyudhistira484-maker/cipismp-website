@@ -1,0 +1,45 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { ArrowRight, CalendarDays, Compass, Gamepad2, LifeBuoy, PackageCheck, ShieldCheck, Sparkles } from "lucide-react";
+import { getActiveSeason } from "@/server/catalog";
+import { getSettings } from "@/server/settings";
+import { formatDateWIB } from "@/lib/dates";
+import { getServerStatus } from "@/server/server-status";
+import { CopyButton } from "@/components/ui/copy-button";
+import { GuideVideoBackground } from "@/components/store/guide-video-background";
+
+export const metadata: Metadata = {
+  title: "Cara kerja",
+  description: "Panduan CipiSMP: hubungkan akun Minecraft, pilih rank dan kit, lalu pantau pembayaran dan pengiriman.",
+  alternates: { canonical: "/cara-kerja" },
+};
+
+const STEPS = [
+  { label: "THE FIRST STEP", title: "Pilih yang cocok untukmu", body: "Jelajahi rank dan kit, lalu periksa keuntungan, harga, isi, serta masa berlakunya sebelum memasukkan pilihan ke keranjang.", icon: Compass },
+  { label: "PLAYER IDENTITY", title: "Hubungkan akun Minecraft", body: "Masukkan username di dashboard untuk mendapat kode. Masuk ke server sebagai pemain tersebut, selesaikan /login melalui LoginSecurity, lalu ketik /verify KODE. Java dan Bedrock sama-sama perlu login.", icon: Gamepad2 },
+  { label: "READY TO CHECKOUT", title: "Periksa pemain dan pesanan", body: "Periksa username, penerima setiap item, email, masa aktif, dan total di checkout. Harga dan kelayakan diperiksa kembali oleh server sebelum transaksi dibuat.", icon: ShieldCheck },
+  { label: "PAYMENT & DELIVERY", title: "Bayar dan pantau pengiriman", body: "Pilih metode pembayaran yang tersedia. Setelah pembayaran terkonfirmasi, pengiriman diproses otomatis. Jika pemain atau server belum siap, pengiriman dapat menunggu; login melalui LoginSecurity dan pantau status pesanan.", icon: PackageCheck },
+];
+
+export default async function HowItWorksPage() {
+  const [season, settings, status] = await Promise.all([getActiveSeason(), getSettings(), getServerStatus()]);
+  const javaAddress = status.javaPort === 25565 ? status.javaHost : `${status.javaHost}:${status.javaPort}`;
+  const bedrockAddress = `${status.bedrockHost}:${status.bedrockPort}`;
+
+  return (
+    <div className="container-page space-y-6 py-8 lg:py-12">
+      <header className="relative isolate overflow-hidden rounded-[24px] bg-[#493342] px-6 py-12 text-white shadow-[0_18px_45px_-28px_rgba(69,35,55,.6)] sm:px-10 sm:py-16 lg:px-14 lg:py-20">
+        <GuideVideoBackground />
+        <div className="max-w-2xl pb-5"><p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.17em] text-[#ffe0ee]"><Sparkles className="size-3" aria-hidden /> YOUR CIPI ADVENTURE</p><h1 className="mt-6 font-display text-[clamp(2.4rem,5vw,4.1rem)] leading-[1.05] tracking-[-.045em] text-white">Petualangan dimulai <span className="text-[#f6b6d1]">di sini.</span></h1><p className="mt-4 max-w-lg text-[14px] leading-relaxed text-white/85">Dari memilih rank atau kit sampai masuk ke dunia CipiSMP, ikuti langkah-langkah sederhana ini agar perjalananmu lebih nyaman.</p><div className="mt-7 flex flex-wrap gap-2.5"><a href="#panduan" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-[12px] font-semibold text-[#3b2838] hover:bg-[#fff2f8]">Lihat panduan <ArrowRight className="size-4" aria-hidden /></a><Link href="/rank" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/40 bg-white/10 px-4 text-[12px] font-semibold text-white hover:bg-white/20">Jelajahi rank</Link></div></div>
+      </header>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,.8fr)] lg:gap-7">
+        <section id="panduan" aria-labelledby="guide-heading" className="scroll-mt-24 rounded-[22px] border border-line bg-white p-5 shadow-card sm:p-7"><p className="dashboard-kicker">YOUR JOURNEY, STEP BY STEP</p><h2 id="guide-heading" className="mt-1 font-display text-[25px] text-ink">Empat langkah menuju dunia Cipi<span className="text-accent">.</span></h2><p className="mt-2 max-w-xl text-[12px] leading-relaxed text-muted">Ikuti sesuai urutan, dan simpan nomor pesanan jika kamu membutuhkan bantuan.</p><ol className="mt-6 space-y-3">{STEPS.map((step, index) => { const Icon = step.icon; return <li key={step.title} className="rounded-2xl border border-[#f0e5ec] bg-[#fdfafd] p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f8e9f2] text-accent-strong"><Icon className="size-4" aria-hidden /></span><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#a97894]">{step.label}</p><span className="font-mono text-[10px] text-muted-2">0{index + 1}</span></div><h3 className="mt-1 font-display text-[17px] text-ink">{step.title}</h3><p className="mt-2 text-[12.5px] leading-relaxed text-muted">{step.body}</p>{index === 1 ? <Link href="/dashboard/minecraft" className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-accent-strong hover:underline">Panduan hubungkan Minecraft <ArrowRight className="size-3.5" aria-hidden /></Link> : null}{index === 3 ? <Link href="/status-pesanan" className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-accent-strong hover:underline">Cek status pesanan <ArrowRight className="size-3.5" aria-hidden /></Link> : null}</div></div></li>; })}</ol><p className="mt-5 text-[11px] leading-relaxed text-muted">Untuk CipiPrime dan Cipi++, pembelian memberi akses PlayerKits; reward diklaim di dalam game. Cooldown klaim 5 jam diatur oleh server.</p></section>
+        <aside className="min-w-0 space-y-5"><section aria-labelledby="server-info" className="rounded-[22px] border border-line bg-white p-5 shadow-card sm:p-6"><div className="flex items-start justify-between gap-3"><div><p className="dashboard-kicker">MEET US IN GAME</p><h2 id="server-info" className="mt-1 font-display text-[21px] text-ink">Masuk ke server<span className="text-accent">.</span></h2><p className="mt-1 text-[11.5px] leading-relaxed text-muted">Java dan Bedrock bertemu di dunia yang sama.</p></div><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f2ecfa] text-[#8c69ab]"><Gamepad2 className="size-5" aria-hidden /></span></div><dl className="mt-5 space-y-2"><div className="rounded-2xl border border-[#f0e5ec] bg-[#fdfafd] p-3.5"><dt className="text-[10px] font-semibold uppercase tracking-[.1em] text-muted-2">Java Edition</dt><dd className="mt-2 flex flex-wrap items-center justify-between gap-2"><code className="break-all font-mono text-[12px] text-ink">{javaAddress}</code><CopyButton value={javaAddress} label="alamat Java" buttonText="Salin" compact /></dd></div><div className="rounded-2xl border border-[#f0e5ec] bg-[#fdfafd] p-3.5"><dt className="text-[10px] font-semibold uppercase tracking-[.1em] text-muted-2">Bedrock Edition</dt><dd className="mt-2 flex flex-wrap items-center justify-between gap-2"><code className="break-all font-mono text-[12px] text-ink">{bedrockAddress}</code><CopyButton value={bedrockAddress} label="alamat Bedrock" buttonText="Salin" compact /></dd></div></dl><p className="mt-4 text-[11px] leading-relaxed text-muted">Bedrock menggunakan Geyser/Floodgate. Ikuti petunjuk LoginSecurity di dalam game.</p></section>
+          <section className="rounded-[22px] border border-[#e9dce9] bg-[#f9f4f9] p-5 sm:p-6"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-5 shrink-0 text-[#8d6a99]" aria-hidden /><div><h2 className="font-display text-[17px] text-ink">Tentang season</h2>{season ? <p className="mt-2 text-[12px] leading-relaxed text-muted">{season.name} berakhir <strong className="font-semibold text-ink">{formatDateWIB(season.endAt)}</strong>. Pembelian ditutup {season.freezeDays} hari sebelum akhir season.</p> : <p className="mt-2 text-[12px] leading-relaxed text-muted">Belum ada season aktif.</p>}<p className="mt-2 text-[12px] leading-relaxed text-muted">Rank dan akses kit berlaku hingga akhir season dan tidak diperpanjang otomatis.</p></div></div></section>
+          <section className="rounded-[22px] border border-line bg-white p-5 sm:p-6"><div className="flex items-start gap-3"><LifeBuoy className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden /><div><h2 className="font-display text-[17px] text-ink">Butuh bantuan?</h2><p className="mt-2 text-[12px] leading-relaxed text-muted">Jika pembayaran atau akses bermasalah, sertakan nomor pesanan saat menghubungi kami. Jangan membayar lagi tanpa arahan.</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[12px] font-semibold text-accent-strong"><Link href="/status-pesanan" className="hover:underline">Cek pesanan →</Link><a href={`mailto:${settings.site.supportEmail}`} className="hover:underline">Email bantuan →</a></div></div></div></section>
+        </aside>
+      </div>
+    </div>
+  );
+}

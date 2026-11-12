@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.github
+coverage
+test-results
+playwright-report
+plugin/build
+plugin/.gradle
+*.log
+.env
+.env.*
+!.env.example

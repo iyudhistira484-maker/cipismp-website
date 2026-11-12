@@ -1,0 +1,87 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { Star } from "lucide-react";
+import { Stars } from "@/components/ui/stars";
+import { Textarea } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/feedback";
+import { editReviewAction, submitReviewAction, type ReviewState } from "@/app/actions/reviews";
+import { cn } from "@/lib/utils";
+
+const initial: ReviewState = {};
+
+export function ReviewForm({
+  productId,
+  productName,
+  review,
+}: {
+  productId: string;
+  productName: string;
+  review?: { id: string; rating: number; body: string };
+}) {
+  const [state, action] = useActionState(review ? editReviewAction : submitReviewAction, initial);
+  const [rating, setRating] = useState(review?.rating ?? 5);
+
+  if (state.success) {
+    return <Alert tone="success" title={review ? "Perubahan terkirim" : "Ulasan terkirim"}>{state.success}</Alert>;
+  }
+
+  return (
+    <form action={action} className="space-y-3">
+      {review ? <input type="hidden" name="reviewId" value={review.id} /> : <input type="hidden" name="productId" value={productId} />}
+      <input type="hidden" name="rating" value={rating} />
+
+      <div>
+        <span className="mb-1.5 block text-2xs uppercase tracking-wider text-muted-2">Rating</span>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating bintang">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              role="radio"
+              aria-checked={rating === star}
+              aria-label={`${star} bintang`}
+              onClick={() => setRating(star)}
+              className="rounded p-1 transition-colors hover:bg-surface"
+            >
+              <Star
+                className={cn("size-5", star <= rating ? "fill-accent text-accent" : "text-line-strong")}
+                aria-hidden
+              />
+            </button>
+          ))}
+          <span className="ml-2 text-[12.5px] text-muted">{rating}/5</span>
+        </div>
+      </div>
+
+      <label className="block">
+        <span className="mb-1.5 block text-2xs uppercase tracking-wider text-muted-2">
+          Pengalamanmu dengan {productName}
+        </span>
+        <Textarea
+          name="body"
+          required
+          minLength={15}
+          maxLength={1200}
+          rows={4}
+          defaultValue={review?.body}
+          placeholder="Ceritakan pengalamanmu memakai rank/kit ini di server — minimal 15 karakter."
+        />
+      </label>
+
+      {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-2xs leading-relaxed text-muted-2">
+          {review
+            ? "Perubahan kembali ke antrean moderasi. Nama disamarkan demi privasi."
+            : "Ulasan tampil setelah moderasi. Nama disamarkan demi privasi."}
+        </p>
+        <Button type="submit" size="sm">
+          {review ? "Simpan perubahan" : "Kirim ulasan"}
+        </Button>
+      </div>
+    </form>
+  );
+}

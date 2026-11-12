@@ -1,0 +1,2 @@
+ALTER TABLE "automatic_discounts" ADD COLUMN "eligible_items_only" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "coupons" ADD COLUMN "eligible_items_only" boolean DEFAULT false NOT NULL;

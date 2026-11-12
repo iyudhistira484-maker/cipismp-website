@@ -1,0 +1,61 @@
+import { expect, test } from "@playwright/test";
+import { randomBytes, randomUUID, createCipheriv } from "node:crypto";
+import { Pool } from "pg";
+import { hashPassword } from "../../src/server/auth/password";
+import { currentStep, generateTotpSecret, totpCode } from "../../src/server/auth/totp";
+
+const enabled = process.env.E2E_ALLOW_DB_FIXTURES === "1" && Boolean(process.env.DATABASE_URL);
+const suffix = randomBytes(5).toString("hex");
+const username = `eowner${suffix}`;
+const id = `e2e-registry-${suffix}`;
+const uuid = randomUUID();
+const secret = generateTotpSecret();
+const password = "TestOnly!Pass4829";
+let pool: Pool;
+
+function encrypt(value: string) {
+  const key = Buffer.from(process.env.ENCRYPTION_KEY ?? "", "base64");
+  if (key.length !== 32) throw new Error("ENCRYPTION_KEY test tidak valid");
+  const iv = randomBytes(12), cipher = createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  return `v1.${iv.toString("base64")}.${cipher.getAuthTag().toString("base64")}.${encrypted.toString("base64")}`;
+}
+
+test.describe("daftar UUID staf oleh owner", () => {
+  test.skip(!enabled, "Hanya untuk database disposable.");
+  test.beforeAll(async () => {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    await pool.query("INSERT INTO users (id,email,username,password_hash,role,email_verified_at,totp_secret,totp_enabled_at) VALUES ($1,$2,$3,$4,'OWNER',now(),$5,now())", [id, `${username}@example.test`, username, await hashPassword(password), encrypt(secret)]);
+  });
+  test.afterAll(async () => {
+    if (!pool) return;
+    await pool.query("DELETE FROM staff_minecraft_accounts WHERE uuid=$1", [uuid]);
+    await pool.query("DELETE FROM audit_logs WHERE actor_id=$1", [id]);
+    await pool.query("DELETE FROM users WHERE id=$1", [id]);
+    await pool.query("DELETE FROM login_attempts WHERE email=ANY($1::text[])", [[username, `${username}@example.test`]]);
+    await pool.end();
+  });
+  test("owner mengelola UUID setelah login dan 2FA", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto("/masuk");
+    await page.getByLabel("Email atau username").fill(username);
+    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Masuk", exact: true }).click();
+    await expect(page).toHaveURL(/\/masuk\/2fa/);
+    await page.getByLabel("Kode 6 digit").fill(totpCode(secret, currentStep()));
+    await page.getByRole("button", { name: "Verifikasi", exact: true }).click();
+    await expect(page).toHaveURL(/\/admin/);
+    await page.goto("/admin/staf");
+    await page.getByLabel("Akun website staf").selectOption(id);
+    await page.getByLabel("UUID Minecraft").fill(uuid);
+    await page.getByLabel("Label akun").fill("Alternatif uji");
+    await page.getByLabel("Alasan / sumber verifikasi").fill("Identitas diverifikasi pada uji");
+    await page.getByRole("button", { name: "Daftarkan UUID" }).click();
+    await expect(page.getByText(uuid, { exact: true })).toBeVisible({ timeout: 20_000 });
+    const row = page.getByRole("row").filter({ hasText: uuid });
+    await row.getByLabel(`Alasan hapus ${uuid}`).fill("Hapus setelah pengujian selesai");
+    await row.getByLabel("Saya sudah memeriksa identitas dan antrean.").check();
+    await row.getByRole("button", { name: "Hapus UUID" }).click();
+    await expect(page.getByText(uuid, { exact: true })).toHaveCount(0, { timeout: 20_000 });
+  });
+});
