@@ -1,3 +1,4 @@
+import { simulationAllowed } from "@/lib/environment-policy";
 import { NextResponse } from "next/server";
 import { handleProviderWebhook } from "@/server/payments/webhook";
 import { clientIp } from "@/server/csrf";
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** Hanya tersedia di non-produksi: dipakai halaman pembayaran simulasi. */
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV === "production") {
+  if (!simulationAllowed(process.env.NODE_ENV, process.env.APP_ENV)) {
     return NextResponse.json({ ok: false, message: "Tidak tersedia di produksi" }, { status: 404 });
   }
   const rawBody = await request.text();

@@ -841,7 +841,7 @@ export function DeliverySettingsForm({ settings }: { settings: SiteSettingsValue
   );
 }
 
-export function StoreSettingsForm({ settings }: { settings: StoreSettingsValues }) {
+export function StoreSettingsForm({ settings, allowSimulation }: { settings: StoreSettingsValues; allowSimulation: boolean }) {
   const [state, action] = useActionState(adminSaveStoreSettingsAction, empty);
   return (
     <form action={action} className="space-y-3">
@@ -875,10 +875,10 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettingsValues 
           <Input id="settings-freeze" name="defaultFreezeDays" type="number" min={0} max={30} defaultValue={settings.defaultFreezeDays} />
         </Field>
         <Field label="Gateway default" htmlFor="settings-provider">
-          <Select id="settings-provider" name="defaultProvider" defaultValue={settings.defaultProvider}>
+          <Select id="settings-provider" name="defaultProvider" defaultValue={!allowSimulation && settings.defaultProvider === "FAKE" ? "TRIPAY" : settings.defaultProvider}>
             <option value="TRIPAY">Tripay</option>
             <option value="MIDTRANS">Midtrans</option>
-            <option value="FAKE">Simulasi (dev)</option>
+            {allowSimulation ? <option value="FAKE">Simulasi (dev)</option> : null}
           </Select>
         </Field>
       </div>
@@ -963,7 +963,7 @@ export function PaymentMethodsForm({
       </div>
       <p className="text-2xs leading-relaxed text-muted-2">
         Hanya metode Tripay/Midtrans yang dicentang akan ditawarkan saat checkout. Jika semua metode satu gateway dimatikan,
-        gateway itu tidak muncul untuk pembeli. Simulasi hanya tersedia di development; ketersediaan gateway tetap mengikuti akun penyedia pembayaran.
+        gateway itu tidak muncul untuk pembeli. Ketersediaan gateway tetap mengikuti akun penyedia pembayaran.
       </p>
       <SubmitButton size="sm">Simpan metode pembayaran</SubmitButton>
     </form>

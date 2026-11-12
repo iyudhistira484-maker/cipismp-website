@@ -4,6 +4,7 @@ import { loadProviderConfig, PROVIDER_LABEL, type ProviderId } from "@/server/pa
 import { recentWebhookEvents, pendingPaymentRows } from "@/server/admin/queries";
 import { getSettings } from "@/server/settings";
 import { env } from "@/server/env";
+import { simulationAllowed } from "@/lib/environment-policy";
 import { formatRp } from "@/lib/money";
 import { formatDateTimeWIB } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ export default async function AdminPaymentsPage() {
   ]);
 
   // Jangan dekripsi kredensial gateway untuk role yang hanya boleh melihat status.
-  const providers: ProviderId[] = ["TRIPAY", "MIDTRANS", "FAKE"];
+  const providers: ProviderId[] = simulationAllowed(env.NODE_ENV, env.APP_ENV) ? ["TRIPAY", "MIDTRANS", "FAKE"] : ["TRIPAY", "MIDTRANS"];
   const records = canSeeSecrets
     ? await Promise.all(providers.map(async (provider) => ({
         provider,

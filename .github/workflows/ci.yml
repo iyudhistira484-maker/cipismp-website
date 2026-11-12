@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  APP_ENV: development # CI memakai data dan layanan simulasi yang terisolasi.
   APP_URL: http://localhost:3000
   SESSION_SECRET: ci-session-secret-0123456789abcdef0123456789
   ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

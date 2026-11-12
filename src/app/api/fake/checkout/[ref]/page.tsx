@@ -1,3 +1,4 @@
+import { simulationAllowed } from "@/lib/environment-policy";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  * lengkap — termasuk webhook bertanda tangan — tanpa kredensial gateway asli.
  */
 export default async function FakeCheckoutPage({ params }: { params: Promise<{ ref: string }> }) {
-  if (process.env.NODE_ENV === "production") notFound();
+  if (!simulationAllowed(process.env.NODE_ENV, process.env.APP_ENV)) notFound();
   const { ref } = await params;
   const payment = await db.query.payments.findFirst({ where: eq(payments.providerRef, decodeURIComponent(ref)) });
   if (!payment) notFound();

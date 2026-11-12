@@ -1,5 +1,13 @@
 # Checklist go-live
 
+## Profil produksi dan data yang sudah ada
+
+- Tetapkan `NODE_ENV=production` dan `APP_ENV=production` secara eksplisit pada web **dan worker**. Jangan menggunakan profil development/staging pada sistem publik. Profil produksi menolak identitas Minecraft mock, email outbox dan gateway FAKE; CipiSMP menggunakan `MINECRAFT_LOOKUP_MODE=offline` sesuai informasi server yang diberikan, tetap perlu verifikasi di staging.
+- Instalasi baru mulai dengan checkout tertutup dan semua gateway nonaktif. Owner harus mengonfigurasi email, gateway dan webhook, memeriksa mode sandbox/live dan membuka checkout hanya setelah pemeriksaan staging dan rekonsiliasi pengiriman selesai. Pilihan gateway di `.env` tidak otomatis mengaktifkan pembayaran.
+- Pengaturan **database yang sudah ada tidak direset**: sebelum memakai database lama, tutup checkout, audit akun, produk, pesanan dan pengaturan gateway, lalu pisahkan dari database preview/test. Data atau pesanan simulasi lama tidak berubah menjadi transaksi nyata.
+- Seeder mengisi katalog dan server CipiSMP yang dikonfigurasi, bukan bukti bahwa harga, stok, jadwal season, alamat dukungan, atau integrasi telah disetujui. Periksa semua nilai sebelum go-live. Jangan salin akun/kredensial preview ke produksi.
+- Untuk build/test terisolasi gunakan `APP_ENV=development` atau `staging` secara eksplisit; ini bukan profil untuk layanan publik. Docker builder memakai environment build tersendiri, sedangkan runtime wajib menerima konfigurasi produksi sebenarnya.
+
 Dokumen ini dipakai sekali saat pertama kali merilis toko ke produksi, lalu disimpan
 sebagai catatan audit. Centang setiap baris; jangan meluncurkan sebelum semuanya hijau.
 

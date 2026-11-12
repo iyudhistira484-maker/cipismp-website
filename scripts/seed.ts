@@ -18,14 +18,15 @@ import {
 } from "../src/server/db/schema";
 import { ids } from "../src/server/ids";
 import { hashPassword } from "../src/server/auth/password";
-import { DEFAULT_SETTINGS } from "../src/server/settings";
+import { defaultSettingsForAppEnv } from "../src/server/settings";
+import { env } from "../src/server/env";
 import { CIPI_KITS } from "../src/lib/cipi-kits";
 import { CIPI_RANKS } from "../src/lib/cipi-ranks";
 
 async function seedSettings() {
   await db
     .insert(settingsTable)
-    .values({ key: "store.settings", value: DEFAULT_SETTINGS, updatedBy: "seed" })
+    .values({ key: "store.settings", value: defaultSettingsForAppEnv(env.APP_ENV), updatedBy: "seed" })
     .onConflictDoNothing({ target: settingsTable.key });
 }
 

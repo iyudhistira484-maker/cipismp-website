@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { productionConfigurationErrors } from "@/lib/environment-policy";
 
 /**
  * Validasi environment saat boot. Aplikasi menolak start bila variabel wajib
@@ -67,6 +68,17 @@ function loadEnv(): Env {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Konfigurasi environment tidak valid:\n${issues}\n\nLihat .env.example untuk daftar variabel.`);
   }
+  if (parsed.data.NODE_ENV === "production" && !process.env.APP_ENV) {
+    throw new Error("APP_ENV wajib diisi secara eksplisit saat NODE_ENV=production (development, staging, atau production).");
+  }
+  const errors = productionConfigurationErrors({
+    appEnv: parsed.data.APP_ENV,
+    nodeEnv: parsed.data.NODE_ENV,
+    minecraftLookupMode: parsed.data.MINECRAFT_LOOKUP_MODE,
+    paymentDefaultProvider: parsed.data.PAYMENT_DEFAULT_PROVIDER,
+    emailProvider: parsed.data.EMAIL_PROVIDER,
+  });
+  if (errors.length) throw new Error(`Konfigurasi produksi tidak aman:\n${errors.map((issue) => `  - ${issue}`).join("\n")}`);
   return parsed.data;
 }
 

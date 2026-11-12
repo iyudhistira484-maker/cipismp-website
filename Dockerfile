@@ -19,7 +19,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Nilai dummy hanya agar env validation tidak menggagalkan `next build`;
 # nilai sebenarnya diberikan saat runtime lewat env_file.
-ENV APP_URL=http://localhost:3000 \
+ENV APP_ENV=development \
+    APP_URL=http://localhost:3000 \
     DATABASE_URL=postgres://user:pass@localhost:5432/db \
     SESSION_SECRET=build-only-secret-build-only-secret \
     ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \

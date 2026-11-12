@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { settings as settingsTable } from "./db/schema";
+import { env } from "./env";
 
 /**
  * Pengaturan toko tersimpan di tabel `settings` (satu baris JSON) dan bisa
@@ -92,6 +93,17 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   features: { coupons: true, gifting: true, discordLogin: false, reviews: true },
 };
 
+// New production installations start closed and without any active provider.
+// Existing saved settings are preserved; this does not alter a live database.
+export function defaultSettingsForAppEnv(appEnv: string): StoreSettings {
+  if (appEnv !== "production") return DEFAULT_SETTINGS;
+  return {
+    ...DEFAULT_SETTINGS,
+    store: { ...DEFAULT_SETTINGS.store, checkoutEnabled: false },
+    payments: { ...DEFAULT_SETTINGS.payments, enabled: { TRIPAY: false, MIDTRANS: false, FAKE: false }, defaultProvider: "TRIPAY" },
+  };
+}
+
 const SETTINGS_KEY = "store.settings";
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
@@ -123,7 +135,8 @@ const CACHE_TTL_MS = 10_000;
 export async function getSettings(): Promise<StoreSettings> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value;
   const row = await db.query.settings.findFirst({ where: eq(settingsTable.key, SETTINGS_KEY) });
-  const parsed = row ? mergeSettings(DEFAULT_SETTINGS, row.value as DeepPartial<StoreSettings>) : DEFAULT_SETTINGS;
+  const defaults = defaultSettingsForAppEnv(env.APP_ENV);
+  const parsed = row ? mergeSettings(defaults, row.value as DeepPartial<StoreSettings>) : defaults;
   cache = { value: parsed, at: Date.now() };
   return parsed;
 }

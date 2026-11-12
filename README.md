@@ -49,6 +49,9 @@ data nyata tanpa review dan backup.
 
 ## Menjalankan lokal (tanpa Docker)
 
+Gunakan database terpisah dan atur `APP_ENV=development` di `.env` lokal; sesuaikan
+`NODE_ENV`, URL, email, dan layanan untuk pengembangan. Jangan pakai profil ini di produksi.
+
 ```bash
 npm install
 # PostgreSQL 16 harus jalan; DATABASE_URL di .env
@@ -62,8 +65,9 @@ npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, rem
 
 | Variabel | Keterangan |
 | --- | --- |
+| `APP_ENV` | Wajib eksplisit saat `NODE_ENV=production`; gunakan `production` untuk layanan publik, `development`/`staging` hanya untuk lingkungan terisolasi |
 | `APP_URL`, `NEXT_PUBLIC_APP_URL` | URL publik toko, dipakai untuk link email, webhook, dan redirect login; gunakan satu domain kanonis yang sama dengan origin browser |
-| `PREVIEW_PARTITIONED_COOKIES` | Khusus dev preview HTTPS dalam iframe lintas situs: set `1` agar sesi memakai cookie `Secure; SameSite=None; Partitioned`. Jangan aktifkan untuk deployment normal; tidak berpengaruh pada production. Jika browser memblokir cookie tertanam, buka preview di tab sendiri. |
+| `PREVIEW_PARTITIONED_COOKIES` | Khusus dev preview HTTPS dalam iframe lintas situs: set `1` agar sesi memakai cookie `Secure; SameSite=None; Partitioned`. Jangan aktifkan untuk deployment normal; tidak berpengaruh pada production. Sebagian lingkungan preview dapat tetap memblokir cookie tertanam; akses tab terpisah juga bisa memerlukan otorisasi preview. |
 | `DATABASE_URL` | Koneksi PostgreSQL |
 | `SESSION_SECRET` | ≥ 32 karakter acak, dipakai juga untuk signature provider Fake |
 | `ENCRYPTION_KEY` | base64 32 byte untuk mengenkripsi kredensial gateway di database |

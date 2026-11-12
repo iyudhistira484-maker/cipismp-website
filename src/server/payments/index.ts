@@ -6,6 +6,7 @@ import { decryptSecret, encryptSecret } from "../crypto";
 import { ids } from "../ids";
 import { getSettings } from "../settings";
 import { filterPaymentMethods } from "@/lib/payment-methods";
+import { simulationAllowed } from "@/lib/environment-policy";
 import { TripayAdapter } from "./tripay";
 import { MidtransAdapter } from "./midtrans";
 import { FakeAdapter } from "./fake";
@@ -37,6 +38,8 @@ export const PROVIDER_LABEL: Record<ProviderId, string> = {
 
 /** Baca konfigurasi gateway: database (terenkripsi) lebih diutamakan daripada env. */
 export async function loadProviderConfig(provider: ProviderId): Promise<ProviderRecord | null> {
+  // A persisted simulation credential must not resurrect FAKE in production.
+  if (provider === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV)) return null;
   const row = await db.query.paymentCredentials.findFirst({
     where: eq(paymentCredentials.provider, provider),
   });
@@ -69,7 +72,7 @@ export async function loadProviderConfig(provider: ProviderId): Promise<Provider
       config: { serverKey: env.MIDTRANS_SERVER_KEY, clientKey: env.MIDTRANS_CLIENT_KEY ?? "" },
     };
   }
-  if (provider === "FAKE" && env.NODE_ENV !== "production") {
+  if (provider === "FAKE" && simulationAllowed(env.NODE_ENV, env.APP_ENV)) {
     return { provider, enabled: true, mode: "sandbox", config: { secret: env.SESSION_SECRET } };
   }
   return null;
@@ -82,6 +85,9 @@ export async function saveProviderConfig(input: {
   enabled: boolean;
   updatedBy: string;
 }): Promise<void> {
+  if (input.provider === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV)) {
+    throw new Error("Gateway simulasi tidak tersedia di produksi.");
+  }
   const encrypted = encryptSecret(JSON.stringify(input.config));
   await db
     .insert(paymentCredentials)
@@ -143,7 +149,7 @@ export async function getAvailableProviders(): Promise<AvailableProvider[]> {
   const out: AvailableProvider[] = [];
   for (const id of ["TRIPAY", "MIDTRANS", "FAKE"] as ProviderId[]) {
     if (!settings.payments.enabled[id]) continue;
-    if (id === "FAKE" && env.NODE_ENV === "production") continue;
+    if (id === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV)) continue;
     try {
       const adapter = await getAdapter(id);
       const availableMethods = await adapter.availableMethods();

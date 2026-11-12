@@ -1,3 +1,4 @@
+import { simulationAllowed } from "@/lib/environment-policy";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * yang sama seperti adapter asli, lalu diproses lewat jalur verifikasi normal.
  */
 export async function POST(request: Request) {
-  if (env.NODE_ENV === "production") {
+  if (!simulationAllowed(env.NODE_ENV, env.APP_ENV)) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
   const json = (await request.json().catch(() => null)) as { reference?: string; status?: string } | null;

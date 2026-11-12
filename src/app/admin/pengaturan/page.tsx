@@ -3,6 +3,7 @@ import { getSettings } from "@/server/settings";
 import { getAvailableProviders, PROVIDER_LABEL, type ProviderId } from "@/server/payments";
 import { hasPermission } from "@/server/rbac";
 import { env } from "@/server/env";
+import { simulationAllowed } from "@/lib/environment-policy";
 import { AdminPageHeader, Card } from "@/components/admin/shell";
 import {
   DeliverySettingsForm,
@@ -21,7 +22,7 @@ export default async function AdminStoreSettingsPage() {
     canSeeProviderReadiness ? getAvailableProviders() : Promise.resolve(null),
   ]);
   const enabledProviders: ProviderId[] = (["TRIPAY", "MIDTRANS", "FAKE"] as ProviderId[]).filter(
-    (provider) => settings.payments.enabled[provider] && (provider !== "FAKE" || env.NODE_ENV !== "production"),
+    (provider) => settings.payments.enabled[provider] && (provider !== "FAKE" || simulationAllowed(env.NODE_ENV, env.APP_ENV)),
   );
 
   return (
@@ -35,6 +36,7 @@ export default async function AdminStoreSettingsPage() {
         <div className="space-y-4">
           <Card title="Pajak, biaya, dan fitur">
             <StoreSettingsForm
+              allowSimulation={simulationAllowed(env.NODE_ENV, env.APP_ENV)}
               settings={{
                 taxPercent: settings.store.taxPercent,
                 taxLabel: settings.store.taxLabel,

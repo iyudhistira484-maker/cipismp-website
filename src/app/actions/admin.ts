@@ -34,6 +34,7 @@ import { formatDateTimeWIB } from "@/lib/dates";
 import { fromJakartaInput } from "@/lib/form-datetime";
 import type { CouponTier } from "@/lib/pricing";
 import { MIDTRANS_METHODS, TRIPAY_METHODS } from "@/lib/payment-methods";
+import { simulationAllowed } from "@/lib/environment-policy";
 import { STAFF_ROLES, type Role } from "@/server/rbac";
 import { PRODUCT_ACCENT_CHOICES, PRODUCT_ARTWORK_CHOICES } from "@/lib/product-artwork";
 
@@ -997,6 +998,11 @@ export async function adminSaveStoreSettingsAction(_prev: AdminState, formData: 
       return { error: "Usia minimum 13–21 tahun (kebijakan platform pembayaran)." };
     }
 
+    const provider = String(formData.get("defaultProvider") ?? "");
+    if (!(PROVIDERS as string[]).includes(provider) || (provider === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV))) {
+      return { error: "Gateway default tidak tersedia." };
+    }
+
     const patch = {
       store: {
         taxPercent,
@@ -1010,7 +1016,7 @@ export async function adminSaveStoreSettingsAction(_prev: AdminState, formData: 
         defaultFreezeDays: Math.max(0, Math.min(30, Number(formData.get("defaultFreezeDays") ?? 3))),
       },
       payments: {
-        defaultProvider: String(formData.get("defaultProvider") ?? "FAKE") as "TRIPAY" | "MIDTRANS" | "FAKE",
+        defaultProvider: provider as ProviderId,
       },
       features: {
         coupons: formData.get("featureCoupons") !== null,
@@ -1165,7 +1171,7 @@ export async function adminSaveProviderAction(_prev: AdminState, formData: FormD
     const { ip, actor } = await guard();
     await requirePermissionApi("payments.secrets");
     const provider = String(formData.get("provider") ?? "") as ProviderId;
-    if (!PROVIDERS.includes(provider)) return { error: "Gateway tidak dikenal." };
+    if (!PROVIDERS.includes(provider) || (provider === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV))) return { error: "Gateway tidak tersedia." };
 
     const config: Record<string, string> = {};
     if (provider === "TRIPAY") {
