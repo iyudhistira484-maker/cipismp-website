@@ -69,7 +69,7 @@ public final class CipiCompanionPlugin extends JavaPlugin {
         }
 
         if (luckPerms != null) getLogger().info("LuckPerms terhubung lewat API.");
-        else getLogger().info("LuckPerms tidak terdeteksi; perintah rank dijalankan sebagai perintah konsol.");
+        else getLogger().warning("API LuckPerms tidak tersedia; perubahan rank akan ditahan, bukan dijalankan lewat konsol.");
         getLogger().info("CipiSMP Store Companion aktif. Website: " + websiteUrl
                 + ", antrean pemain offline: " + queue.totalPending());
     }
