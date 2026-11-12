@@ -32,7 +32,7 @@ export async function handleProviderWebhook(
   const adapter = await getAdapter(provider);
   const parsed: WebhookResult = await adapter.verifyWebhook(rawBody, headers);
 
-  const eventId = ids.paymentEvent();
+  let eventId = ids.paymentEvent();
   // Event dengan signature tidak valid TIDAK boleh memakai dedupe key asli: bila dipakai,
   // penyerang bisa mengirim payload palsu lebih dulu dan memblokir event asli dari gateway.
   const dedupeKey = parsed.signatureValid ? parsed.dedupeKey : `INVALID:${parsed.dedupeKey}:${randomUUID()}`;
@@ -52,8 +52,15 @@ export async function handleProviderWebhook(
     .returning({ id: paymentEvents.id });
 
   if (inserted.length === 0) {
-    logger.info("webhook_duplicate_event", { provider, dedupeKey: parsed.dedupeKey });
-    return { httpStatus: 200, result: "duplicate-event-ignored", duplicate: true };
+    const previous = await db.query.paymentEvents.findFirst({ where: eq(paymentEvents.dedupeKey, dedupeKey) });
+    if (!previous) throw new Error("Event pembayaran tidak ditemukan setelah konflik deduplikasi");
+    if (previous.processedAt) {
+      logger.info("webhook_duplicate_event", { provider, dedupeKey: parsed.dedupeKey });
+      return { httpStatus: 200, result: "duplicate-event-ignored", duplicate: true };
+    }
+    // Retry an interrupted event. Fulfillment locks the order and is idempotent,
+    // so simultaneous retries cannot create another entitlement/delivery.
+    eventId = previous.id;
   }
 
   const finish = async (result: string, status = 200): Promise<WebhookOutcome> => {
@@ -78,11 +85,14 @@ export async function handleProviderWebhook(
     ? await db.query.payments.findFirst({ where: eq(payments.providerRef, parsed.providerRef) })
     : undefined;
 
-  if (!payment && order) {
+  // Midtrans Snap returns a token during creation, while callbacks identify the
+  // transaction by a different ID. Only Midtrans may fall back to the order's
+  // own payment; Tripay/FAKE references must match the stored payment.
+  if (!payment && order && provider === "MIDTRANS") {
     const rows = await db
       .select()
       .from(payments)
-      .where(eq(payments.orderId, order.id))
+      .where(and(eq(payments.orderId, order.id), eq(payments.provider, provider)))
       .orderBy(desc(payments.createdAt))
       .limit(1);
     payment = rows[0];
@@ -104,22 +114,42 @@ export async function handleProviderWebhook(
 
   await db.update(paymentEvents).set({ orderId: order.id }).where(eq(paymentEvents.id, eventId));
 
+  if (!payment || payment.orderId !== order.id || payment.provider !== provider || order.provider !== provider) {
+    await alertStaff({
+      kind: "PAYMENT_ANOMALY",
+      title: "Referensi pembayaran tidak cocok",
+      body: `Webhook ${provider} untuk order ${order.orderNumber} tidak cocok dengan transaksi tersimpan. Periksa gateway sebelum memenuhi pesanan.`,
+      href: `/admin/pesanan/${order.id}`,
+    });
+    return finish("payment-reference-mismatch");
+  }
+
   switch (parsed.status) {
     case "PAID": {
       const expected = order.totalIdr;
-      const paidAmount = parsed.amountIdr ?? expected;
+      const paidAmount = parsed.amountIdr;
+      if (paidAmount === null || !Number.isSafeInteger(paidAmount) || paidAmount < 0) {
+        await alertStaff({ kind: "PAYMENT_ANOMALY", title: "Nominal pembayaran tidak tersedia", body: `Webhook ${provider} untuk ${order.orderNumber} tidak memiliki nominal valid. Periksa gateway sebelum memenuhi pesanan.`, href: `/admin/pesanan/${order.id}` });
+        return finish("amount-unverified");
+      }
+      const flagCancelledPayment = async () => {
+        await db.update(payments).set({ status: "PAID", amountIdr: paidAmount, paidAt: new Date(), updatedAt: new Date() }).where(eq(payments.id, payment.id));
+        await alertStaff({ kind: "PAYMENT_ANOMALY", title: "Pembayaran untuk pesanan dibatalkan", body: `Pembayaran ${paidAmount} diterima untuk ${order.orderNumber} yang dibatalkan. Tinjau dan hubungi pembeli; tidak ada pengiriman otomatis.`, href: `/admin/pesanan/${order.id}` });
+        return finish("cancelled-paid-review");
+      };
+      if (order.status === "CANCELLED") return flagCancelledPayment();
 
       if (paidAmount < expected) {
         if (payment) {
           await db
             .update(payments)
             .set({ status: "UNDERPAID", amountIdr: paidAmount, updatedAt: new Date(), paidAt: new Date() })
-            .where(eq(payments.id, payment.id));
+            .where(and(eq(payments.id, payment.id), inArray(payments.status, ["PENDING", "EXPIRED", "FAILED", "UNDERPAID"])));
         }
         await alertStaff({
           kind: "PAYMENT_ANOMALY",
           title: "Pembayaran kurang",
-          body: `Order ${order.orderNumber}: dibayar ${paidAmount}, seharusnya ${expected}. Order tetap PENDING; verifikasi manual lalu tandai lunas bila sesuai.`,
+          body: `Order ${order.orderNumber}: callback melaporkan ${paidAmount}, seharusnya ${expected}. Periksa status order dan gateway sebelum tindakan manual; pembayaran yang sudah tercatat tidak diturunkan statusnya.`,
           href: `/admin/pesanan/${order.id}`,
         });
         return finish("underpaid-flagged");
@@ -145,7 +175,12 @@ export async function handleProviderWebhook(
         method: parsed.method,
       });
 
+      if (fulfillment.cancelled) return flagCancelledPayment();
       if (fulfillment.alreadyPaid) {
+        // A new callback for the same already-paid payment is not a second
+        // payment. Check fresh state because another callback may have won.
+        const currentPayment = await db.query.payments.findFirst({ where: eq(payments.id, payment.id) });
+        if (currentPayment?.status === "PAID") return finish("payment-already-recorded");
         if (payment) {
           await db
             .update(payments)
@@ -220,7 +255,7 @@ export async function reconcilePendingOrders(limit = 25): Promise<{ checked: num
       .orderBy(desc(payments.createdAt))
       .limit(1);
     const payment = paymentRows[0];
-    if (!payment || payment.status !== "PENDING") continue;
+    if (!payment || !["PENDING", "EXPIRED"].includes(payment.status)) continue;
 
     try {
       const adapter = await getAdapter(payment.provider);
@@ -228,6 +263,13 @@ export async function reconcilePendingOrders(limit = 25): Promise<{ checked: num
       const status = await adapter.getStatus(payment.providerRef, order.orderNumber);
       checked += 1;
       if (status.status === "PAID") {
+        if (status.amountIdr === null || !Number.isSafeInteger(status.amountIdr) || status.amountIdr < order.totalIdr) {
+          await alertStaff({ kind: "PAYMENT_ANOMALY", title: "Nominal rekonsiliasi perlu diperiksa", body: `Gateway melaporkan pembayaran ${order.orderNumber} tetapi nominal tidak valid atau kurang dari total. Tinjau sebelum memenuhi pesanan.`, href: `/admin/pesanan/${order.id}` });
+          if (status.amountIdr !== null && Number.isSafeInteger(status.amountIdr) && status.amountIdr >= 0 && status.amountIdr < order.totalIdr) {
+            await db.update(payments).set({ status: "UNDERPAID", amountIdr: status.amountIdr, updatedAt: new Date() }).where(eq(payments.id, payment.id));
+          }
+          continue;
+        }
         const result = await fulfillPaidOrder({
           orderId: order.id,
           paymentId: payment.id,

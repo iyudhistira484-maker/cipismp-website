@@ -14,12 +14,12 @@ import {
   requestPasswordReset,
   resetPassword,
 } from "@/server/auth/flows";
-import { createSession, clearSessionCookie, getCurrentSession, markMfaSatisfied } from "@/server/auth/session";
+import { createSession, clearSessionCookie, getCurrentSession, markMfaSatisfied, rotateSession } from "@/server/auth/session";
 import { verifyUserTotp } from "@/server/auth/twofactor";
 import { verifyTurnstile } from "@/server/auth/turnstile";
 import { mergeGuestCart, GUEST_COOKIE } from "@/server/cart";
 import { cookies } from "next/headers";
-import { safeNext } from "@/lib/safe-redirect";
+import { safeNext, safeNextForRole } from "@/lib/safe-redirect";
 
 export interface AuthState {
   error?: string;
@@ -32,7 +32,7 @@ async function guardMutation(rateKey: string, limit: number, windowSeconds: numb
   assertSameOrigin(new Request("http://internal/action", { method: "POST", headers: requestHeaders }));
   const ip = clientIp(requestHeaders);
   try {
-    await enforceRateLimit(rateKey, limit, windowSeconds);
+    await enforceRateLimit(`${rateKey}:${ip}`, limit, windowSeconds);
   } catch (error) {
     if (error instanceof RateLimitError) {
       throw new AuthError("Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.");
@@ -135,11 +135,12 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     const jar = await cookies();
     await mergeGuestCart(result.user.id, jar.get(GUEST_COOKIE)?.value ?? null);
 
+    const destination = safeNextForRole(nextPath, result.user.role);
     if (result.requiresMfa) {
       // Sesi belum memenuhi syarat MFA; arahkan ke langkah kedua.
-      redirect(`/masuk/2fa?next=${encodeURIComponent(nextPath)}&sid=${encodeURIComponent(session.sessionId)}`);
+      redirect(`/masuk/2fa?next=${encodeURIComponent(destination)}&sid=${encodeURIComponent(session.sessionId)}`);
     }
-    redirect(nextPath);
+    redirect(destination);
   } catch (error) {
     if (error instanceof AuthError) return { error: error.message };
     if (error instanceof RateLimitError) return { error: "Terlalu banyak percobaan login. Coba lagi nanti." };
@@ -160,7 +161,8 @@ export async function verifyMfaAction(_prev: AuthState, formData: FormData): Pro
     if (!ok) return { error: "Kode salah atau sudah dipakai. Coba kode berikutnya." };
 
     await markMfaSatisfied(current.session.id);
-    redirect(next);
+    await rotateSession(current.session.id);
+    redirect(safeNextForRole(next, current.user.role));
   } catch (error) {
     if (error instanceof AuthError) return { error: error.message };
     throw error;
@@ -191,7 +193,7 @@ export async function verifyEmailAction(_prev: AuthState, formData: FormData): P
 
 export async function resendVerificationAction(): Promise<AuthState> {
   const current = await getCurrentSession();
-  if (!current) return { error: "Masuk terlebih dahulu." };
+  if (!current || (current.user.totpEnabledAt && !current.session.mfaSatisfiedAt)) return { error: "Selesaikan login terlebih dahulu." };
   if (current.user.emailVerifiedAt) return { success: "Email kamu sudah terverifikasi." };
 
   const requestHeaders = await headers();

@@ -17,7 +17,7 @@ export default async function AdminServerPage() {
     <>
       <AdminPageHeader
         title="Server & plugin"
-        description="Plugin companion mengambil pengiriman dari website melalui polling HTTPS keluar. RCON tetap tersedia sebagai alternatif."
+        description="Plugin companion mengambil pengiriman melalui polling HTTPS. Perubahan rank wajib memakai plugin; RCON tidak memeriksa grup staf dan hanya dapat digunakan untuk perintah kit yang diizinkan."
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">

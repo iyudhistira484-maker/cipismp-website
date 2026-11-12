@@ -48,6 +48,7 @@ export async function ordersCsv(range: ExportRange = {}): Promise<{ filename: st
       feeIdr: orders.feeIdr,
       totalIdr: orders.totalIdr,
       couponCode: orders.couponCode,
+      discountLabel: orders.discountLabel,
       seasonId: orders.seasonId,
       adminNote: orders.adminNote,
     })
@@ -73,6 +74,7 @@ export async function ordersCsv(range: ExportRange = {}): Promise<{ filename: st
       "biaya_idr",
       "total_idr",
       "kupon",
+      "label_diskon",
       "season_id",
       "catatan_admin",
     ],
@@ -92,6 +94,7 @@ export async function ordersCsv(range: ExportRange = {}): Promise<{ filename: st
       row.feeIdr,
       row.totalIdr,
       row.couponCode ?? "",
+      row.discountLabel ?? "",
       row.seasonId,
       row.adminNote ?? "",
     ]),

@@ -27,6 +27,7 @@ export interface ReceiptData {
   lines: ReceiptLine[];
   subtotalIdr: number;
   discountIdr: number;
+  discountLabel?: string | null;
   taxIdr: number;
   taxLabel: string;
   feeIdr: number;
@@ -162,7 +163,7 @@ function buildPages(data: ReceiptData): string[] {
         y -= 16;
       };
       row("Subtotal", formatRp(data.subtotalIdr));
-      if (data.discountIdr > 0) row("Diskon", `-${formatRp(data.discountIdr)}`);
+      if (data.discountIdr > 0) row(data.discountLabel ? `Diskon (${data.discountLabel})` : "Diskon", `-${formatRp(data.discountIdr)}`);
       if (data.taxIdr > 0) row(`${data.taxLabel}`, formatRp(data.taxIdr));
       if (data.feeIdr > 0) row("Biaya layanan", formatRp(data.feeIdr));
       builder.line(y + 4);

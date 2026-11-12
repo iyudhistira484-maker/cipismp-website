@@ -68,9 +68,29 @@ export interface CouponInput {
   active: boolean;
   rankOnly: boolean;
   kitOnly: boolean;
+  /** Jika true, potongan hanya dihitung dari baris jenis yang dipilih. */
+  eligibleItemsOnly?: boolean;
   redemptionsTotal: number;
   redemptionsByBuyer: number;
 }
+
+export interface AutomaticDiscountInput {
+  id: string;
+  name: string;
+  type: "PERCENT" | "FIXED";
+  value: number;
+  minSubtotalIdr: number;
+  seasonId: string | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  active: boolean;
+  rankOnly: boolean;
+  kitOnly: boolean;
+  /** Jika true, potongan hanya dihitung dari baris jenis yang dipilih. */
+  eligibleItemsOnly?: boolean;
+}
+
+export type DiscountKind = "COUPON" | "AUTOMATIC";
 
 export interface PricingSettings {
   taxPercent: number;
@@ -129,7 +149,11 @@ export interface PricingResult {
   taxIdr: number;
   feeIdr: number;
   totalIdr: number;
+  /** Kode bila kupon menang; null saat diskon otomatis yang dipilih. */
   couponCode: string | null;
+  discountLabel: string | null;
+  discountKind: DiscountKind | null;
+  automaticDiscountId: string | null;
 }
 
 const ERRORS: Record<PricingErrorCode, string> = {
@@ -179,7 +203,7 @@ export function validateCoupon(
   return errors;
 }
 
-export function couponDiscount(coupon: CouponInput, subtotalIdr: number): number {
+export function couponDiscount(coupon: CouponInput, subtotalIdr: number, discountBaseIdr = subtotalIdr): number {
   const selectedTier = coupon.tiers
     .filter((tier) => tier.minSubtotalIdr <= subtotalIdr)
     .reduce<CouponTier | null>(
@@ -188,8 +212,31 @@ export function couponDiscount(coupon: CouponInput, subtotalIdr: number): number
     );
   const type = selectedTier?.type ?? coupon.type;
   const value = selectedTier?.value ?? coupon.value;
-  const raw = type === "PERCENT" ? percentOf(subtotalIdr, value) : value;
+  const raw = type === "PERCENT" ? percentOf(discountBaseIdr, value) : value;
+  return clampNonNegative(Math.min(raw, discountBaseIdr));
+}
+
+function automaticDiscountValue(discount: AutomaticDiscountInput, subtotalIdr: number): number {
+  const raw = discount.type === "PERCENT" ? percentOf(subtotalIdr, discount.value) : discount.value;
   return clampNonNegative(Math.min(raw, subtotalIdr));
+}
+
+function automaticDiscountEligible(
+  discount: AutomaticDiscountInput,
+  subtotalIdr: number,
+  typesInCart: Set<PriceableType>,
+  now: Date,
+  currentSeasonId: string | null,
+): boolean {
+  return (
+    discount.active &&
+    (!discount.startsAt || discount.startsAt.getTime() <= now.getTime()) &&
+    (!discount.endsAt || discount.endsAt.getTime() >= now.getTime()) &&
+    subtotalIdr >= discount.minSubtotalIdr &&
+    (discount.seasonId === null || discount.seasonId === currentSeasonId) &&
+    (!discount.rankOnly || typesInCart.has("RANK")) &&
+    (!discount.kitOnly || typesInCart.has("KIT"))
+  );
 }
 
 export interface PriceCartArgs {
@@ -197,6 +244,7 @@ export interface PriceCartArgs {
   catalog: Map<string, PriceableProduct>;
   ownedByTarget: Map<string, OwnedEntitlement[]>;
   coupon?: CouponInput | null;
+  automaticDiscounts?: AutomaticDiscountInput[];
   /** Season yang menjadi konteks transaksi; wajib untuk validasi kupon eksklusif. */
   seasonId?: string | null;
   settings: PricingSettings;
@@ -288,6 +336,12 @@ export function priceCart(args: PriceCartArgs): PricingResult {
       continue;
     }
 
+    // One entitlement/delivery is created per line. Never charge multiple units
+    // until fulfillment and season limits support them explicitly.
+    if (quantity !== 1) {
+      errors.push(err("INVALID_QUANTITY", product.id));
+      continue;
+    }
     // KIT
     const kitOwned = owned.filter((o) => o.productId === product.id);
     if (kitOwned.length >= product.maxPerSeason) {
@@ -325,19 +379,57 @@ export function priceCart(args: PriceCartArgs): PricingResult {
   const subtotalIdr = lines.reduce((sum, l) => sum + l.lineTotalIdr, 0);
   let discountIdr = 0;
   let couponCode: string | null = null;
+  let discountLabel: string | null = null;
+  let discountKind: DiscountKind | null = null;
+  let automaticDiscountId: string | null = null;
+  let validCouponDiscount = 0;
+  let couponIsValid = false;
 
+  const typesInCart = new Set<PriceableType>(lines.map((l) => l.type));
+  // Eligibility/minimum and tiers use the whole cart; the owner may choose
+  // whether the discount amount is limited to the selected product category.
+  const discountBase = (rule: { eligibleItemsOnly?: boolean; rankOnly: boolean; kitOnly: boolean }) =>
+    rule.eligibleItemsOnly && (rule.rankOnly || rule.kitOnly)
+      ? lines.filter((line) => rule.rankOnly ? line.type === "RANK" : line.type === "KIT").reduce((sum, line) => sum + line.lineTotalIdr, 0)
+      : subtotalIdr;
   if (args.coupon && lines.length > 0) {
-    const typesInCart = new Set<PriceableType>(lines.map((l) => l.type));
     const couponErrors = validateCoupon(args.coupon, subtotalIdr, typesInCart, now, args.seasonId ?? null);
     if (subtotalIdr < args.coupon.minSubtotalIdr && couponErrors.length === 0) {
       couponErrors.push(err("COUPON_MIN_SUBTOTAL"));
     }
     if (couponErrors.length === 0) {
-      discountIdr = couponDiscount(args.coupon, subtotalIdr);
-      couponCode = args.coupon.code;
+      validCouponDiscount = couponDiscount(args.coupon, subtotalIdr, discountBase(args.coupon));
+      couponIsValid = true;
     } else {
       errors.push(...couponErrors);
     }
+  }
+
+  const bestAutomaticDiscount = (args.automaticDiscounts ?? [])
+    .filter((discount) =>
+      automaticDiscountEligible(discount, subtotalIdr, typesInCart, now, args.seasonId ?? null),
+    )
+    .map((discount) => ({ discount, amountIdr: automaticDiscountValue(discount, discountBase(discount)) }))
+    .filter((candidate) => candidate.amountIdr > 0)
+    .sort(
+      (a, b) =>
+        b.amountIdr - a.amountIdr ||
+        a.discount.name.localeCompare(b.discount.name, "id") ||
+        a.discount.id.localeCompare(b.discount.id),
+    )[0];
+
+  // Diskon tidak ditumpuk. Kupon yang dimasukkan pembeli menang saat nominalnya
+  // setara; selain itu sistem memilih satu penawaran dengan potongan terbesar.
+  if (bestAutomaticDiscount && (!couponIsValid || bestAutomaticDiscount.amountIdr > validCouponDiscount)) {
+    discountIdr = bestAutomaticDiscount.amountIdr;
+    discountLabel = bestAutomaticDiscount.discount.name;
+    discountKind = "AUTOMATIC";
+    automaticDiscountId = bestAutomaticDiscount.discount.id;
+  } else if (couponIsValid && args.coupon) {
+    discountIdr = validCouponDiscount;
+    couponCode = args.coupon.code;
+    discountLabel = args.coupon.code;
+    discountKind = "COUPON";
   }
 
   const taxable = clampNonNegative(subtotalIdr - discountIdr);
@@ -358,6 +450,9 @@ export function priceCart(args: PriceCartArgs): PricingResult {
     feeIdr,
     totalIdr,
     couponCode,
+    discountLabel,
+    discountKind,
+    automaticDiscountId,
   };
 }
 

@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, ilike, inArray, isNull, or, sql, type SQL } 
 import { db } from "../db";
 import {
   auditLogs,
+  automaticDiscounts,
   coupons,
   couponRedemptions,
   commandTemplates,
@@ -224,6 +225,8 @@ export async function adminOrderDetail(orderId: string) {
       status: orders.status,
       subtotalIdr: orders.subtotalIdr,
       discountIdr: orders.discountIdr,
+      discountLabel: orders.discountLabel,
+      couponCode: orders.couponCode,
       taxIdr: orders.taxIdr,
       feeIdr: orders.feeIdr,
       totalIdr: orders.totalIdr,
@@ -432,6 +435,10 @@ export async function listCouponsForAdmin() {
     redeemedCount: map.get(row.id)?.count ?? 0,
     discountGivenIdr: map.get(row.id)?.amountIdr ?? 0,
   }));
+}
+
+export async function listAutomaticDiscountsForAdmin() {
+  return db.select().from(automaticDiscounts).orderBy(desc(automaticDiscounts.createdAt));
 }
 
 export async function listStaffAccounts() {

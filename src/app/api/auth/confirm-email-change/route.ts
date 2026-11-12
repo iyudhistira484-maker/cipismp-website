@@ -12,11 +12,9 @@ export async function POST(request: Request) {
   try {
     const email = await consumeEmailChange(token);
     logger.info("email_changed", { email });
-    return NextResponse.redirect(new URL("/dashboard/keamanan?email-berubah=1", url.origin), { status: 303 });
+    return NextResponse.redirect(target, { status: 303 });
   } catch (error) {
     logger.warn("email_change_failed", { error: (error as Error).message });
     return NextResponse.redirect(new URL("/verifikasi-perubahan-email?status=gagal", url.origin), { status: 303 });
-  } finally {
-    void target;
   }
 }

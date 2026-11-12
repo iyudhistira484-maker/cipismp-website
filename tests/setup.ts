@@ -13,6 +13,7 @@ process.env.ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
 process.env.APP_URL ??= "http://localhost:3000";
 process.env.PLUGIN_SHARED_SECRET ??= "test-plugin-secret-0123456789abcdef";
 process.env.TURNSTILE_ENABLED ??= "0";
+process.env.CRON_SECRET ??= "test-cron-secret-0123456789";
 env.EMAIL_PROVIDER ??= "outbox";
 env.MINECRAFT_LOOKUP_MODE ??= "mock";
 env.TEST_DB ??= explicitTestDb;

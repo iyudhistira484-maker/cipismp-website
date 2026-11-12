@@ -37,13 +37,19 @@ export default async function RankDetailPage({ params }: { params: Promise<{ slu
   const viewer = await getViewer();
   const profiles = viewer ? await verifiedProfilesForUser(viewer.user.id) : [];
   const profile = profiles[0] ?? null;
-  const pricing = profile && season ? await priceSingleProduct(product.id, profile.uuid, profile.displayName) : null;
+  const pricing = season
+    ? await priceSingleProduct(product.id, profile?.uuid ?? `preview-${product.id}`, profile?.displayName ?? product.name)
+    : null;
   const line = pricing?.result.lines[0];
+  const basePayable = line?.unitPriceIdr ?? product.priceIdr;
+  const autoDiscountApplied = pricing?.result.discountKind === "AUTOMATIC" && pricing.result.discountIdr > 0;
+  const payable = autoDiscountApplied
+    ? Math.max(0, basePayable - (pricing?.result.discountIdr ?? 0))
+    : basePayable;
   const blocked = pricing?.result.errors.find((e) =>
     ["RANK_ALREADY_OWNED", "RANK_DOWNGRADE", "SEASON_FROZEN"].includes(e.code),
   );
   const frozen = season ? isPurchaseFrozen(season) : false;
-  const payable = line?.unitPriceIdr ?? product.priceIdr;
 
   return (
     <div className="container-page py-10 lg:py-14">
@@ -102,12 +108,22 @@ export default async function RankDetailPage({ params }: { params: Promise<{ slu
             <p className="mt-1 font-display text-[34px] leading-none text-ink">
               {formatRp(payable)}
             </p>
+            {autoDiscountApplied ? (
+              <p className="mt-1 text-[12px] text-muted-2">
+                Sebelum promo: <span className="line-through">{formatRp(basePayable)}</span>
+              </p>
+            ) : null}
             {line?.upgradeFrom ? (
               <p className="mt-2 rounded-md border border-accent/25 bg-accent/10 px-3 py-2 text-[12.5px] leading-relaxed text-accent">
-                Upgrade dari {line.upgradeFrom.name}: kamu hanya membayar selisih {formatRp(line.unitPriceIdr)}.
+                Upgrade dari {line.upgradeFrom.name}: selisih normal {formatRp(basePayable)}
+                {autoDiscountApplied ? `, lalu promo otomatis ${pricing?.result.discountLabel} diterapkan.` : "."}
               </p>
             ) : (
-              <p className="mt-1 text-[12.5px] text-muted">Sekali bayar untuk season ini.</p>
+              <p className="mt-1 text-[12.5px] text-muted">
+                {autoDiscountApplied
+                  ? `Perkiraan promo otomatis${pricing?.result.discountLabel ? ` “${pricing.result.discountLabel}”` : ""}; harga akhir dihitung di checkout.`
+                  : "Sekali bayar untuk season ini."}
+              </p>
             )}
 
             {season ? (

@@ -35,6 +35,7 @@ public final class DeliveryPoller {
     private final String websiteUrl;
     private final String secret;
     private final DeliveryService deliveries;
+    private final PlayerStatusSnapshot playerStatus;
     private final int intervalSeconds;
     private final int batchSize;
     private final int timeoutSeconds;
@@ -48,6 +49,7 @@ public final class DeliveryPoller {
             String websiteUrl,
             String secret,
             DeliveryService deliveries,
+            PlayerStatusSnapshot playerStatus,
             int intervalSeconds,
             int batchSize,
             int timeoutSeconds) {
@@ -55,6 +57,7 @@ public final class DeliveryPoller {
         this.websiteUrl = trimTrailingSlash(websiteUrl);
         this.secret = secret;
         this.deliveries = deliveries;
+        this.playerStatus = playerStatus;
         this.intervalSeconds = Math.max(5, Math.min(60, intervalSeconds));
         this.batchSize = Math.max(1, Math.min(10, batchSize));
         this.timeoutSeconds = Math.max(5, Math.min(60, timeoutSeconds));
@@ -81,6 +84,15 @@ public final class DeliveryPoller {
         if (!polling.compareAndSet(false, true)) return;
         try {
             pollOnce();
+            if (playerStatus != null) {
+                try {
+                    JsonObject snapshot = Bukkit.getScheduler().callSyncMethod(plugin, playerStatus::collect)
+                            .get(5, java.util.concurrent.TimeUnit.SECONDS);
+                    post("/api/plugin/player-status", snapshot);
+                } catch (Exception e) {
+                    warnThrottled("Sinkronisasi status pemain gagal: " + safeMessage(e), e);
+                }
+            }
         } catch (Exception e) {
             warnThrottled("Polling website gagal: " + safeMessage(e), e);
         } finally {

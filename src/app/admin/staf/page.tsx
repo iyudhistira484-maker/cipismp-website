@@ -3,10 +3,11 @@ import { listStaffAccounts, staffSessions } from "@/server/admin/queries";
 import { ROLE_LABEL, hasPermission } from "@/server/rbac";
 import { formatDateTimeWIB } from "@/lib/dates";
 import { deviceLabel } from "@/server/auth/session";
+import { listStaffMinecraftAccounts } from "@/server/staff-minecraft-accounts";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/feedback";
 import { AdminPageHeader, Card, Table, Td } from "@/components/admin/shell";
-import { RevokeAllSessionsButton, RevokeSessionButton, StaffRoleForm } from "@/components/admin/admin-forms";
+import { RevokeAllSessionsButton, RevokeSessionButton, StaffMinecraftRegisterForm, StaffMinecraftRemoveForm, StaffRoleForm } from "@/components/admin/admin-forms";
 
 export const metadata = { title: "Staf" };
 
@@ -18,7 +19,7 @@ const MATRIX = [
 
 export default async function AdminStaffPage() {
   const viewer = await requireStaff("staff.write");
-  const [staff, sessions] = await Promise.all([listStaffAccounts(), staffSessions()]);
+  const [staff, sessions, protectedAccounts] = await Promise.all([listStaffAccounts(), staffSessions(), listStaffMinecraftAccounts()]);
   const canManage = hasPermission(viewer.user.role, "staff.write");
   const sessionsByUser = new Map<string, typeof sessions>();
   for (const session of sessions) {
@@ -80,6 +81,22 @@ export default async function AdminStaffPage() {
           </p>
         </Card>
       </div>
+
+      <Card className="mt-4" title="UUID Minecraft staf dan akun alternatif" description="Hanya Owner dapat mengelola daftar ini. Data tidak membuktikan kepemilikan: verifikasi setiap UUID dan terus perbarui daftar. Akun yang tidak terdata tetap tidak terdeteksi.">
+        <Alert tone="warning">Setelah role staf menjadi Pelanggan, pembatasan dari daftar ini berhenti untuk akun tersebut. Jika dipromosikan kembali, pembatasan aktif lagi. Perubahan tidak membatalkan perintah yang sudah berada di antrean plugin lama; periksa sebelum mengubah data.</Alert>
+        <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_2fr]">
+          <StaffMinecraftRegisterForm staff={staff} />
+          <Table head={["Staf", "Label", "UUID", "Status", "Hapus"]} empty={protectedAccounts.length === 0}>
+            {protectedAccounts.map((account) => (
+              <tr key={account.uuid}>
+                <Td>{account.username}</Td><Td>{account.label}</Td><Td className="font-mono text-2xs">{account.uuid}</Td>
+                <Td>{account.role === "CUSTOMER" ? "Tidak aktif: pelanggan" : "Aktif"}</Td>
+                <Td><StaffMinecraftRemoveForm uuid={account.uuid} /></Td>
+              </tr>
+            ))}
+          </Table>
+        </div>
+      </Card>
 
       <Card
         className="mt-4"

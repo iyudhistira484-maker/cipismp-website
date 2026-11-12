@@ -94,6 +94,16 @@
 
   .hairline { border-top: 1px solid rgb(var(--line)); }
 
+  /* Scrollbars remain visible for long navigation and data tables. */
+  .dashboard-nav, .dashboard-scroll {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+  }
+  .dashboard-nav::-webkit-scrollbar, .dashboard-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
+  .dashboard-nav::-webkit-scrollbar-track, .dashboard-scroll::-webkit-scrollbar-track { background: transparent; }
+  .dashboard-nav::-webkit-scrollbar-thumb, .dashboard-scroll::-webkit-scrollbar-thumb { background: rgb(var(--line-strong)); border: 1px solid transparent; background-clip: padding-box; }
+
   .join-guide__track {
     position: absolute;
     z-index: 0;

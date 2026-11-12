@@ -40,7 +40,7 @@ export default async function VerifyEmailPage({
       {current && !verified ? <ResendVerificationForm /> : null}
 
       <p className="mt-6 text-[12.5px] text-muted-2">
-        <Link href="/dashboard" className="text-accent hover:underline">Buka dashboard</Link>
+        <Link href={current?.user.role && current.user.role !== "CUSTOMER" ? "/admin" : "/dashboard"} className="text-accent hover:underline">Buka dashboard</Link>
         {" · "}
         <Link href="/" className="hover:text-ink">Kembali ke toko</Link>
       </p>

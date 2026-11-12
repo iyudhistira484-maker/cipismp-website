@@ -7,12 +7,17 @@ direktori proyek, dengan `.env` terisi dan Docker aktif.
 
 ```bash
 docker compose ps                      # semua service "Up", migrate "Exited (0)"
-curl -s https://<domain>/api/health    # {"ok":true,...}
+curl -s https://<domain>/api/health    # {"status":"ok","db":"up",...}
 docker compose logs --tail=50 web
 docker compose logs --tail=50 worker
 ```
 
-`/api/health` mengembalikan 503 bila database tidak bisa diakses.
+`/api/health` mengembalikan 503 bila database tidak bisa diakses. Endpoint ini hanya
+memeriksa database dan ringkasan pembayaran, bukan bukti worker, email, plugin, backup,
+atau provider sehat. Pasang monitor eksternal pada `/api/health` dan halaman utama,
+serta alert terpisah untuk worker berhenti, job `DEAD`/menumpuk, delivery `DEAD`,
+RCON `SENT` yang tertahan, heartbeat plugin, disk dan kegagalan backup. Tentukan ambang,
+kanal dan penanggung jawab di staging; aplikasi tidak otomatis memasang monitor tersebut.
 
 ## 1. Order dibayar tetapi akses atau reward belum masuk
 
@@ -20,10 +25,13 @@ docker compose logs --tail=50 worker
 2. Lihat bagian **Pengiriman**:
    - `QUEUED` lama pada mode plugin → cek check-in plugin; plugin mengambil baris langsung dari database poll.
      Pada mode RCON, cek `docker compose logs worker`.
-   - `SENT` lebih dari 3 menit → lease kedaluwarsa dan dipulihkan pada poll berikutnya.
-     Jika plugin benar-benar offline, setelah mengaktifkan RCON klik **Kirim ulang** untuk baris itu.
-   - `FAILED` → lihat kolom error. Perbaiki penyebab (plugin/RCON), lalu **Kirim ulang** bila perlu.
-   - `DEAD` → percobaan habis. Kirim ulang setelah sistem sehat; ini memulai siklus baru.
+   - `SENT` plugin: lease kedaluwarsa setelah 3 menit dan diproses pada poll berikutnya.
+     `SENT` RCON berarti hasil mungkin sudah diterapkan; **tidak dipulihkan otomatis** dan
+     tidak boleh diulang sebelum rekonsiliasi. Jangan ganti ke RCON untuk mem-bypass lease.
+   - `FAILED`/`DEAD` → periksa log, antrean plugin, marker dan hasil pemain di Minecraft.
+     Perintah bisa saja sudah sebagian atau seluruhnya berjalan. Setelah pemeriksaan oleh staf
+     yang berwenang, klik **Kirim ulang** hanya jika aman dan centang konfirmasi; status
+     sengketa, selesai, antre dan sedang dikirim tidak dapat di-reset dari panel.
 3. Bila order masih `PENDING` padahal gateway menandai lunas:
    - Pastikan webhook terdaftar di dashboard gateway dan signature valid.
    - Owner cek `/admin/pembayaran` → ringkasan webhook terakhir. `invalid-signature` berarti
@@ -45,12 +53,24 @@ Gejala: `/admin/server` menunjukkan check-in plugin lebih lama dari 60 detik, at
    hosting Minecraft, dan jam host tersinkron NTP.
 3. Pastikan `shared-secret` pada config plugin sama persis dengan `PLUGIN_SHARED_SECRET`
    pada environment website, lalu restart plugin dan periksa check-in terakhir.
-4. Jika plugin tidak dapat dipulihkan, ubah metode sementara ke **RCON** di `/admin/server`
-   hanya bila RCON sudah diamankan/dapat dijangkau dari web; setelah plugin sehat, pilih
-   kembali **Plugin companion (polling HTTPS)**. Delivery lama akan tetap ada di database.
+4. Jangan berpindah ke RCON untuk mengulang delivery yang sudah pernah dikirim atau
+   diantrekan plugin: perintah masih dapat dieksekusi setelah pemain login. Hentikan proses
+   yang relevan dan rekonsiliasi antrean, marker dan hasil in-game sebelum perubahan metode;
+   pastikan RCON aman dan proses transisi disetujui operator.
 5. Delivery pemain offline di-ACK setelah antrean lokal berhasil disimpan ke disk; perintah
    dijalankan saat pemain login. Jika antrean penuh atau disk gagal ditulis, plugin mengirim
-   kegagalan agar website mencoba ulang; perbaiki ruang antrean/disk lalu pantau `/admin/pengiriman`.
+   kegagalan; perbaiki ruang antrean/disk lalu pantau `/admin/pengiriman`.
+6. Plugin baru menyimpan intent sebelum perintah dan menolak replay jika hasilnya belum
+   pasti; marker selesai memungkinkan ACK dikirim ulang. Timeout/partial/crash atau gagal
+   simpan marker bisa memerlukan rekonsiliasi manual meskipun tidak ada perintah yang berjalan.
+   Catat ID delivery, log, urutan perintah dan kondisi aktual pemain. Jangan menghapus marker,
+   mereset status `SENT`, mengulang seluruh paket atau mengubah database hanya berdasarkan
+   dugaan; eskalasi ke owner/ops untuk rencana koreksi terarah setelah bukti terkumpul.
+   Belum ada UI pemulihan otomatis untuk intent yang tidak pasti.
+7. Marker disimpan per instalasi plugin (`delivery-intents/`) dan tidak dipangkas otomatis;
+   pantau kapasitas disk. Gunakan satu instalasi aktif dan storage yang persisten. Server
+   ganda/storage terpisah, restore lama, versi plugin lama, kehilangan disk atau kondisi
+   filesystem belum menjamin deduplikasi. Uji semua skenario pada staging terlebih dahulu.
 
 ## 3. Worker mati / antrean menumpuk
 
@@ -64,7 +84,10 @@ Cek jumlah job tertunda:
 ```sql
 SELECT status, count(*) FROM jobs GROUP BY status;
 SELECT id, type, status, attempts, last_error FROM jobs
-WHERE status IN ('PENDING','FAILED') ORDER BY created_at LIMIT 20;
+WHERE status IN ('PENDING','RUNNING','DEAD') ORDER BY created_at LIMIT 20;
+-- Perlu investigasi manual; jangan reset atau kirim ulang hanya dari query ini.
+SELECT id, method, status, attempts, updated_at FROM deliveries
+WHERE status = 'SENT' AND method = 'RCON' AND updated_at < now() - interval '10 minutes';
 ```
 
 Job yang terus gagal karena data buruk boleh ditandai `DEAD` manual setelah investigasi;
@@ -92,17 +115,23 @@ Webhook gateway akan menandai order `DISPUTED` dan mengirim alert ke staf.
 
 ## 6. Database
 
-Backup:
+Backup database dan folder data plugin (termasuk `pending-deliveries.yml` dan
+`delivery-intents/`) sesuai kebijakan penyimpanan terenkripsi. Lakukan koordinasi agar
+snapshot database dan plugin konsisten; jangan hapus marker saat membersihkan backup.
+Perintah berikut hanya contoh untuk **instance yang telah diverifikasi**, menggunakan
+user/database yang benar dari environment container:
 
 ```bash
-docker compose exec -T db pg_dump -U cipi cipismp | gzip > backup-$(date +%F-%H%M).sql.gz
+set -o pipefail
+umask 077
+docker compose exec -T db sh -c 'exec pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "backup-$(date +%F-%H%M).sql.gz"
 ```
 
-Restore (lingkungan terpisah dulu, jangan ke produksi langsung):
-
-```bash
-gunzip -c backup-2026-01-01-0300.sql.gz | docker compose exec -T db psql -U cipi -d cipismp
-```
+Uji `gzip -t` dan restore ke database **staging kosong dan terisolasi**, bukan ke produksi;
+gunakan perintah `psql -v ON_ERROR_STOP=1` dengan target staging yang diverifikasi.
+Dokumentasikan commit/migrasi dan pemeriksaan data setelah restore. Jangan menimpa
+folder marker plugin dengan backup lama tanpa rekonsiliasi: pengiriman setelah waktu
+backup dapat terulang. Uji pemulihan secara berkala dan simpan kunci enkripsi secara aman.
 
 Db tidak bisa diakses: `docker compose ps db`, `docker compose logs db`, cek disk penuh.
 Aplikasi akan mengembalikan 503 dari `/api/health` dan mencatat error — jangan panik-edit
@@ -130,7 +159,7 @@ Transisi aman dijalankan ulang (idempoten): season yang sudah ENDED mengembalika
 | `SESSION_SECRET` | Perbarui `.env` → restart web. Semua sesi login menjadi tidak valid; staf perlu login + 2FA lagi. |
 | `ENCRYPTION_KEY` | **Jangan** diganti tanpa mengenkripsi ulang `payment_credentials`; kredensial lama tidak akan terbaca. |
 | Kredensial gateway | Owner menyimpan ulang lewat `/admin/pembayaran` (otomatis terenkripsi), lalu menguji kesiapan gateway. |
-| Password owner | Login → `/dashboard/keamanan` → ganti password (semua sesi lain keluar). |
+| Password owner | Login → `/admin/keamanan` → ganti password (semua sesi lain keluar). |
 
 ## 9. Daftar periksa harian (5 menit)
 

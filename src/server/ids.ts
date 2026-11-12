@@ -21,6 +21,7 @@ export const ids = {
   delivery: () => newId("dlv"),
   deliveryAttempt: () => newId("dat"),
   coupon: () => newId("cpn"),
+  automaticDiscount: () => newId("dsc"),
   cart: () => newId("crt"),
   cartItem: () => newId("cit"),
   audit: () => newId("aud"),
@@ -34,4 +35,6 @@ export const ids = {
   couponRedemption: () => newId("crx"),
   legal: () => newId("lgl"),
   review: () => newId("rev"),
+  supportTicket: () => newId("spt"),
+  supportMessage: () => newId("spm"),
 };

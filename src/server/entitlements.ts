@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import { entitlements, minecraftProfiles, products, seasons } from "./db/schema";
 import { ids } from "./ids";
@@ -61,7 +61,7 @@ export async function entitlementsForUser(userId: string, seasonId?: string): Pr
   const profiles = await db
     .select({ uuid: minecraftProfiles.uuid })
     .from(minecraftProfiles)
-    .where(eq(minecraftProfiles.userId, userId));
+    .where(and(eq(minecraftProfiles.userId, userId), isNotNull(minecraftProfiles.verifiedAt)));
   if (profiles.length === 0) return [];
   const rows = await db
     .select({

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { headers } from "next/headers";
 import { env } from "@/server/env";
 import "./globals.css";
 
@@ -37,7 +38,10 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Pages with a per-request CSP nonce must be rendered per request. Static HTML
+  // has no matching nonce and its hydration scripts are blocked by strict CSP.
+  await headers();
   return (
     <html lang="id">
       <body className="min-h-dvh antialiased">

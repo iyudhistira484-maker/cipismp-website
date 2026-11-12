@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/server/db";
-import { deliveries, deliveryAttempts, pluginNonces, products, servers } from "@/server/db/schema";
+import { deliveries, deliveryAttempts, pluginNonces, products, servers, minecraftProfiles, users } from "@/server/db/schema";
 import { computePluginSignature } from "@/server/delivery/plugin-auth";
 import { verifyAndConsumePluginRequest } from "@/server/delivery/plugin-request";
 import { acknowledgePluginDelivery, pollPluginDeliveries } from "@/server/delivery/polling";
@@ -13,7 +13,9 @@ const suffix = uniqueSuffix();
 const serverId = `poll-server-${suffix}`;
 const onlineDeliveryId = `poll-online-${suffix}`;
 const retryDeliveryId = `poll-retry-${suffix}`;
+const offlineDeliveryId = `poll-offline-${suffix}`;
 const pluginNonce = `poll-nonce-${suffix}`;
+const unsafeId = `poll-unsafe-${suffix}`, staffId = `poll-staff-${suffix}`, staffDeliveryId = `poll-staff-delivery-${suffix}`;
 let productId = "";
 let previousDefaultServerIds: string[] = [];
 
@@ -27,7 +29,7 @@ async function addDelivery(id: string): Promise<void> {
     status: "QUEUED",
     attempts: 0,
     nextAttemptAt: new Date(Date.now() - 1_000),
-    commands: ["lp user CipiPollingTest parent set vip"],
+    commands: ["lp user CipiPollingTest parent add vip"],
   });
 }
 
@@ -59,8 +61,10 @@ describe.skipIf(!enabled)("plugin delivery polling (HMAC, claim, ACK, retry)", (
   afterAll(async () => {
     if (!enabled) return;
     await db.delete(pluginNonces).where(eq(pluginNonces.nonce, pluginNonce));
-    await db.delete(deliveryAttempts).where(inArray(deliveryAttempts.deliveryId, [onlineDeliveryId, retryDeliveryId]));
-    await db.delete(deliveries).where(inArray(deliveries.id, [onlineDeliveryId, retryDeliveryId]));
+    await db.delete(deliveryAttempts).where(inArray(deliveryAttempts.deliveryId, [onlineDeliveryId, retryDeliveryId, offlineDeliveryId, unsafeId, staffDeliveryId]));
+    await db.delete(deliveries).where(inArray(deliveries.id, [onlineDeliveryId, retryDeliveryId, offlineDeliveryId, unsafeId, staffDeliveryId]));
+    await db.delete(minecraftProfiles).where(eq(minecraftProfiles.id, staffId));
+    await db.delete(users).where(eq(users.id, staffId));
     await db.delete(servers).where(eq(servers.id, serverId));
     if (previousDefaultServerIds.length > 0) {
       await db.update(servers).set({ isDefault: true }).where(inArray(servers.id, previousDefaultServerIds));
@@ -89,6 +93,20 @@ describe.skipIf(!enabled)("plugin delivery polling (HMAC, claim, ACK, retry)", (
       status: 409,
       message: "Nonce sudah dipakai",
     });
+  });
+
+  it("menahan perintah lama yang berbahaya dan rank untuk penerima staf yang diketahui", async () => {
+    await addDelivery(unsafeId);
+    await db.update(deliveries).set({ commands: ["lp user CipiPollingTest parent set vip"] }).where(eq(deliveries.id, unsafeId));
+    await db.insert(users).values({ id: staffId, email: `${staffId}@example.test`, username: `st${suffix}`, passwordHash: "test", role: "SUPPORT" });
+    await db.insert(minecraftProfiles).values({ id: staffId, uuid: "33333333-3333-4333-8333-333333333333", edition: "JAVA", displayName: "CipiPollingTest", userId: staffId, verifiedAt: new Date() });
+    await addDelivery(staffDeliveryId);
+    const result = await pollPluginDeliveries({ version: "test", limit: 10 });
+    expect(result.deliveries.some((item) => item.deliveryId === unsafeId || item.deliveryId === staffDeliveryId)).toBe(false);
+    expect(await db.query.deliveries.findFirst({ where: eq(deliveries.id, unsafeId) })).toMatchObject({ status: "DEAD" });
+    expect(await db.query.deliveries.findFirst({ where: eq(deliveries.id, staffDeliveryId) })).toMatchObject({ status: "DEAD" });
+    await db.delete(minecraftProfiles).where(eq(minecraftProfiles.id, staffId));
+    await db.delete(users).where(eq(users.id, staffId));
   });
 
   it("mengklaim delivery secara lease dan menerima ACK sukses idempoten", async () => {
@@ -123,6 +141,22 @@ describe.skipIf(!enabled)("plugin delivery polling (HMAC, claim, ACK, retry)", (
 
     const attempts = await db.select().from(deliveryAttempts).where(eq(deliveryAttempts.deliveryId, onlineDeliveryId));
     expect(attempts).toHaveLength(1);
+  });
+
+  it("antrean offline belum selesai; diperiksa ulang tanpa menghabiskan retry sampai eksekusi dikonfirmasi", async () => {
+    await addDelivery(offlineDeliveryId);
+    const first = (await pollPluginDeliveries({ version: "test", limit: 10 })).deliveries.find((row) => row.deliveryId === offlineDeliveryId)!;
+    const ack = { deliveryId: offlineDeliveryId, leaseToken: first.leaseToken, attempt: first.attempt, ok: true, applied: 0, queuedOffline: true, durationMs: 20 };
+    expect(await acknowledgePluginDelivery(ack)).toMatchObject({ accepted: true, status: "QUEUED" });
+    expect(await acknowledgePluginDelivery(ack)).toMatchObject({ accepted: true, duplicate: true, status: "QUEUED" });
+    const waiting = await db.query.deliveries.findFirst({ where: eq(deliveries.id, offlineDeliveryId) });
+    expect(waiting).toMatchObject({ status: "QUEUED", attempts: 0, deliveredAt: null });
+    expect(waiting!.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
+    await db.update(deliveries).set({ nextAttemptAt: new Date(Date.now() - 1000) }).where(eq(deliveries.id, offlineDeliveryId));
+    const second = (await pollPluginDeliveries({ version: "test", limit: 10 })).deliveries.find((row) => row.deliveryId === offlineDeliveryId)!;
+    expect(second.leaseToken).not.toBe(first.leaseToken);
+    expect(await acknowledgePluginDelivery(ack)).toMatchObject({ accepted: false });
+    expect(await acknowledgePluginDelivery({ ...ack, leaseToken: second.leaseToken, attempt: second.attempt, queuedOffline: false, applied: 1 })).toMatchObject({ accepted: true, status: "DELIVERED" });
   });
 
   it("mengembalikan kegagalan ke retry setelah jeda dan mengklaim dengan nomor attempt baru", async () => {

@@ -101,7 +101,7 @@ export default async function AdminHomePage() {
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Card title="Pesanan terbaru" description="8 order terakhir dari semua status.">
           <Table head={["Order", "Pemain", "Status", "Total", "Dibuat"]} empty={recentOrders.length === 0}>
             {recentOrders.map((order) => (
@@ -124,7 +124,7 @@ export default async function AdminHomePage() {
           </Table>
         </Card>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {monitor ? (
             <Card title="Monitor pengiriman" description="Antrean terakhir; kirim ulang dari halaman Pengiriman.">
               <Table head={["Pemain", "Status", "Percobaan"]} empty={monitor.rows.length === 0}>

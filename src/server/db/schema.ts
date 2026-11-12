@@ -69,6 +69,7 @@ export const entitlementSourceEnum = pgEnum("entitlement_source", ["PURCHASE", "
 export const commandKindEnum = pgEnum("command_kind", ["GRANT", "REVOKE"]);
 export const emailStatusEnum = pgEnum("email_status", ["QUEUED", "SENT", "FAILED"]);
 export const reviewStatusEnum = pgEnum("review_status", ["PENDING", "APPROVED", "HIDDEN"]);
+export const supportStatusEnum = pgEnum("support_status", ["OPEN", "CLOSED"]);
 
 export const notificationKindEnum = pgEnum("notification_kind", [
   "ORDER_PAID",
@@ -101,6 +102,8 @@ export const users = pgTable(
     lastLoginAt: ts("last_login_at"),
     lastLoginIp: text("last_login_ip"),
     marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
+    dashboardOrderUpdates: boolean("dashboard_order_updates").notNull().default(true),
+    emailDeliveryUpdates: boolean("email_delivery_updates").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: ts("deleted_at"),
@@ -199,6 +202,23 @@ export const minecraftProfiles = pgTable(
   },
   (t) => [index("mc_profiles_user_idx").on(t.userId), index("mc_profiles_name_idx").on(sql`lower(${t.displayName})`)],
 );
+
+// Owner-maintained UUIDs for a staff member's main and alternate Minecraft accounts.
+// Entries remain as history when the associated website role becomes CUSTOMER.
+export const staffMinecraftAccounts = pgTable("staff_minecraft_accounts", {
+  uuid: text("uuid").primaryKey(),
+  staffUserId: text("staff_user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  label: text("label").notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index("staff_minecraft_accounts_user_idx").on(t.staffUserId)]);
+
+export const minecraftLiveSnapshots = pgTable("minecraft_live_snapshots", {
+  profileId: text("profile_id").primaryKey().references(() => minecraftProfiles.id, { onDelete: "cascade" }),
+  observedAt: ts("observed_at").notNull(),
+  primaryGroup: text("primary_group"),
+  kits: jsonb("kits").$type<Array<{ name: string; cooldown: string | null }>>().notNull().default(sql`'[]'::jsonb`),
+});
 
 export const products = pgTable(
   "products",
@@ -387,6 +407,7 @@ export const orders = pgTable(
     feeIdr: integer("fee_idr").notNull().default(0),
     totalIdr: integer("total_idr").notNull(),
     couponCode: text("coupon_code"),
+    discountLabel: text("discount_label"),
     provider: paymentProviderEnum("provider"),
     paymentRef: text("payment_ref"),
     customerNote: text("customer_note"),
@@ -405,6 +426,7 @@ export const orders = pgTable(
     index("orders_email_idx").on(sql`lower(${t.email})`),
     index("orders_mc_uuid_idx").on(t.mcUuid),
     index("orders_user_idx").on(t.userId),
+    index("orders_user_history_idx").on(t.userId, t.createdAt, t.id),
     index("orders_season_idx").on(t.seasonId),
   ],
 );
@@ -434,7 +456,7 @@ export const orderItems = pgTable(
     }>(),
     createdAt: createdAt(),
   },
-  (t) => [index("order_items_order_idx").on(t.orderId), index("order_items_product_idx").on(t.productId)],
+  (t) => [index("order_items_order_idx").on(t.orderId), index("order_items_product_idx").on(t.productId), index("order_items_target_history_idx").on(t.targetUuid, t.orderId)],
 );
 
 export const payments = pgTable(
@@ -547,10 +569,35 @@ export const coupons = pgTable(
     active: boolean("active").notNull().default(true),
     rankOnly: boolean("rank_only").notNull().default(false),
     kitOnly: boolean("kit_only").notNull().default(false),
+    eligibleItemsOnly: boolean("eligible_items_only").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [index("coupons_active_idx").on(t.active), index("coupons_season_idx").on(t.seasonId)],
+);
+
+export const automaticDiscounts = pgTable(
+  "automatic_discounts",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: couponTypeEnum("type").notNull(),
+    value: integer("value").notNull(),
+    minSubtotalIdr: integer("min_subtotal_idr").notNull().default(0),
+    seasonId: text("season_id").references(() => seasons.id, { onDelete: "restrict" }),
+    startsAt: ts("starts_at"),
+    endsAt: ts("ends_at"),
+    active: boolean("active").notNull().default(true),
+    rankOnly: boolean("rank_only").notNull().default(false),
+    kitOnly: boolean("kit_only").notNull().default(false),
+    eligibleItemsOnly: boolean("eligible_items_only").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("automatic_discounts_active_idx").on(t.active),
+    index("automatic_discounts_season_idx").on(t.seasonId),
+  ],
 );
 
 export const couponRedemptions = pgTable(
@@ -617,6 +664,25 @@ export const notifications = pgTable(
   },
   (t) => [index("notifications_user_idx").on(t.userId, t.readAt), index("notifications_created_idx").on(t.createdAt)],
 );
+
+export const supportTickets = pgTable("support_tickets", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "set null" }),
+  subject: text("subject").notNull(),
+  status: supportStatusEnum("status").notNull().default("OPEN"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index("support_tickets_user_idx").on(t.userId, t.updatedAt), index("support_tickets_status_idx").on(t.status, t.updatedAt), index("support_tickets_history_idx").on(t.updatedAt, t.id), index("support_tickets_user_history_idx").on(t.userId, t.updatedAt, t.id)]);
+
+export const supportMessages = pgTable("support_messages", {
+  id: text("id").primaryKey(),
+  ticketId: text("ticket_id").notNull().references(() => supportTickets.id, { onDelete: "cascade" }),
+  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+  authorRole: text("author_role").notNull(),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("support_messages_ticket_idx").on(t.ticketId, t.createdAt)]);
 
 export const jobs = pgTable(
   "jobs",

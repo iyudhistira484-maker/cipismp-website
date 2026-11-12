@@ -19,7 +19,7 @@ export default async function AdminDeliveryPage() {
     <>
       <AdminPageHeader
         title="Monitor pengiriman"
-        description="Antrean perintah ke server. Pengiriman DEAD tidak dicoba otomatis lagi; kirim ulang setelah plugin/RCON sehat."
+        description="Periksa hasil di server sebelum kirim ulang. Pengiriman RCON yang SENT atau hasilnya tidak pasti memerlukan rekonsiliasi manual; jangan pindah metode untuk mem-bypass antrean."
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -55,10 +55,10 @@ export default async function AdminDeliveryPage() {
             <Td>
               {row.status === "DELIVERED" ? (
                 <span className="text-2xs text-success">Selesai</span>
-              ) : canRedeliver ? (
+              ) : canRedeliver && ["FAILED", "DEAD"].includes(row.status) ? (
                 <RedeliverButton deliveryId={row.id} />
               ) : (
-                <span className="text-2xs text-muted-2">Tidak ada izin kirim ulang</span>
+                <span className="text-2xs text-muted-2">Kirim ulang hanya untuk pengiriman gagal setelah pemeriksaan</span>
               )}
             </Td>
           </tr>

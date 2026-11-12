@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cipi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cipi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Isi POSTGRES_PASSWORD dengan password yang kuat di .env}
       POSTGRES_DB: ${POSTGRES_DB:-cipismp}
       TZ: Asia/Jakarta
     volumes:
@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 12
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
 
   redis:
     image: redis:7-alpine

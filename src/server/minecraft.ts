@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "./db";
 import { minecraftProfiles } from "./db/schema";
 import { ids } from "./ids";
@@ -104,6 +104,18 @@ async function fetchMojang(name: string, timeoutMs = 4000): Promise<MojangProfil
 export async function resolvePlayer(rawName: string): Promise<ResolvedPlayer> {
   const { name, edition } = normalizeUsername(rawName);
 
+  if (edition === "BEDROCK") {
+    // Only a successful in-game verification can establish a real Floodgate UUID.
+    const profiles = await db.select().from(minecraftProfiles).where(and(
+      eq(minecraftProfiles.edition, "BEDROCK"),
+      eq(sql`lower(${minecraftProfiles.displayName})`, name.toLowerCase()),
+      isNotNull(minecraftProfiles.verifiedAt),
+      isNotNull(minecraftProfiles.userId),
+    )).limit(2);
+    if (profiles.length > 1) throw new InvalidUsernameError("Nama Bedrock memiliki beberapa profil. Hubungi bantuan.");
+    if (profiles[0]) return { uuid: profiles[0].uuid, name: profiles[0].displayName, edition, source: "cache" };
+  }
+
   if (env.MINECRAFT_LOOKUP_MODE === "mock" || edition === "BEDROCK") {
     return {
       uuid: deterministicUuid(name, edition),
@@ -129,35 +141,15 @@ export async function upsertProfile(input: {
   uuid: string;
   name: string;
   edition: Edition;
-  userId?: string | null;
-  verified?: boolean;
 }): Promise<void> {
   const now = new Date();
-  const existing = await db.query.minecraftProfiles.findFirst({
-    where: eq(minecraftProfiles.uuid, input.uuid),
-  });
-  if (existing) {
-    await db
-      .update(minecraftProfiles)
-      .set({
-        displayName: input.name,
-        edition: input.edition,
-        lastSyncedAt: now,
-        ...(input.userId ? { userId: input.userId } : {}),
-        ...(input.verified ? { verifiedAt: existing.verifiedAt ?? now } : {}),
-        updatedAt: now,
-      })
-      .where(eq(minecraftProfiles.uuid, input.uuid));
-    return;
-  }
   await db.insert(minecraftProfiles).values({
-    id: ids.minecraft(),
-    uuid: input.uuid,
-    displayName: input.name,
-    edition: input.edition,
-    userId: input.userId ?? null,
-    verifiedAt: input.verified ? now : null,
-    lastSyncedAt: now,
+    id: ids.minecraft(), uuid: input.uuid, displayName: input.name, edition: input.edition,
+    userId: null, verifiedAt: null, lastSyncedAt: now,
+  }).onConflictDoUpdate({
+    target: minecraftProfiles.uuid,
+    // Checkout may refresh a name, but must never claim or verify ownership.
+    set: { displayName: input.name, edition: input.edition, lastSyncedAt: now, updatedAt: now },
   });
 }
 

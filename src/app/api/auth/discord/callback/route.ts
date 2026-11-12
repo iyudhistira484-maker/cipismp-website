@@ -9,6 +9,7 @@ import { GUEST_COOKIE, mergeGuestCart } from "@/server/cart";
 import { env } from "@/server/env";
 import { writeAudit } from "@/server/audit";
 import { clientIp } from "@/server/csrf";
+import { safeNextForRole } from "@/lib/safe-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,9 @@ export async function GET(request: Request) {
 
     const linked = await db.query.users.findFirst({ where: eq(users.discordId, profile.id) });
     const current = await getCurrentSession();
+    if (current?.user.totpEnabledAt && !current.session.mfaSatisfiedAt) {
+      return back(`/masuk/2fa?next=${encodeURIComponent(safeNextForRole(next, current.user.role))}`);
+    }
     const requestHeaders = await headers();
     const ip = clientIp(requestHeaders);
 
@@ -44,7 +48,7 @@ export async function GET(request: Request) {
       // Belum tertaut: hanya bisa menautkan dari akun yang sudah login (tidak pernah auto-merge lewat email).
       if (!current) return back(`/masuk?discord=unlinked&next=${encodeURIComponent(next)}`);
       if (current.user.role !== "CUSTOMER" && !current.user.totpEnabledAt) {
-        return back("/dashboard/keamanan?discord=mfa-required");
+        return back("/admin/keamanan?discord=mfa-required");
       }
       await db
         .update(users)
@@ -58,7 +62,7 @@ export async function GET(request: Request) {
         after: { discordId: profile.id, username: profile.username },
         ip,
       });
-      return back("/dashboard/keamanan?discord=linked");
+      return back(current.user.role === "CUSTOMER" ? "/dashboard/keamanan?discord=linked" : "/admin/keamanan?discord=linked");
     }
 
     // Sudah tertaut: buat sesi baru (2FA tetap diminta bila aktif).
@@ -77,10 +81,11 @@ export async function GET(request: Request) {
       ip,
     });
 
+    const destination = safeNextForRole(next, linked.role);
     if (linked.totpEnabledAt) {
-      return back(`/masuk/2fa?next=${encodeURIComponent(next)}&sid=${encodeURIComponent(session.sessionId)}`);
+      return back(`/masuk/2fa?next=${encodeURIComponent(destination)}&sid=${encodeURIComponent(session.sessionId)}`);
     }
-    return back(next);
+    return back(destination);
   } catch (error) {
     if (error instanceof DiscordError) {
       console.error("[discord] oauth failed", error.message);

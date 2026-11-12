@@ -107,7 +107,7 @@ export function CheckoutForm({
 
   return (
     <div className="mt-8 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-      <form action={formAction} className="space-y-6" noValidate>
+      <form id="checkout-form" action={formAction} className="space-y-6" noValidate>
         {frozen ? <input type="hidden" name="blockedByFreeze" value="1" /> : null}
 
         <section className="rounded-lg border border-line bg-surface/50 p-5">
@@ -123,7 +123,7 @@ export function CheckoutForm({
               htmlFor="mcName"
               required
               error={state.fields?.mcName ?? lookupError ?? undefined}
-              hint="Bedrock: tulis dengan titik, mis. .CipiPlayer"
+              hint="Bedrock: tulis dengan titik (mis. .CipiPlayer) dan verifikasi in-game melalui dashboard sebelum checkout."
             >
               <div className="flex gap-2">
                 <Input
@@ -133,6 +133,7 @@ export function CheckoutForm({
                   onChange={(event) => {
                     setMcName(event.target.value);
                     setLookup(null);
+                    setPreview(null);
                   }}
                   autoComplete="off"
                   required
@@ -332,8 +333,12 @@ export function CheckoutForm({
             <div className="mt-4 flex gap-2">
               <Input
                 name="couponCode"
+                form="checkout-form"
                 value={coupon}
-                onChange={(event) => setCoupon(event.target.value.toUpperCase())}
+                onChange={(event) => {
+                  setCoupon(event.target.value.toUpperCase());
+                  setPreview(null);
+                }}
                 placeholder="Kode kupon"
                 aria-label="Kode kupon"
                 className="h-10"
@@ -359,7 +364,13 @@ export function CheckoutForm({
             </div>
             {preview && preview.discountIdr > 0 ? (
               <div className="flex justify-between text-success">
-                <dt>Diskon {preview.couponApplied ? `(${preview.couponApplied})` : ""}</dt>
+                <dt>
+                  Diskon {preview.discountKind === "AUTOMATIC" && preview.discountLabel
+                    ? `(otomatis: ${preview.discountLabel})`
+                    : preview.couponApplied
+                      ? `(${preview.couponApplied})`
+                      : ""}
+                </dt>
                 <dd>−{formatRp(preview.discountIdr)}</dd>
               </div>
             ) : null}
@@ -387,7 +398,7 @@ export function CheckoutForm({
             </p>
           ) : null}
 
-          <Button type="submit" size="lg" className="mt-4 hidden w-full lg:inline-flex" disabled={frozen}>
+          <Button type="submit" form="checkout-form" size="lg" className="mt-4 hidden w-full lg:inline-flex" disabled={frozen}>
             <ShieldCheck className="size-4" aria-hidden />
             Bayar {formatRp(total)}
           </Button>

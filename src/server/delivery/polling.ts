@@ -7,6 +7,9 @@ import { alertStaff } from "../notifications";
 import { getSettings } from "../settings";
 import { logger } from "../logger";
 import { markOrderDeliveredIfComplete } from "./index";
+import { markOrderFailed } from "./order-failure";
+import { containsRankGrant, deliveryCommandsAreSafe, STAFF_RANK_DELIVERY_MESSAGE, UNSAFE_DELIVERY_MESSAGE } from "./command-safety";
+import { knownStaffDeliveryQuery } from "../staff-rank";
 
 const MAX_POLL_BATCH = 10;
 const DELIVERY_LEASE_MS = 3 * 60_000;
@@ -61,7 +64,7 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
     const expiredLeases = await tx
       .select()
       .from(deliveries)
-      .where(and(eq(deliveries.status, "SENT"), lte(deliveries.nextAttemptAt, now)))
+      .where(and(eq(deliveries.status, "SENT"), eq(deliveries.method, "PLUGIN"), lte(deliveries.nextAttemptAt, now)))
       .orderBy(asc(deliveries.nextAttemptAt), asc(deliveries.createdAt))
       .limit(100)
       .for("update", { skipLocked: true });
@@ -88,12 +91,7 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
 
       if (isDead) {
         dead.push({ id: delivery.id, playerName: delivery.playerName, orderId: delivery.orderId, error: LEASE_TIMEOUT_ERROR });
-        if (delivery.orderId) {
-          await tx
-            .update(orders)
-            .set({ status: "FAILED", updatedAt: now })
-            .where(and(eq(orders.id, delivery.orderId), inArray(orders.status, ["PAID", "DELIVERING"])));
-        }
+        if (delivery.orderId) await markOrderFailed(tx, delivery.orderId, now);
       }
     }
 
@@ -103,6 +101,7 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
       .where(
         and(
           inArray(deliveries.status, ["QUEUED", "FAILED"]),
+          eq(deliveries.method, "PLUGIN"),
           lte(deliveries.nextAttemptAt, now),
         ),
       )
@@ -127,12 +126,7 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
           durationMs: 0,
         });
         dead.push({ id: delivery.id, playerName: delivery.playerName, orderId: delivery.orderId, error });
-        if (delivery.orderId) {
-          await tx
-            .update(orders)
-            .set({ status: "FAILED", updatedAt: now })
-            .where(and(eq(orders.id, delivery.orderId), inArray(orders.status, ["PAID", "DELIVERING"])));
-        }
+        if (delivery.orderId) await markOrderFailed(tx, delivery.orderId, now);
         continue;
       }
 
@@ -143,12 +137,20 @@ export async function pollPluginDeliveries(input: { version: string; limit: numb
           .set({ status: "DEAD", lastError: error, updatedAt: now })
           .where(eq(deliveries.id, delivery.id));
         dead.push({ id: delivery.id, playerName: delivery.playerName, orderId: delivery.orderId, error });
-        if (delivery.orderId) {
-          await tx
-            .update(orders)
-            .set({ status: "FAILED", updatedAt: now })
-            .where(and(eq(orders.id, delivery.orderId), inArray(orders.status, ["PAID", "DELIVERING"])));
-        }
+        if (delivery.orderId) await markOrderFailed(tx, delivery.orderId, now);
+        continue;
+      }
+
+      const staffCheck = containsRankGrant(delivery.commands)
+        ? await tx.execute(knownStaffDeliveryQuery(delivery.uuid, delivery.orderId))
+        : null;
+      const knownStaff = staffCheck?.rows[0]?.restricted === true;
+      if (!deliveryCommandsAreSafe(delivery.commands, delivery.playerName, delivery.uuid) || knownStaff) {
+        const error = knownStaff ? STAFF_RANK_DELIVERY_MESSAGE : UNSAFE_DELIVERY_MESSAGE;
+        await tx.update(deliveries).set({ status: "DEAD", lastError: error, updatedAt: now }).where(eq(deliveries.id, delivery.id));
+        await tx.insert(deliveryAttempts).values({ id: ids.deliveryAttempt(), deliveryId: delivery.id, attempt: delivery.attempts, ok: false, error, durationMs: 0 });
+        dead.push({ id: delivery.id, playerName: delivery.playerName, orderId: delivery.orderId, error });
+        if (delivery.orderId) await markOrderFailed(tx, delivery.orderId, now);
         continue;
       }
 
@@ -228,9 +230,9 @@ export async function acknowledgePluginDelivery(input: PluginDeliveryAck): Promi
     if (!delivery) return { accepted: false, message: "Pengiriman tidak ditemukan" };
 
     if (
-      delivery.attempts === input.attempt
-      && delivery.leaseToken === input.leaseToken
-      && ["DELIVERED", "FAILED", "DEAD"].includes(delivery.status)
+      delivery.leaseToken === input.leaseToken
+      && ((delivery.attempts === input.attempt && ["DELIVERED", "FAILED", "DEAD"].includes(delivery.status))
+        || (delivery.status === "QUEUED" && delivery.attempts === 0 && input.ok && input.queuedOffline))
     ) {
       return { accepted: true, duplicate: true, status: delivery.status, orderId: delivery.orderId };
     }
@@ -243,10 +245,17 @@ export async function acknowledgePluginDelivery(input: PluginDeliveryAck): Promi
       return { accepted: false, message: "ACK kedaluwarsa atau tidak sesuai lease" };
     }
 
+    if (input.ok && input.queuedOffline) {
+      // The plugin has durably queued the command, not executed it. Poll again
+      // later: after login the plugin's completion marker acknowledges execution.
+      // Offline checks are not failures and must not exhaust the retry budget.
+      await tx.update(deliveries).set({ status: "QUEUED", attempts: 0, nextAttemptAt: new Date(now.getTime() + 5 * 60_000), lastError: null, updatedAt: now }).where(eq(deliveries.id, delivery.id));
+      await tx.insert(deliveryAttempts).values({ id: ids.deliveryAttempt(), deliveryId: delivery.id, attempt: input.attempt, ok: true, output: "Perintah disimpan plugin sampai pemain login; belum dikonfirmasi dijalankan.", durationMs: input.durationMs });
+      return { accepted: true, status: "QUEUED", orderId: delivery.orderId };
+    }
+
     if (input.ok) {
-      const output = input.queuedOffline
-        ? "Perintah disimpan plugin sampai pemain login."
-        : `Perintah dijalankan (${input.applied} berhasil).`;
+      const output = `Perintah dijalankan (${input.applied} berhasil).`;
       await tx
         .update(deliveries)
         .set({ status: "DELIVERED", deliveredAt: now, lastError: null, updatedAt: now })
@@ -282,12 +291,7 @@ export async function acknowledgePluginDelivery(input: PluginDeliveryAck): Promi
       error,
       durationMs: input.durationMs,
     });
-    if (isDead && delivery.orderId) {
-      await tx
-        .update(orders)
-        .set({ status: "FAILED", updatedAt: now })
-        .where(and(eq(orders.id, delivery.orderId), inArray(orders.status, ["PAID", "DELIVERING"])));
-    }
+    if (isDead && delivery.orderId) await markOrderFailed(tx, delivery.orderId, now);
     return { accepted: true, status: isDead ? "DEAD" : "FAILED", orderId: delivery.orderId, dead: isDead, error, playerName: delivery.playerName };
   });
 

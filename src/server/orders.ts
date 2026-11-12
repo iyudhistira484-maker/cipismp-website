@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   couponRedemptions,
@@ -6,22 +6,30 @@ import {
   deliveries,
   entitlements,
   legalAcceptances,
+  jobs,
+  notifications,
   orderItems,
   orders,
   payments,
   products,
   seasons,
+  servers,
+  users,
   type Order,
   type OrderItem,
 } from "./db/schema";
 import { ids } from "./ids";
+import { cursorCondition, cursorOrder, cursorPage, cursorTimestamp, decodeCursor, PAGE_SIZE } from "./pagination";
 import { logger } from "./logger";
 import { enqueue } from "./queue";
 import { getActiveSeason } from "./catalog";
 import { ownedMap } from "./entitlements";
 import { getSettings } from "./settings";
+import { loadAutomaticDiscounts } from "./discounts";
 import { buildGrantCommands, buildRevokeCommands } from "./delivery/commands";
+import { deliveryCommandsAreSafe } from "./delivery/command-safety";
 import { resolvePlayer, upsertProfile } from "./minecraft";
+import { hasKnownStaffRankRestriction } from "./staff-rank";
 import { priceCart, type CouponInput, type PriceableProduct } from "@/lib/pricing";
 import { canPurchase } from "@/lib/seasons";
 import { addMinutes } from "@/lib/dates";
@@ -97,14 +105,20 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
   }
 
   const player = await resolvePlayer(input.mcName);
+  if (player.edition === "BEDROCK" && player.source !== "cache") {
+    throw new CheckoutError("Akun Bedrock harus diverifikasi in-game sebelum pembelian agar pengiriman sampai ke UUID yang benar.", { mcName: "Hubungkan akun Bedrock melalui dashboard terlebih dahulu." });
+  }
 
   // Resolusi penerima per item: hadiah diverifikasi ke UUID masing-masing agar aturan
   // "rank sudah dimiliki" dan "upgrade hanya selisih" dihitung untuk penerimanya.
-  const resolvedItems: Array<{ productId: string; quantity: number; uuid: string; name: string; gift: boolean }> = [];
+  const resolvedItems: Array<{ productId: string; quantity: number; uuid: string; name: string; edition: "JAVA" | "BEDROCK"; gift: boolean }> = [];
   for (const item of input.items) {
     const giftName = item.targetName?.trim();
     if (giftName) {
       const recipient = await resolvePlayer(giftName);
+      if (recipient.edition === "BEDROCK" && recipient.source !== "cache") {
+        throw new CheckoutError("Penerima Bedrock harus memverifikasi akun in-game sebelum menerima hadiah.");
+      }
       if (recipient.uuid === player.uuid) {
         throw new CheckoutError("Penerima hadiah tidak boleh sama dengan akun Minecraft kamu sendiri.", {
           cart: "Hapus hadiah untuk diri sendiri, atau ganti username penerima.",
@@ -115,6 +129,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
         quantity: item.quantity ?? 1,
         uuid: recipient.uuid,
         name: recipient.name,
+        edition: recipient.edition,
         gift: true,
       });
     } else {
@@ -123,6 +138,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
         quantity: item.quantity ?? 1,
         uuid: player.uuid,
         name: player.name,
+        edition: player.edition,
         gift: false,
       });
     }
@@ -131,6 +147,11 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
   const productIds = [...new Set(resolvedItems.map((item) => item.productId))];
   const productRows = await db.select().from(products).where(inArray(products.id, productIds));
   if (productRows.length !== productIds.length) throw new CheckoutError("Sebagian produk tidak ditemukan.");
+
+  const rankIds = new Set(productRows.filter((product) => product.type === "RANK").map((product) => product.id));
+  if (rankIds.size && await hasKnownStaffRankRestriction(input.userId, [player.uuid, ...resolvedItems.filter((item) => rankIds.has(item.productId)).map((item) => item.uuid)])) {
+    throw new CheckoutError("Rank tidak tersedia untuk staf atau penerima yang terhubung dengan akun staf.");
+  }
 
   const catalog = new Map<string, PriceableProduct>(
     productRows.map((p) => [
@@ -151,7 +172,14 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
   );
 
   const owned = await ownedMap([...new Set(resolvedItems.map((item) => item.uuid))], season.id);
-  const coupon = input.couponCode ? await loadCouponInput(input.couponCode, input.email) : null;
+  const [coupon, automaticDiscounts] = await Promise.all([
+    input.couponCode ? loadCouponInput(input.couponCode, input.email) : Promise.resolve(null),
+    loadAutomaticDiscounts(),
+  ]);
+
+  if (input.couponCode?.trim() && !coupon) {
+    throw new CheckoutError("Kode kupon tidak ditemukan atau sudah tidak berlaku.");
+  }
 
   const pricing = priceCart({
     items: resolvedItems.map((item) => ({
@@ -163,6 +191,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     catalog,
     ownedByTarget: owned,
     coupon,
+    automaticDiscounts,
     seasonId: season.id,
     settings: {
       taxPercent: settings.store.taxPercent,
@@ -179,12 +208,68 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     });
   }
 
+  // RCON cannot inspect live staff groups; avoid charging for rank until a
+  // plugin-backed server is configured. The plugin itself must also be updated
+  // and verified on the server before sales are enabled.
+  if (pricing.lines.some((line) => line.type === "RANK" && productRows.find((product) => product.id === line.productId)?.useServerCommands)) {
+    const server = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
+    if (!server || server.deliveryMode !== "PLUGIN") {
+      throw new CheckoutError("Pengiriman rank belum siap dengan pemeriksaan grup staf. Hubungi admin sebelum membayar.");
+    }
+  }
+  // Fail before taking payment if a configured command cannot pass the delivery
+  // allowlist. Templates can still change later, so dispatch rechecks as well.
+  for (const line of pricing.lines) {
+    const product = productRows.find((row) => row.id === line.productId);
+    if (!product?.useServerCommands) continue;
+    const context = { player: line.targetName, uuid: line.targetUuid, seasonSlug: season.slug };
+    const grant = await buildGrantCommands({ ...context, productId: line.productId });
+    const revoke = line.upgradeFrom ? await buildRevokeCommands({ ...context, productId: line.upgradeFrom.productId }) : [];
+    if (!grant.length || !deliveryCommandsAreSafe(grant, line.targetName, line.targetUuid) ||
+        (line.upgradeFrom && (!revoke.length || !deliveryCommandsAreSafe(revoke, line.targetName, line.targetUuid)))) {
+      throw new CheckoutError("Produk belum siap dikirim dengan aman. Hubungi admin sebelum membayar.");
+    }
+  }
+
+  // Payment gateways require a positive amount. Do not create a stranded pending
+  // order when a promotion makes the payable amount zero.
+  if (pricing.totalIdr <= 0) {
+    throw new CheckoutError("Total pembayaran harus lebih dari Rp 0. Hubungi admin untuk menyesuaikan promo.");
+  }
+
   const orderId = ids.order();
   const orderNumber = generateOrderNumber();
   const publicToken = randomId(32);
   const expiresAt = addMinutes(new Date(), settings.store.orderExpiryMinutes);
 
   const created = await db.transaction(async (tx) => {
+    // Reserve a coupon slot while the pending order is payable. Serialize all
+    // reservations and paid redemptions on its row to avoid concurrent oversubscription.
+    if (pricing.couponCode) {
+      const [lockedCoupon] = await tx.select().from(coupons).where(eq(coupons.code, pricing.couponCode)).limit(1).for("update");
+      if (!lockedCoupon || !coupon || !lockedCoupon.active ||
+          (lockedCoupon.startsAt && lockedCoupon.startsAt.getTime() > Date.now()) ||
+          (lockedCoupon.endsAt && lockedCoupon.endsAt.getTime() < Date.now()) ||
+          lockedCoupon.value !== coupon.value || lockedCoupon.type !== coupon.type ||
+          lockedCoupon.minSubtotalIdr !== coupon.minSubtotalIdr || lockedCoupon.seasonId !== coupon.seasonId ||
+          lockedCoupon.rankOnly !== coupon.rankOnly || lockedCoupon.kitOnly !== coupon.kitOnly ||
+          lockedCoupon.eligibleItemsOnly !== coupon.eligibleItemsOnly ||
+          JSON.stringify(lockedCoupon.tiers) !== JSON.stringify(coupon.tiers) ||
+          lockedCoupon.startsAt?.getTime() !== coupon.startsAt?.getTime() ||
+          lockedCoupon.endsAt?.getTime() !== coupon.endsAt?.getTime()) {
+        throw new CheckoutError("Kupon berubah. Muat ulang checkout dan coba lagi.");
+      }
+      const redemptionCounts = await tx.select({ total: sql<number>`count(*)::int`, buyer: sql<number>`count(*) filter (where ${couponRedemptions.email} = ${input.email.toLowerCase()})::int` })
+        .from(couponRedemptions).where(eq(couponRedemptions.couponId, lockedCoupon.id));
+      const pendingCounts = await tx.select({ total: sql<number>`count(*)::int`, buyer: sql<number>`count(*) filter (where ${orders.email} = ${input.email.toLowerCase()})::int` })
+        .from(orders).where(and(eq(orders.couponCode, pricing.couponCode), eq(orders.status, "PENDING"), gt(orders.expiresAt, new Date())));
+      const total = (redemptionCounts[0]?.total ?? 0) + (pendingCounts[0]?.total ?? 0);
+      const buyer = (redemptionCounts[0]?.buyer ?? 0) + (pendingCounts[0]?.buyer ?? 0);
+      if ((lockedCoupon.maxRedemptions !== null && total >= lockedCoupon.maxRedemptions) ||
+          (lockedCoupon.maxPerUser > 0 && buyer >= lockedCoupon.maxPerUser)) {
+        throw new CheckoutError("Kuota kupon sudah terpakai atau sedang dipakai pada pesanan yang belum selesai.");
+      }
+    }
     const inserted = await tx
       .insert(orders)
       .values({
@@ -204,6 +289,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
         feeIdr: pricing.feeIdr,
         totalIdr: pricing.totalIdr,
         couponCode: pricing.couponCode,
+        discountLabel: pricing.discountLabel,
         provider: input.provider,
         ip: input.ip,
         userAgent: input.userAgent.slice(0, 500),
@@ -269,10 +355,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     uuid: player.uuid,
     name: player.name,
     edition: player.edition,
-    userId: input.userId ?? null,
   });
   for (const item of resolvedItems.filter((entry) => entry.gift)) {
-    await upsertProfile({ uuid: item.uuid, name: item.name, edition: player.edition, userId: null });
+    await upsertProfile({ uuid: item.uuid, name: item.name, edition: item.edition });
   }
 
   // Buat transaksi di gateway. Kalau gagal, order tetap PENDING dan bisa dicoba lagi.
@@ -286,7 +371,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
       customerName: player.name,
       customerEmail: input.email,
       description: `${season.name} — ${pricing.lines.map((l) => l.name).join(", ")}`.slice(0, 120),
-      items: pricing.lines.map((l) => ({ name: l.name, priceIdr: l.unitPriceIdr, quantity: l.quantity })),
+      // Gateways require item totals to equal the payable amount. The full item
+      // breakdown and discount remain on our order/invoice; send a single net
+      // line when discounts, tax or fees change the sum.
+      items: pricing.totalIdr === pricing.subtotalIdr
+        ? pricing.lines.map((l) => ({ name: l.name, priceIdr: l.unitPriceIdr, quantity: l.quantity }))
+        : [{ name: `Pesanan ${orderNumber}`, priceIdr: pricing.totalIdr, quantity: 1 }],
       method,
       returnUrl: `${process.env.APP_URL}/pesanan/${publicToken}`,
       expiresInMinutes: settings.store.orderExpiryMinutes,
@@ -363,6 +453,7 @@ export async function loadCouponInput(code: string, email: string): Promise<Coup
     active: row.active,
     rankOnly: row.rankOnly,
     kitOnly: row.kitOnly,
+    eligibleItemsOnly: row.eligibleItemsOnly,
     redemptionsTotal: total[0]?.count ?? 0,
     redemptionsByBuyer: perUser[0]?.count ?? 0,
   };
@@ -398,6 +489,8 @@ export async function getOrderDetail(orderId: string) {
       status: orders.status,
       subtotalIdr: orders.subtotalIdr,
       discountIdr: orders.discountIdr,
+      discountLabel: orders.discountLabel,
+      couponCode: orders.couponCode,
       taxIdr: orders.taxIdr,
       feeIdr: orders.feeIdr,
       totalIdr: orders.totalIdr,
@@ -460,6 +553,7 @@ export interface PaidOrderResult {
   alreadyPaid: boolean;
   deliveriesCreated: number;
   orderId: string;
+  cancelled?: boolean;
 }
 
 /**
@@ -480,7 +574,7 @@ export async function fulfillPaidOrder(input: {
     return { alreadyPaid: true, deliveriesCreated: 0, orderId: order.id };
   }
   if (order.status === "CANCELLED") {
-    return { alreadyPaid: false, deliveriesCreated: 0, orderId: order.id };
+    return { alreadyPaid: false, deliveriesCreated: 0, orderId: order.id, cancelled: true };
   }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
@@ -526,7 +620,18 @@ export async function fulfillPaidOrder(input: {
     if (["PAID", "DELIVERING", "DELIVERED", "DISPUTED"].includes(currentStatus)) {
       return { alreadyPaid: true, deliveriesCreated: 0 };
     }
-    if (currentStatus === "CANCELLED") return { alreadyPaid: false, deliveriesCreated: 0 };
+    if (currentStatus === "CANCELLED") return { alreadyPaid: false, deliveriesCreated: 0, cancelled: true };
+
+    let couponQuotaConflict = false;
+    if (order.couponCode) {
+      const [lockedCoupon] = await tx.select().from(coupons).where(eq(coupons.code, order.couponCode)).limit(1).for("update");
+      if (lockedCoupon) {
+        const [redeemed] = await tx.select({ total: sql<number>`count(*)::int`, buyer: sql<number>`count(*) filter (where lower(${couponRedemptions.email}) = lower(${order.email}))::int` }).from(couponRedemptions).where(eq(couponRedemptions.couponId, lockedCoupon.id));
+        const [reserved] = await tx.select({ total: sql<number>`count(*)::int`, buyer: sql<number>`count(*) filter (where lower(${orders.email}) = lower(${order.email}))::int` }).from(orders).where(and(eq(orders.couponCode, order.couponCode), eq(orders.status, "PENDING"), gt(orders.expiresAt, new Date()), sql`${orders.id} <> ${order.id}`));
+        couponQuotaConflict = (lockedCoupon.maxRedemptions !== null && (redeemed?.total ?? 0) + (reserved?.total ?? 0) >= lockedCoupon.maxRedemptions)
+          || (lockedCoupon.maxPerUser > 0 && (redeemed?.buyer ?? 0) + (reserved?.buyer ?? 0) >= lockedCoupon.maxPerUser);
+      }
+    }
 
     await tx
       .update(orders)
@@ -621,17 +726,25 @@ export async function fulfillPaidOrder(input: {
       }
     }
 
+    if (order.userId) {
+      const [buyer] = await tx.select({ enabled: users.dashboardOrderUpdates }).from(users).where(eq(users.id, order.userId)).limit(1);
+      if (buyer?.enabled) await tx.insert(notifications).values({ id: ids.notification(), userId: order.userId, kind: "ORDER_PAID", title: "Pembayaran diterima", body: `Pembayaran untuk ${order.orderNumber} sudah tercatat dan sedang diproses.`, href: `/dashboard/pesanan/${order.id}` });
+    }
+    if (couponQuotaConflict) {
+      // Honor the accepted price when money arrives late; do not silently hide
+      // the conflict with another reservation or redeemed coupon.
+      await tx.insert(notifications).values({ id: ids.notification(), kind: "PAYMENT_ANOMALY", title: "Kuota kupon perlu ditinjau", body: `Pembayaran ${order.orderNumber} memakai kupon ${order.couponCode} setelah kuota sudah terpakai atau direservasi order lain. Pesanan tetap dipenuhi; periksa pemakaian kupon.`, href: `/admin/pesanan/${order.id}` });
+    }
+    // Keep payment, delivery and their jobs atomic: a crash must not leave a
+    // paid order without the jobs needed to notify and process it.
+    await tx.insert(jobs).values({ id: ids.job(), type: "email.send", payload: { template: "order.paid", orderId: order.id }, dedupeKey: `email-paid:${order.id}` }).onConflictDoNothing({ target: jobs.dedupeKey });
+    if (deliveriesCreated > 0) {
+      await tx.insert(jobs).values({ id: ids.job(), type: "delivery.process", payload: { orderId: order.id }, dedupeKey: `deliver:${order.id}` }).onConflictDoNothing({ target: jobs.dedupeKey });
+    } else {
+      await tx.update(orders).set({ status: "DELIVERED", deliveredAt: new Date(), updatedAt: new Date() }).where(eq(orders.id, order.id));
+    }
     return { alreadyPaid: false, deliveriesCreated };
   });
-
-  if (!result.alreadyPaid) {
-    await enqueue("email.send", { template: "order.paid", orderId: order.id }, { dedupeKey: `email-paid:${order.id}` });
-    if (result.deliveriesCreated > 0) {
-      await enqueue("delivery.process", { orderId: order.id }, { dedupeKey: `deliver:${order.id}` });
-    } else {
-      await db.update(orders).set({ status: "DELIVERED", deliveredAt: new Date() }).where(eq(orders.id, order.id));
-    }
-  }
 
   return { ...result, orderId: order.id };
 }
@@ -676,6 +789,14 @@ export async function ordersForUser(userId: string, limit = 20) {
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt))
     .limit(limit);
+}
+
+export async function orderHistoryForUser(userId: string, rawCursor?: string) {
+  const cursor = decodeCursor(rawCursor);
+  const rows = await db.select({ id: orders.id, cursorAt: cursorTimestamp(orders.createdAt), orderNumber: orders.orderNumber, createdAt: orders.createdAt, mcName: orders.mcName, seasonId: orders.seasonId, totalIdr: orders.totalIdr, status: orders.status })
+    .from(orders).where(and(eq(orders.userId, userId), cursorCondition(orders.createdAt, orders.id, cursor)))
+    .orderBy(...cursorOrder(orders.createdAt, orders.id, cursor)).limit(PAGE_SIZE + 1);
+  return cursorPage(rows, cursor);
 }
 
 export async function cancelOrder(orderId: string, userId: string | null): Promise<boolean> {

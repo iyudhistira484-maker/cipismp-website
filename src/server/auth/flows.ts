@@ -10,6 +10,7 @@ import { queueEmail, verifyEmailTemplate, resetPasswordTemplate, loginAlertTempl
 import { hashPassword, verifyPassword, checkPasswordLocal, isPasswordBreached } from "./password";
 import { deviceLabel, revokeAllSessions } from "./session";
 import { writeAudit } from "../audit";
+import { notify } from "../notifications";
 
 export class AuthError extends Error {
   constructor(
@@ -135,18 +136,19 @@ export async function issueEmailVerification(userId: string, email: string, user
 }
 
 export async function consumeEmailVerification(token: string): Promise<void> {
-  const row = await db.query.authTokens.findFirst({
-    where: and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "EMAIL_VERIFY")),
-  });
-  if (!row) throw new AuthError("Tautan verifikasi tidak valid.", "token");
-  if (row.usedAt) throw new AuthError("Tautan ini sudah dipakai. Minta tautan baru bila perlu.", "token");
-  if (row.expiresAt.getTime() < Date.now()) throw new AuthError("Tautan verifikasi sudah kedaluwarsa.", "token");
-
   await db.transaction(async (tx) => {
-    await tx.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
-    if (row.userId) {
-      await tx.update(users).set({ emailVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, row.userId));
+    const [row] = await tx.select().from(authTokens)
+      .where(and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "EMAIL_VERIFY"))).limit(1).for("update");
+    if (!row || !row.userId || !row.email) throw new AuthError("Tautan verifikasi tidak valid.", "token");
+    if (row.usedAt) throw new AuthError("Tautan ini sudah dipakai. Minta tautan baru bila perlu.", "token");
+    if (row.expiresAt.getTime() < Date.now()) throw new AuthError("Tautan verifikasi sudah kedaluwarsa.", "token");
+    const [user] = await tx.select().from(users).where(eq(users.id, row.userId)).limit(1).for("update");
+    if (!user || user.deletedAt || normalizeEmail(user.email) !== normalizeEmail(row.email)) {
+      throw new AuthError("Alamat email sudah berubah. Minta tautan verifikasi baru.", "token");
     }
+    const now = new Date();
+    await tx.update(users).set({ emailVerifiedAt: now, updatedAt: now }).where(eq(users.id, row.userId));
+    await tx.update(authTokens).set({ usedAt: now }).where(eq(authTokens.id, row.id));
   });
 }
 
@@ -226,6 +228,7 @@ export async function authenticate(input: {
 
   // Alert perangkat baru: IP berbeda dari login terakhir.
   if (user.lastLoginIp && user.lastLoginIp !== input.ip) {
+    if (user.role === "CUSTOMER") await notify({ userId: user.id, kind: "SYSTEM", title: "Aktivitas masuk dari alamat baru", body: "Password benar digunakan dari alamat yang berbeda. Jika 2FA aktif, kode tetap diperlukan. Periksa sesi jika ini bukan kamu.", href: "/dashboard/keamanan" });
     await queueEmail({
       to: user.email,
       content: loginAlertTemplate({
@@ -320,13 +323,12 @@ export async function changeEmail(userId: string, newEmailInput: string): Promis
   if (!user) throw new AuthError("Akun tidak ditemukan.");
 
   const token = randomToken(32);
-  await db.insert(authTokens).values({
-    id: ids.token(),
-    type: "EMAIL_CHANGE",
-    tokenHash: sha256(token),
-    userId,
-    email: newEmail,
-    expiresAt: new Date(Date.now() + 60 * 60_000),
+  await db.transaction(async (tx) => {
+    await tx.update(authTokens).set({ usedAt: new Date() }).where(and(eq(authTokens.userId, userId), eq(authTokens.type, "EMAIL_CHANGE"), isNull(authTokens.usedAt)));
+    await tx.insert(authTokens).values({
+      id: ids.token(), type: "EMAIL_CHANGE", tokenHash: sha256(token), userId, email: newEmail,
+      expiresAt: new Date(Date.now() + 60 * 60_000),
+    });
   });
   await queueEmail({
     to: newEmail,
@@ -339,21 +341,18 @@ export async function changeEmail(userId: string, newEmailInput: string): Promis
 }
 
 export async function consumeEmailChange(token: string): Promise<string> {
-  const row = await db.query.authTokens.findFirst({
-    where: and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "EMAIL_CHANGE")),
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(authTokens)
+      .where(and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "EMAIL_CHANGE"))).limit(1).for("update");
+    if (!row || row.usedAt || row.expiresAt.getTime() < Date.now() || !row.userId || !row.email) {
+      throw new AuthError("Tautan konfirmasi tidak valid atau kedaluwarsa.", "token");
+    }
+    const now = new Date();
+    await tx.update(users).set({ email: row.email, emailVerifiedAt: null, updatedAt: now }).where(eq(users.id, row.userId));
+    await tx.update(authTokens).set({ usedAt: now }).where(and(eq(authTokens.userId, row.userId), eq(authTokens.type, "EMAIL_CHANGE"), isNull(authTokens.usedAt)));
+    await tx.update(sessions).set({ revokedAt: now }).where(eq(sessions.userId, row.userId));
+    return row.email;
   });
-  if (!row || row.usedAt || row.expiresAt.getTime() < Date.now() || !row.userId || !row.email) {
-    throw new AuthError("Tautan konfirmasi tidak valid atau kedaluwarsa.", "token");
-  }
-  await db.transaction(async (tx) => {
-    await tx
-      .update(users)
-      .set({ email: row.email!, emailVerifiedAt: null, updatedAt: new Date() })
-      .where(eq(users.id, row.userId!));
-    await tx.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
-  });
-  await revokeAllSessions(row.userId);
-  return row.email;
 }
 
 /** Batas percobaan verifikasi 2FA agar kode tidak bisa di-brute force. */

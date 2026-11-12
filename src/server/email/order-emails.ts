@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { orders, seasons } from "../db/schema";
+import { notificationPreferences } from "../auth/notification-preferences";
 import { getOrderDetail } from "../orders";
 import { getSettings } from "../settings";
 import { queueEmail } from "./index";
@@ -26,6 +27,13 @@ async function buildOrderEmailData(orderId: string): Promise<OrderEmailData | nu
     playerName: detail.order.mcName,
     seasonName: detail.season.name,
     seasonEndsAt: detail.season.endAt,
+    subtotalIdr: detail.order.subtotalIdr,
+    discountIdr: detail.order.discountIdr,
+    discountLabel: detail.order.couponCode
+      ? `Kupon ${detail.order.couponCode}`
+      : detail.order.discountLabel
+        ? `Otomatis ${detail.order.discountLabel}`
+        : null,
     totalIdr: detail.order.totalIdr,
     items: detail.items.map((item) => ({
       name: item.nameSnapshot,
@@ -62,6 +70,9 @@ export async function sendOrderEmail(template: OrderEmailTemplate, orderId: stri
       await queueEmail({ to: detail.order.email, content: orderPaidTemplate(data) });
       break;
     case "order.delivered":
+      // Transaction receipts and security emails remain mandatory; only the
+      // optional successful-delivery update can be switched off by an account.
+      if (detail.order.userId && (await notificationPreferences(detail.order.userId))?.emailDeliveryUpdates === false) return;
       await queueEmail({ to: detail.order.email, content: orderDeliveredTemplate(data) });
       break;
   }

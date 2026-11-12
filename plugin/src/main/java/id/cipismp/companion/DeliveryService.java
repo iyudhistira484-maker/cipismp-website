@@ -19,11 +19,13 @@ public final class DeliveryService {
     private final JavaPlugin plugin;
     private final QueueStore queue;
     private final LuckPermsHook luckPerms;
+    private final ExecutionGuard executionGuard;
 
     public DeliveryService(JavaPlugin plugin, QueueStore queue, LuckPermsHook luckPerms) {
         this.plugin = plugin;
         this.queue = queue;
         this.luckPerms = luckPerms;
+        this.executionGuard = new ExecutionGuard(plugin.getDataFolder().toPath());
     }
 
     public record Result(boolean ok, int applied, List<Map<String, String>> failed, String message) {
@@ -62,38 +64,68 @@ public final class DeliveryService {
         } catch (IllegalArgumentException e) {
             return Result.error("UUID pemain tidak valid");
         }
+        if (!CommandSafety.allowed(delivery.commands(), delivery.player(), uuid)) {
+            return Result.error("Perintah atau target tidak sesuai daftar aman; perlu rekonsiliasi staf.");
+        }
         Player player = Bukkit.getPlayer(uuid);
         if (player == null || !player.isOnline()) {
             if (!queue.enqueue(delivery)) return Result.error("Antrean lokal plugin penuh; pengiriman akan dicoba lagi.");
             plugin.getLogger().info("Pengiriman " + delivery.deliveryId() + " diantrekan untuk " + delivery.player() + ".");
             return Result.queued();
         }
-        Result result = runOnMainThread(delivery, player);
-        if (result.ok() && !queue.markCompleted(delivery.deliveryId(), result.applied())) {
-            return Result.error("Perintah dijalankan tetapi status idempoten gagal disimpan ke disk.");
-        }
-        return result;
+        return executeGuarded(delivery, player);
     }
 
     /** Kirim semua pengiriman tertunda untuk pemain yang baru login. */
     public void flushQueued(Player player) {
-        List<Delivery> pending = queue.drain(player.getUniqueId().toString());
+        List<Delivery> pending = queue.pending(player.getUniqueId().toString());
         if (pending.isEmpty()) return;
         plugin.getLogger().info("Mengirim " + pending.size() + " pengiriman tertunda untuk " + player.getName() + ".");
         for (Delivery delivery : pending) {
-            Result result = runOnMainThread(delivery, player);
+            Integer completed = queue.completedApplied(delivery.deliveryId());
+            Result result = completed != null ? Result.ok(completed) : executeGuarded(delivery, player);
             if (result.ok()) {
                 if (!queue.markCompleted(delivery.deliveryId(), result.applied())) {
-                    plugin.getLogger().severe("Status idempoten " + delivery.deliveryId()
-                            + " gagal disimpan; pengiriman dikembalikan ke antrean.");
-                    queue.forgetCompleted(delivery.deliveryId());
-                    queue.enqueue(delivery);
+                    plugin.getLogger().severe("Perintah " + delivery.deliveryId()
+                            + " telah dijalankan tetapi marker gagal disimpan; perlu pemeriksaan manual sebelum restart.");
+                } else if (!queue.removeCompleted(delivery.uuid(), delivery.deliveryId())) {
+                    plugin.getLogger().warning("Marker tersimpan tetapi antrean " + delivery.deliveryId() + " belum bisa dibersihkan.");
                 }
             } else {
-                // Kembalikan ke antrean agar dicoba lagi pada login berikutnya.
-                queue.enqueue(delivery);
+                plugin.getLogger().warning("Pengiriman " + delivery.deliveryId() + " gagal dan tetap berada dalam antrean.");
             }
         }
+    }
+
+    /** Never replay a possibly applied command after crash, partial failure or timeout. */
+    private Result executeGuarded(Delivery delivery, Player player) {
+        Integer completed = queue.completedApplied(delivery.deliveryId());
+        if (completed != null) return Result.ok(completed);
+        // Also protect deliveries persisted by an older plugin, and recheck the
+        // actual online UUID/name before creating an execution marker.
+        if (!player.getUniqueId().toString().equalsIgnoreCase(delivery.uuid())
+                || !CommandSafety.allowed(delivery.commands(), player.getName(), player.getUniqueId())) {
+            return Result.error("Perintah atau target tidak sesuai daftar aman; perlu rekonsiliasi staf.");
+        }
+        if (luckPerms == null && delivery.commands().stream().anyMatch(c -> c.toLowerCase(java.util.Locale.ROOT).contains(" parent "))) {
+            return Result.error("API LuckPerms tidak tersedia; perubahan group dibatalkan.");
+        }
+        try {
+            if (!executionGuard.begin(delivery.deliveryId())) {
+                return Result.error("Pengiriman mungkin sudah dijalankan; perlu rekonsiliasi manual sebelum mencoba ulang.");
+            }
+        } catch (java.io.IOException e) {
+            plugin.getLogger().severe("Gagal menyimpan marker sebelum pengiriman " + delivery.deliveryId() + "; perintah tidak dijalankan: " + e.getMessage());
+            return Result.error("Marker pengiriman tidak dapat disimpan; perlu pemeriksaan staf.");
+        }
+        Result result = runOnMainThread(delivery, player);
+        if (result.ok() && !queue.markCompleted(delivery.deliveryId(), result.applied())) {
+            return Result.error("Perintah dijalankan tetapi status selesai gagal disimpan; perlu rekonsiliasi manual.");
+        }
+        if (!result.ok()) {
+            plugin.getLogger().severe("Hasil pengiriman " + delivery.deliveryId() + " tidak pasti atau sebagian gagal; hentikan retry dan rekonsiliasi manual.");
+        }
+        return result;
     }
 
     private Result runOnMainThread(Delivery delivery, Player player) {
@@ -104,13 +136,16 @@ public final class DeliveryService {
             for (String raw : delivery.commands()) {
                 String command = Placeholders.apply(raw, player);
                 try {
+                    if (command.toLowerCase(java.util.Locale.ROOT).contains(" parent ") && luckPerms == null) {
+                        throw new IllegalStateException("API LuckPerms tidak tersedia; perubahan group dibatalkan.");
+                    }
                     boolean handled = luckPerms != null && luckPerms.handle(player.getUniqueId(), player.getName(), command);
                     if (!handled && !Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)) {
                         Map<String, String> failure = new LinkedHashMap<>();
                         failure.put("command", raw);
                         failure.put("error", "Perintah ditolak server");
                         failures.add(failure);
-                        continue;
+                        break;
                     }
                     applied++;
                 } catch (Exception e) {
@@ -118,6 +153,7 @@ public final class DeliveryService {
                     failure.put("command", raw);
                     failure.put("error", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
                     failures.add(failure);
+                    break;
                 }
             }
             future.complete(new Result(failures.isEmpty(), applied, failures, failures.isEmpty() ? null : "Sebagian perintah gagal"));

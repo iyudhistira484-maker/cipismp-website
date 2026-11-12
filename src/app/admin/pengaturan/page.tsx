@@ -51,7 +51,7 @@ export default async function AdminStoreSettingsPage() {
             />
           </Card>
 
-          <Card title="Identitas situs">
+          <Card title="Identitas situs & pengumuman">
             <SiteSettingsForm
               settings={{
                 name: settings.site.name,

@@ -4,6 +4,8 @@ import { RegisterForm } from "@/components/store/auth-forms";
 import { getViewer } from "@/server/auth/guard";
 import { getSettings } from "@/server/settings";
 import { Alert } from "@/components/ui/feedback";
+import { headers } from "next/headers";
+import { env } from "@/server/env";
 
 export const metadata: Metadata = { title: "Daftar", robots: { index: false, follow: false } };
 
@@ -21,7 +23,7 @@ export default async function RegisterPage() {
         tetapi akun memudahkan melihat riwayat dan status pengiriman.
       </p>
       <div className="mt-7">
-        <RegisterForm />
+        <RegisterForm turnstileEnabled={env.TURNSTILE_ENABLED} turnstileSiteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} nonce={(await headers()).get("x-nonce") ?? undefined} />
       </div>
       <Alert tone="info" className="mt-6" title="Email verifikasi">
         Kami mengirim tautan verifikasi. Checkout dengan akun memerlukan email yang sudah terverifikasi;

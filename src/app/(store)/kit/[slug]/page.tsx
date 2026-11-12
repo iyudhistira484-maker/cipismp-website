@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ItemTooltip } from "@/components/ui/tooltip";
 import { getActiveSeason, getKitItemsForProducts, getProductBySlug } from "@/server/catalog";
 import { getSettings } from "@/server/settings";
+import { priceSingleProduct } from "@/server/pricing-service";
 import { formatRp } from "@/lib/money";
 import { activeUntilLabel, isPurchaseFrozen } from "@/lib/seasons";
 import { formatDateWIB } from "@/lib/dates";
@@ -33,6 +34,11 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
   const [season, settings] = await Promise.all([getActiveSeason(), getSettings()]);
   const giftingEnabled = settings.features.gifting;
   const items = await getKitItemsForProducts([product.id]);
+  const pricing = season ? await priceSingleProduct(product.id, `preview-${product.id}`, product.name) : null;
+  const line = pricing?.result.lines[0];
+  const basePayable = line?.unitPriceIdr ?? product.priceIdr;
+  const autoDiscountApplied = pricing?.result.discountKind === "AUTOMATIC" && pricing.result.discountIdr > 0;
+  const payable = autoDiscountApplied ? Math.max(0, basePayable - (pricing?.result.discountIdr ?? 0)) : basePayable;
   const frozen = season ? isPurchaseFrozen(season) : false;
 
   return (
@@ -109,8 +115,17 @@ export default async function KitDetailPage({ params }: { params: Promise<{ slug
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="surface-card p-5">
             <p className="text-2xs uppercase tracking-wider text-muted-2">Harga</p>
-            <p className="mt-1 font-display text-[34px] leading-none text-ink">{formatRp(product.priceIdr)}</p>
-            <p className="mt-1 text-[12.5px] text-muted">Sekali beli memberi akses PlayerKits sampai season berakhir.</p>
+            <p className="mt-1 font-display text-[34px] leading-none text-ink">{formatRp(payable)}</p>
+            {autoDiscountApplied ? (
+              <p className="mt-1 text-[12px] text-muted-2">
+                Sebelum promo: <span className="line-through">{formatRp(basePayable)}</span>
+              </p>
+            ) : null}
+            <p className="mt-1 text-[12.5px] text-muted">
+              {autoDiscountApplied
+                ? `Perkiraan promo otomatis${pricing?.result.discountLabel ? ` “${pricing.result.discountLabel}”` : ""}; harga akhir dihitung di checkout.`
+                : "Sekali beli memberi akses PlayerKits sampai season berakhir."}
+            </p>
 
             {season ? (
               <p className="mt-4 flex items-start gap-2 border-t border-line pt-3 text-[12.5px] leading-relaxed text-muted">

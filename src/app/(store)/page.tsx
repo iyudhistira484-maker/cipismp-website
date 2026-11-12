@@ -15,7 +15,8 @@ import { getActiveSeason, getKitItemsForProducts, getPublishedProducts } from "@
 import { getServerConnectionInfo, getServerStatus } from "@/server/server-status";
 import { getSettings } from "@/server/settings";
 import { ratingMap } from "@/server/reviews";
-import { formatDateWIB, daysUntil } from "@/lib/dates";
+import { formatDateWIB } from "@/lib/dates";
+import { daysLeftInSeason } from "@/lib/seasons";
 import { FAQ_ITEMS } from "@/content/faq";
 import { Suspense } from "react";
 
@@ -36,7 +37,7 @@ export default async function HomePage() {
     list.push(item);
     itemsByProduct.set(item.productId, list);
   }
-  const daysLeft = season ? daysUntil(season.endAt) : null;
+  const daysLeft = season ? daysLeftInSeason(season) : null;
 
   return (
     <div>

@@ -8,6 +8,7 @@ import { enforceRateLimit, RateLimitError } from "@/server/rate-limit";
 import { getCartIdentity, getCartLines, clearCart } from "@/server/cart";
 import { getSettings } from "@/server/settings";
 import { getViewer } from "@/server/auth/guard";
+import { getCurrentSession } from "@/server/auth/session";
 import { createOrder, CheckoutError, findOrderForLookup } from "@/server/orders";
 import { ProviderUnavailableError, type ProviderId } from "@/server/payments";
 import { InvalidUsernameError } from "@/server/minecraft";
@@ -61,7 +62,13 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
     throw error;
   }
 
-  const [identity, settings, viewer] = await Promise.all([getCartIdentity(), getSettings(), getViewer()]);
+  const [identity, settings, viewer, current] = await Promise.all([getCartIdentity(), getSettings(), getViewer(), getCurrentSession()]);
+  if (current?.user.totpEnabledAt && !current.session.mfaSatisfiedAt) {
+    return { error: "Selesaikan verifikasi 2FA sebelum checkout." };
+  }
+  if (viewer && !viewer.user.emailVerifiedAt) {
+    return { error: "Verifikasi email akun sebelum checkout, atau keluar untuk checkout sebagai tamu." };
+  }
   const lines = await getCartLines(identity.cartId);
   if (!identity.cartId || lines.length === 0) return { error: "Keranjang kosong." };
 

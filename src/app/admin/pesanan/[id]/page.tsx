@@ -63,7 +63,16 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             </Table>
             <dl className="mt-3 space-y-1 text-[12.5px]">
               <div className="flex justify-between"><dt className="text-muted">Subtotal</dt><dd className="tabular-nums text-ink">{formatRp(order.subtotalIdr)}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">Diskon</dt><dd className="tabular-nums text-ink">−{formatRp(order.discountIdr)}</dd></div>
+              <div className="flex justify-between">
+                <dt className="text-muted">
+                  Diskon {order.couponCode
+                    ? `(${order.couponCode})`
+                    : order.discountLabel
+                      ? `(otomatis: ${order.discountLabel})`
+                      : ""}
+                </dt>
+                <dd className="tabular-nums text-ink">−{formatRp(order.discountIdr)}</dd>
+              </div>
               <div className="flex justify-between"><dt className="text-muted">Pajak</dt><dd className="tabular-nums text-ink">{formatRp(order.taxIdr)}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">Biaya</dt><dd className="tabular-nums text-ink">{formatRp(order.feeIdr)}</dd></div>
               <div className="flex justify-between border-t border-line pt-1.5"><dt className="text-ink">Total</dt><dd className="tabular-nums text-ink">{formatRp(order.totalIdr)}</dd></div>
@@ -85,10 +94,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   <Td>
                     {delivery.status === "DELIVERED" ? (
                       <span className="text-2xs text-success">Selesai</span>
-                    ) : canRedeliver ? (
+                    ) : canRedeliver && ["FAILED", "DEAD"].includes(delivery.status) ? (
                       <RedeliverButton deliveryId={delivery.id} />
                     ) : (
-                      <span className="text-2xs text-muted-2">Tidak ada izin kirim ulang</span>
+                      <span className="text-2xs text-muted-2">Kirim ulang hanya untuk pengiriman gagal setelah pemeriksaan</span>
                     )}
                   </Td>
                 </tr>

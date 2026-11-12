@@ -34,6 +34,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     })),
     subtotalIdr: detail.order.subtotalIdr,
     discountIdr: detail.order.discountIdr,
+    discountLabel: detail.order.couponCode
+      ? `Kupon ${detail.order.couponCode}`
+      : detail.order.discountLabel
+        ? `Otomatis ${detail.order.discountLabel}`
+        : null,
     taxIdr: detail.order.taxIdr,
     taxLabel: `${settings.store.taxLabel} ${settings.store.taxPercent}%`.trim(),
     feeIdr: detail.order.feeIdr,

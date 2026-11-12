@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { Trash2, RotateCcw, Eye, AlertTriangle } from "lucide-react";
 import { Alert } from "@/components/ui/feedback";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,13 @@ import {
   adminMarkPaidAction,
   adminPreviewTransitionAction,
   adminRedeliverAction,
+  adminRegisterStaffMinecraftAction,
+  adminRemoveStaffMinecraftAction,
   adminRevokeAllStaffSessionsAction,
   adminRevokeEntitlementAction,
   adminRevokeSessionAction,
   adminRunTransitionAction,
+  adminSaveAutomaticDiscountAction,
   adminSaveCouponAction,
   adminSaveOrderNoteAction,
   adminSavePaymentMethodsAction,
@@ -35,6 +38,7 @@ import {
   adminSetRoleAction,
   adminTestProvidersAction,
   adminTestServerAction,
+  adminToggleAutomaticDiscountAction,
   adminToggleCouponAction,
   type AdminState,
 } from "@/app/actions/admin";
@@ -101,6 +105,10 @@ export function RedeliverButton({ deliveryId, label = "Kirim ulang" }: { deliver
   return (
     <form action={action} className="inline-flex flex-col items-start gap-1">
       <input type="hidden" name="deliveryId" value={deliveryId} />
+      <label className="max-w-56 text-2xs text-muted-2">
+        <input type="checkbox" name="reconciled" value="yes" required className="mr-1" />
+        Saya sudah memeriksa hasil di server dan memastikan pengiriman ulang aman.
+      </label>
       <SubmitButton size="sm" variant="secondary" loading={pending}>
         <RotateCcw className="size-3.5" aria-hidden />
         {label}
@@ -143,8 +151,8 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
     const currentArtwork = product?.artwork ?? "";
     return PRODUCT_ARTWORK_CHOICES.some((choice) => choice.value === currentArtwork) ? currentArtwork : "";
   });
-  const defaultGrant = product?.grantTemplate ?? "lp user {player} parent add {rank}";
-  const defaultRevoke = product?.revokeTemplate ?? "lp user {player} parent remove {rank}";
+  const defaultGrant = product?.grantTemplate ?? "";
+  const defaultRevoke = product?.revokeTemplate ?? "";
   return (
     <form action={action} className="space-y-3">
       <StateAlert state={state} />
@@ -239,6 +247,11 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
       <Field label="Keuntungan (satu per baris)" htmlFor="product-perks">
         <Textarea id="product-perks" name="perks" defaultValue={product?.perks} rows={5} placeholder={"Prefix chat khusus\n3 home tambahan"} />
       </Field>
+      <p className="text-2xs leading-relaxed text-warning">
+        Pengiriman otomatis hanya menerima perintah LuckPerms parent add/remove untuk vip, mvp, elite, legend,
+        atau permission kit cipiprime dan cipi++. Perintah lain, termasuk parent set, ditahan. Gunakan
+        {' '}{"{uuid}"} sebagai target bila nama Bedrock mengandung spasi; periksa group dan antrean di staging.
+      </p>
       <Field label="Perintah grant" htmlFor="product-grant" hint="Placeholder: {player}, {uuid}, {season}, {rank}, {kitname}">
         <Textarea id="product-grant" name="grantTemplate" defaultValue={defaultGrant} rows={3} spellCheck={false} className="font-mono text-[12px]" />
       </Field>
@@ -339,7 +352,7 @@ export function SeasonForm({ season }: { season?: SeasonFormValues }) {
             id="season-end"
             name="endAt"
             type="datetime-local"
-            defaultValue={toJakartaInput(season?.endAt ?? new Date(Date.now() + 90 * 86_400_000))}
+            defaultValue={toJakartaInput(season?.endAt ?? new Date(Date.now() + 60 * 86_400_000))}
             required
           />
         </Field>
@@ -478,6 +491,7 @@ export interface CouponFormValues {
   endsAt: Date | null;
   rankOnly: boolean;
   kitOnly: boolean;
+  eligibleItemsOnly: boolean;
   active: boolean;
 }
 
@@ -587,12 +601,17 @@ export function CouponForm({ coupon, seasons }: { coupon?: CouponFormValues; sea
           <input type="checkbox" name="active" defaultChecked={coupon?.active ?? true} className="accent-accent" /> Aktif
         </label>
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" name="rankOnly" defaultChecked={coupon?.rankOnly ?? false} className="accent-accent" /> Hanya rank
+          <input type="checkbox" name="rankOnly" defaultChecked={coupon?.rankOnly ?? false} className="accent-accent" /> Keranjang berisi rank
         </label>
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" name="kitOnly" defaultChecked={coupon?.kitOnly ?? false} className="accent-accent" /> Hanya kit
+          <input type="checkbox" name="kitOnly" defaultChecked={coupon?.kitOnly ?? false} className="accent-accent" /> Keranjang berisi kit
         </label>
       </div>
+      <Field label="Cakupan potongan" htmlFor="coupon-scope" hint="Minimum belanja dan tingkat kupon selalu memakai subtotal seluruh keranjang. Jika tidak memilih jenis rank/kit, kedua pilihan menghasilkan nilai yang sama.">
+        <Select id="coupon-scope" name="discountScope" defaultValue={coupon?.eligibleItemsOnly ? "eligible" : "cart"}>
+          <option value="cart">Seluruh keranjang</option><option value="eligible">Hanya jenis yang dipilih</option>
+        </Select>
+      </Field>
       <SubmitButton size="sm">{coupon?.id ? "Simpan kupon" : "Buat kupon"}</SubmitButton>
     </form>
   );
@@ -603,6 +622,132 @@ export function ToggleCouponButton({ couponId, active }: { couponId: string; act
   return (
     <form action={action} className="inline-flex items-center gap-2">
       <input type="hidden" name="couponId" value={couponId} />
+      <SubmitButton size="sm" variant="ghost">
+        {active ? "Nonaktifkan" : "Aktifkan"}
+      </SubmitButton>
+      {state.error ? <span className="text-2xs text-danger">{state.error}</span> : null}
+    </form>
+  );
+}
+
+export interface AutomaticDiscountFormValues {
+  id?: string;
+  name: string;
+  type: "PERCENT" | "FIXED";
+  value: number;
+  minSubtotalIdr: number;
+  seasonId: string | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  rankOnly: boolean;
+  kitOnly: boolean;
+  eligibleItemsOnly: boolean;
+  active: boolean;
+}
+
+export function AutomaticDiscountForm({
+  discount,
+  seasons,
+}: {
+  discount?: AutomaticDiscountFormValues;
+  seasons: CouponSeasonOption[];
+}) {
+  const [state, action] = useActionState(adminSaveAutomaticDiscountAction, empty);
+  return (
+    <form action={action} className="space-y-3">
+      <StateAlert state={state} />
+      {discount?.id ? <input type="hidden" name="id" value={discount.id} /> : null}
+      <Field label="Nama promosi" htmlFor="auto-discount-name" required>
+        <Input
+          id="auto-discount-name"
+          name="name"
+          defaultValue={discount?.name}
+          minLength={3}
+          maxLength={60}
+          required
+          placeholder="Diskon awal season"
+        />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Season" htmlFor="auto-discount-season" hint="Kosong = semua season">
+          <Select id="auto-discount-season" name="seasonId" defaultValue={discount?.seasonId ?? ""}>
+            <option value="">Semua season</option>
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} ({season.status === "ACTIVE" ? "aktif" : season.status === "UPCOMING" ? "akan datang" : "selesai"})
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Minimum belanja (Rp)" htmlFor="auto-discount-min">
+          <Input
+            id="auto-discount-min"
+            name="minSubtotalIdr"
+            defaultValue={discount?.minSubtotalIdr ?? 0}
+            inputMode="numeric"
+          />
+        </Field>
+        <Field label="Tipe diskon" htmlFor="auto-discount-type" required>
+          <Select id="auto-discount-type" name="type" defaultValue={discount?.type ?? "PERCENT"}>
+            <option value="PERCENT">Persen</option>
+            <option value="FIXED">Nominal</option>
+          </Select>
+        </Field>
+        <Field label="Nilai diskon" htmlFor="auto-discount-value" required hint="Persen 1–100; nominal min. Rp 1.000">
+          <Input
+            id="auto-discount-value"
+            name="value"
+            defaultValue={discount?.value ?? 10}
+            inputMode="numeric"
+            required
+          />
+        </Field>
+        <Field label="Mulai (WIB)" htmlFor="auto-discount-start">
+          <Input
+            id="auto-discount-start"
+            name="startsAt"
+            type="datetime-local"
+            defaultValue={discount?.startsAt ? toJakartaInput(discount.startsAt) : ""}
+          />
+        </Field>
+        <Field label="Berakhir (WIB)" htmlFor="auto-discount-end">
+          <Input
+            id="auto-discount-end"
+            name="endsAt"
+            type="datetime-local"
+            defaultValue={discount?.endsAt ? toJakartaInput(discount.endsAt) : ""}
+          />
+        </Field>
+      </div>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2 text-[13px] text-muted">
+          <input type="checkbox" name="active" defaultChecked={discount?.active ?? true} className="accent-accent" /> Aktif
+        </label>
+        <label className="flex items-center gap-2 text-[13px] text-muted">
+          <input type="checkbox" name="rankOnly" defaultChecked={discount?.rankOnly ?? false} className="accent-accent" /> Keranjang berisi rank
+        </label>
+        <label className="flex items-center gap-2 text-[13px] text-muted">
+          <input type="checkbox" name="kitOnly" defaultChecked={discount?.kitOnly ?? false} className="accent-accent" /> Keranjang berisi kit
+        </label>
+      </div>
+      <Field label="Cakupan potongan" htmlFor="auto-discount-scope" hint="Minimum belanja memakai subtotal seluruh keranjang. Jika tidak memilih jenis rank/kit, kedua pilihan menghasilkan nilai yang sama.">
+        <Select id="auto-discount-scope" name="discountScope" defaultValue={discount?.eligibleItemsOnly ? "eligible" : "cart"}>
+          <option value="cart">Seluruh keranjang</option><option value="eligible">Hanya jenis yang dipilih</option>
+        </Select>
+      </Field>
+      <p className="text-2xs leading-relaxed text-muted-2">
+        Tidak memerlukan kode. Kupon dan promo tidak ditumpuk: potongan terbesar dipilih, dan kupon menang jika sama. Total pembayaran harus lebih dari Rp 0.
+      </p>
+      <SubmitButton size="sm">{discount?.id ? "Simpan diskon" : "Buat diskon"}</SubmitButton>
+    </form>
+  );
+}
+
+export function ToggleAutomaticDiscountButton({ discountId, active }: { discountId: string; active: boolean }) {
+  const [state, action] = useActionState(adminToggleAutomaticDiscountAction, empty);
+  return (
+    <form action={action} className="inline-flex items-center gap-2">
+      <input type="hidden" name="discountId" value={discountId} />
       <SubmitButton size="sm" variant="ghost">
         {active ? "Nonaktifkan" : "Aktifkan"}
       </SubmitButton>
@@ -918,7 +1063,7 @@ export function ServerSettingsForm({ server }: { server?: ServerFormValues }) {
           atur <span className="font-mono">website-url</span> dan <span className="font-mono">shared-secret</span> di config plugin.
           Secret harus sama dengan <span className="font-mono">PLUGIN_SHARED_SECRET</span> di environment website.
         </p>
-        <Field label="Host RCON" htmlFor="server-rcon-host" hint="Cadangan bila plugin mati">
+        <Field label="Host RCON" htmlFor="server-rcon-host" hint="Hanya untuk perintah kit yang diizinkan; rank tidak dikirim melalui RCON.">
           <Input id="server-rcon-host" name="rconHost" defaultValue={server?.rconHost ?? ""} />
         </Field>
         <Field label="Port RCON" htmlFor="server-rcon-port">
@@ -949,6 +1094,48 @@ export function TestServerButton({ target, label }: { target: "plugin" | "rcon";
 }
 
 /* -------------------------------------------------------------------- staf */
+
+export function StaffMinecraftRegisterForm({ staff }: { staff: Array<{ id: string; username: string; email: string }> }) {
+  const [state, action] = useActionState(adminRegisterStaffMinecraftAction, empty);
+  useEffect(() => { if (state.success) window.location.reload(); }, [state.success]);
+  return (
+    <form action={action} className="space-y-3">
+      <StateAlert state={state} />
+      <Field label="Akun website staf" htmlFor="protected-staff" required>
+        <Select id="protected-staff" name="staffUserId" required defaultValue="">
+          <option value="" disabled>Pilih staf</option>
+          {staff.map((member) => <option key={member.id} value={member.id}>{member.username} — {member.email}</option>)}
+        </Select>
+      </Field>
+      <Field label="UUID Minecraft" htmlFor="protected-uuid" required hint="Gunakan UUID asli Java atau Floodgate; bukan username.">
+        <Input id="protected-uuid" name="uuid" required maxLength={36} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      </Field>
+      <Field label="Label akun" htmlFor="protected-label" required hint="Contoh: utama atau alternatif; jangan isi password.">
+        <Input id="protected-label" name="label" required maxLength={64} />
+      </Field>
+      <Field label="Alasan / sumber verifikasi" htmlFor="protected-reason" required>
+        <Textarea id="protected-reason" name="reason" required minLength={10} maxLength={500} rows={2} />
+      </Field>
+      <SubmitButton size="sm">Daftarkan UUID</SubmitButton>
+    </form>
+  );
+}
+
+export function StaffMinecraftRemoveForm({ uuid }: { uuid: string }) {
+  const [state, action] = useActionState(adminRemoveStaffMinecraftAction, empty);
+  useEffect(() => { if (state.success) window.location.reload(); }, [state.success]);
+  return (
+    <form action={action} className="space-y-2 min-w-48">
+      <input type="hidden" name="uuid" value={uuid} />
+      <label className="text-2xs text-muted">Alasan penghapusan (minimal 10 karakter)
+        <Input name="reason" required minLength={10} maxLength={500} aria-label={`Alasan hapus ${uuid}`} />
+      </label>
+      <CheckboxField name="confirmed" required label="Saya sudah memeriksa identitas dan antrean." />
+      <SubmitButton size="sm" variant="secondary">Hapus UUID</SubmitButton>
+      <StateAlert state={state} />
+    </form>
+  );
+}
 
 export function StaffRoleForm({
   userId,

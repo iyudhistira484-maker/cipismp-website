@@ -134,10 +134,14 @@ Dimulai dari **admin lanjutan** (dipilih pengguna).
   mengatur identitas situs (nama, tagline, email bantuan, Discord, banner pengumuman) serta
   parameter pengiriman.
 
-## Verifikasi Group B — 11 November 2026
+## Status working tree terkini — 11 November 2026
 
-Automasi CI membuktikan build/typecheck/unit+integration, Docker Compose/image, plugin
-Paper (JDK 21 + Gradle + JUnit) dan 10 tes Playwright. Tes kontrak tanpa kredensial live
+Migrasi `0000`–`0011`, 130 tes unit, 60 tes integrasi dan build web lulus di sandbox. Hasil ini bukan hasil CI commit rilis. Plugin Java, layanan eksternal dan alur login preview tertanam masih perlu verifikasi; lihat `plan.md` untuk risiko dan pekerjaan terbuka. Halaman akun staf kini di `/admin/profil` dan `/admin/keamanan`; halaman pelanggan tetap di `/dashboard`.
+
+## Verifikasi Group B — 11 November 2026 (historis; cek run rilis)
+
+Workflow CI dikonfigurasi untuk build/typecheck/unit+integration, Docker Compose/image, plugin
+Paper (JDK 21 + Gradle + JUnit) dan tes Playwright; hasil dan artifact commit rilis belum diverifikasi dalam sesi ini. Tes kontrak tanpa kredensial live
 juga mencakup tanda tangan/status Tripay & Midtrans, kesesuaian HMAC website↔plugin,
 Discord OAuth, Resend/SMTP, serta Cloudflare Turnstile. Job khusus mengunggah JAR plugin.
 

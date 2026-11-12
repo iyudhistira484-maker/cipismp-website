@@ -2,7 +2,7 @@
 
 Toko resmi untuk server Minecraft **CipiSMP**: menjual rank dan kit yang berlaku selama
 satu season, dengan pembayaran QRIS/e-wallet lewat Tripay atau Midtrans, pengiriman otomatis
-ke server lewat plugin Paper (fallback RCON), dan panel admin lengkap.
+ke server lewat plugin Paper (RCON hanya untuk perintah kit yang diizinkan), dan panel admin lengkap.
 
 - **Tanpa langganan, tanpa perpanjangan, tanpa refund.** Rank/kit aktif sampai season berakhir.
 - **Bisa dihadiahkan** ke pemain lain (harga & aturan rank dihitung terhadap penerima).
@@ -20,7 +20,7 @@ ke server lewat plugin Paper (fallback RCON), dan panel admin lengkap.
 | Auth | Sesi sendiri (cookie httpOnly), argon2id, TOTP 2FA, Turnstile opsional |
 | Antrean | Tabel `jobs` PostgreSQL (`FOR UPDATE SKIP LOCKED`) + worker terpisah |
 | Pembayaran | Adapter Tripay / Midtrans / Fake (dev) dengan verifikasi signature |
-| Pengiriman | Plugin Paper `plugin/` (HMAC + nonce), fallback RCON |
+| Pengiriman | Plugin Paper `plugin/` (HMAC + nonce); RCON hanya untuk kit yang diizinkan, bukan rank |
 | Uji | Vitest (unit + integrasi), Playwright (e2e), k6 (beban, opsional) |
 
 Penyimpangan dari brief (Prisma → Drizzle, Auth.js → auth mandiri, BullMQ → antrean
@@ -29,7 +29,7 @@ Postgres, Redis opsional) beserta alasannya ada di [`docs/ASSUMPTIONS.md`](docs/
 ## Menjalankan dengan Docker
 
 ```bash
-cp .env.example .env      # isi minimal: APP_URL, DATABASE_URL, SESSION_SECRET, ENCRYPTION_KEY
+cp .env.example .env      # isi APP_URL, DATABASE_URL, POSTGRES_PASSWORD, SESSION_SECRET, ENCRYPTION_KEY
 openssl rand -base64 48   # -> SESSION_SECRET
 openssl rand -base64 32   # -> ENCRYPTION_KEY
 
@@ -38,8 +38,14 @@ docker compose run --rm seed      # season 1, produk, akun owner dari env
 open http://localhost:3000        # login: SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD
 ```
 
+Untuk Compose, host database pada `DATABASE_URL` adalah `db`, dan user, database serta
+password harus sama dengan `POSTGRES_*`; encode karakter khusus password pada URL. Port
+PostgreSQL hanya dibuka ke loopback secara default. Atur `REDIS_URL=redis://redis:6379`
+untuk rate limit bersama bila dibutuhkan. Jangan jalankan seed pada database yang berisi
+data nyata tanpa review dan backup.
+
 `docker compose down` menghentikan semua layanan; data tetap di volume `db-data`.
-Untuk menghapus data: `docker compose down -v`.
+`docker compose down -v` **menghapus data database**; jangan gunakan pada data yang harus dipertahankan.
 
 ## Menjalankan lokal (tanpa Docker)
 
@@ -134,17 +140,19 @@ Pemain menghubungkan akun dengan `/verify KODE` dari dashboard.
 
 - `npm run typecheck`, `npx drizzle-kit check`, `git diff --check`, dan `npm run build` lulus.
   Build menandai `/cara-kerja` sebagai route dinamis karena status server memakai `fetch` no-store; build tetap sukses.
-- Rantai migrasi `0000`–`0009` lulus pada PostgreSQL disposable yang baru. Katalog hasil migrasi sesuai: Cute Rp10.000, Pop Rp30.000, Milk Rp60.000, Star Rp100.000; kolom polling plugin juga tersedia. Database disposable dihapus setelah tes.
-- `npm test` pada database disposable termigrasi: **152/152 tes lulus** (116 unit + 36 integrasi).
+- Rantai migrasi `0000`–`0011` lulus pada PostgreSQL disposable yang baru. Katalog hasil migrasi sesuai: Cute Rp10.000, Pop Rp30.000, Milk Rp60.000, Star Rp100.000; kolom polling plugin juga tersedia. Database disposable dihapus setelah tes.
+- Tes terbaru pada working tree sesi ini: **130 unit + 60 integrasi lulus** (integrasi menggunakan database disposable termigrasi).
 - Database lokal preview sudah menerapkan `0008`–`0009`. Uji smoke `npm start` menghasilkan HTTP 200 untuk `/api/health`, `/`, dan `/rank`; urutan dan harga rank tampil benar.
+
+Catatan: angka dan smoke test sebelumnya adalah bukti historis; jalankan ulang untuk commit rilis. `plan.md` memuat temuan dan batasan audit terkini.
 
 ### Belum selesai / membutuhkan runner atau lingkungan staging-produksi
 
 - **Playwright E2E:** konfigurasi server standalone sudah diperbaiki, tetapi 10 tes belum menjalankan assertion karena Chromium tidak tersedia di sandbox. Pasang Chromium pada runner, lalu jalankan `npm run test:e2e`.
 - **Plugin Paper:** JDK 21 dan Gradle tidak tersedia di sandbox, serta repo tidak memiliki Gradle Wrapper; kompilasi dan JUnit Java belum terverifikasi. Jalankan `cd plugin && gradle test build` di runner ber-toolchain. Tambahkan tes untuk pemulihan antrean offline ketika penulisan marker selesai gagal.
 - **Beban dan container:** uji k6 serta validasi/build Docker Compose belum dijalankan lokal karena k6 dan Docker tidak tersedia.
-- **Integrasi nyata di staging:** uji webhook Tripay/Midtrans, email, Discord OAuth, Turnstile, serta Paper/LuckPerms—polling HTTPS, HMAC, ACK/retry, pemain offline, revoke, RCON fallback, dan permission PlayerKits. Tes lokal memakai database disposable dan tidak menggantikan tes layanan live.
-- **Rilis production:** database production belum diubah. Verifikasi backup/restore dan drift schema/data terlebih dahulu, lalu rencanakan migrasi `0008`–`0009`, seed, rahasia environment, TLS/domain, worker, dan cron di lingkungan production.
+- **Integrasi nyata di staging:** uji webhook Tripay/Midtrans, email, Discord OAuth, Turnstile, serta Paper/LuckPerms—polling HTTPS, HMAC, ACK/retry, pemain offline, revoke rank melalui plugin, RCON untuk kit yang diizinkan, dan permission PlayerKits. Tes lokal memakai database disposable dan tidak menggantikan tes layanan live.
+- **Rilis production:** database production belum diubah. Verifikasi backup/restore dan drift schema/data terlebih dahulu, lalu rencanakan migrasi yang belum diterapkan hingga `0011`, seed, rahasia environment, TLS/domain, worker, dan cron di lingkungan production.
 - **Go-live non-fungsional:** Lighthouse, ukuran layar/reduced-motion, monitoring/backup/alert, lisensi aset Minecraft, dan tinjauan hukum syarat/privasi/penjualan masih perlu dituntaskan. Detail checklist ada di [`docs/GO_LIVE.md`](docs/GO_LIVE.md) dan [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ## Kebijakan

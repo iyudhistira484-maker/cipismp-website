@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireViewer } from "@/server/auth/guard";
+import { requireCustomer } from "@/server/auth/guard";
 import { profilesForUser } from "@/server/minecraft";
 import { MinecraftPanel } from "@/components/store/account-forms";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = { title: "Akun Minecraft", robots: { index: false, follow: false } };
 
 export default async function MinecraftPage() {
-  const viewer = await requireViewer("/dashboard/minecraft");
+  const viewer = await requireCustomer("/dashboard/minecraft");
   const profiles = await profilesForUser(viewer.user.id);
 
   return (
@@ -35,7 +35,7 @@ export default async function MinecraftPage() {
               description="Mulai verifikasi untuk menghubungkan akun Minecraft pertamamu."
             />
           ) : (
-            <ul className="mt-3 space-y-2">
+            <ul className="dashboard-scroll mt-3 max-h-[30rem] space-y-2 overflow-y-auto pr-1" tabIndex={0} aria-label="Daftar akun Minecraft terhubung">
               {profiles.map((profile) => (
                 <li key={profile.id} className="rounded-lg border border-line bg-surface/60 p-3.5">
                   <div className="flex items-start justify-between gap-3">

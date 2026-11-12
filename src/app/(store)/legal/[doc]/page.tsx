@@ -6,10 +6,6 @@ import { getSettings } from "@/server/settings";
 import { formatDateWIB } from "@/lib/dates";
 import { Alert } from "@/components/ui/feedback";
 
-export function generateStaticParams() {
-  return LEGAL_DOCS.map((doc) => ({ doc: doc.slug }));
-}
-
 export async function generateMetadata({ params }: { params: Promise<{ doc: string }> }): Promise<Metadata> {
   const { doc } = await params;
   const found = findLegalDoc(doc);

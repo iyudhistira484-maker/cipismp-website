@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { commandTemplates, coupons, deliveries, entitlements, kitItems, minecraftProfiles, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
+import { automaticDiscounts, commandTemplates, coupons, deliveries, entitlements, kitItems, minecraftProfiles, orders, products, seasons, servers, sessions, users } from "@/server/db/schema";
 import { requireStaff, requirePermissionApi } from "@/server/auth/guard";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
@@ -13,9 +13,13 @@ import { writeAudit } from "@/server/audit";
 import { ids } from "@/server/ids";
 import { logger } from "@/server/logger";
 import { fulfillPaidOrder, cancelOrder } from "@/server/orders";
+import { updateCouponPreservingOrderReferences } from "@/server/coupon-admin";
 import { redeliver } from "@/server/delivery";
 import { buildGrantCommands, buildRevokeCommands, validateTemplate } from "@/server/delivery/commands";
+import { containsRankChange, deliveryCommandsAreSafe } from "@/server/delivery/command-safety";
 import { grantEntitlement } from "@/server/entitlements";
+import { hasKnownStaffRankRestriction } from "@/server/staff-rank";
+import { registerStaffMinecraftAccount, removeStaffMinecraftAccount } from "@/server/staff-minecraft-accounts";
 import { previewTransition, runSeasonTransition } from "@/server/seasons/transition";
 import { enqueue } from "@/server/queue";
 import { getSettings, updateSettings } from "@/server/settings";
@@ -79,6 +83,8 @@ export async function adminMarkPaidAction(_prev: AdminState, formData: FormData)
       amountIdr: order.totalIdr,
       method: "MANUAL",
     });
+    if (result.cancelled) return { error: "Pesanan sudah dibatalkan. Periksa pembayaran dan hubungi pembeli." };
+    if (result.alreadyPaid) return { error: "Pesanan sudah lunas; tidak ada pengiriman baru dibuat." };
     await writeAudit({
       actor,
       action: "order.manual-paid",
@@ -150,6 +156,7 @@ export async function adminRedeliverAction(_prev: AdminState, formData: FormData
     const { ip, actor } = await guard(10, 60);
     await requirePermissionApi("orders.redeliver");
     const deliveryId = String(formData.get("deliveryId") ?? "");
+    if (formData.get("reconciled") !== "yes") return { error: "Periksa hasil di server Minecraft dan konfirmasi rekonsiliasi sebelum mengirim ulang." };
     const delivery = await db.query.deliveries.findFirst({ where: eq(deliveries.id, deliveryId) });
     if (!delivery) return { error: "Pengiriman tidak ditemukan." };
 
@@ -762,6 +769,7 @@ export async function adminSaveCouponAction(_prev: AdminState, formData: FormDat
         seasonId: z.string().optional(),
         rankOnly: z.boolean(),
         kitOnly: z.boolean(),
+        discountScope: z.enum(["cart", "eligible"]),
         active: z.boolean(),
       })
       .refine((d) => !(d.rankOnly && d.kitOnly), { message: "Kupon tidak bisa hanya-rank sekaligus hanya-kit." })
@@ -776,6 +784,7 @@ export async function adminSaveCouponAction(_prev: AdminState, formData: FormDat
         seasonId: String(formData.get("seasonId") ?? "").trim() || undefined,
         rankOnly: formData.get("rankOnly") === "on",
         kitOnly: formData.get("kitOnly") === "on",
+        discountScope: String(formData.get("discountScope") ?? "cart"),
         active: formData.get("active") !== null,
       });
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Data kupon tidak valid." };
@@ -804,11 +813,12 @@ export async function adminSaveCouponAction(_prev: AdminState, formData: FormDat
       endsAt,
       rankOnly: data.rankOnly,
       kitOnly: data.kitOnly,
+      eligibleItemsOnly: data.discountScope === "eligible",
       active: data.active,
     };
 
     if (data.id) {
-      await db.update(coupons).set({ ...values, updatedAt: new Date() }).where(eq(coupons.id, data.id));
+      await updateCouponPreservingOrderReferences(data.id, values);
       await writeAudit({ actor, action: "coupon.updated", targetType: "coupon", targetId: data.id, after: values, ip });
     } else {
       const newId = ids.coupon();
@@ -842,6 +852,124 @@ export async function adminToggleCouponAction(_prev: AdminState, formData: FormD
     });
     revalidatePath("/admin/kupon");
     return { success: `Kupon ${coupon.code} ${coupon.active ? "dinonaktifkan" : "diaktifkan"}.` };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* --------------------------------------------------------- diskon otomatis */
+
+export async function adminSaveAutomaticDiscountAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("coupons.write");
+
+    const id = String(formData.get("id") ?? "").trim() || undefined;
+    const name = String(formData.get("name") ?? "").trim();
+    const value = idrField(formData, "value");
+    const minSubtotalIdr = idrField(formData, "minSubtotalIdr");
+    const typeRaw = String(formData.get("type") ?? "PERCENT");
+    if (name.length < 3 || name.length > 60) return { error: "Nama diskon harus 3–60 karakter." };
+    if (value === null || minSubtotalIdr === null || minSubtotalIdr > 1_000_000_000) {
+      return { error: "Nilai diskon atau minimum belanja tidak valid." };
+    }
+    if (typeRaw !== "PERCENT" && typeRaw !== "FIXED") return { error: "Tipe diskon tidak valid." };
+    const type = typeRaw as "PERCENT" | "FIXED";
+    if (type === "PERCENT" && (value < 1 || value > 100)) return { error: "Diskon persen harus 1–100." };
+    if (type === "FIXED" && (value < 1000 || value > 1_000_000_000)) {
+      return { error: "Diskon nominal harus Rp 1.000–Rp 1.000.000.000." };
+    }
+
+    const startsAtRaw = String(formData.get("startsAt") ?? "").trim();
+    const endsAtRaw = String(formData.get("endsAt") ?? "").trim();
+    const startsAt = startsAtRaw ? fromJakartaInput(startsAtRaw) : null;
+    const endsAt = endsAtRaw ? fromJakartaInput(endsAtRaw) : null;
+    if ((startsAt && !Number.isFinite(startsAt.getTime())) || (endsAt && !Number.isFinite(endsAt.getTime()))) {
+      return { error: "Tanggal diskon tidak valid." };
+    }
+    if (startsAt && endsAt && endsAt <= startsAt) return { error: "Tanggal berakhir harus setelah tanggal mulai." };
+
+    const seasonId = String(formData.get("seasonId") ?? "").trim() || null;
+    if (seasonId && !(await db.query.seasons.findFirst({ where: eq(seasons.id, seasonId) }))) {
+      return { error: "Season diskon tidak ditemukan." };
+    }
+    const rankOnly = formData.get("rankOnly") !== null;
+    const kitOnly = formData.get("kitOnly") !== null;
+    const discountScope = String(formData.get("discountScope") ?? "cart");
+    if (discountScope !== "cart" && discountScope !== "eligible") return { error: "Cakupan diskon tidak dikenal." };
+    if (rankOnly && kitOnly) return { error: "Syarat tidak bisa sekaligus rank dan kit." };
+
+    const values = {
+      name,
+      type,
+      value,
+      minSubtotalIdr,
+      seasonId,
+      startsAt,
+      endsAt,
+      rankOnly,
+      kitOnly,
+      eligibleItemsOnly: discountScope === "eligible",
+      active: formData.get("active") !== null,
+    };
+
+    if (id) {
+      const before = await db.query.automaticDiscounts.findFirst({ where: eq(automaticDiscounts.id, id) });
+      if (!before) return { error: "Diskon otomatis tidak ditemukan." };
+      await db.update(automaticDiscounts).set({ ...values, updatedAt: new Date() }).where(eq(automaticDiscounts.id, id));
+      await writeAudit({
+        actor,
+        action: "automatic_discount.updated",
+        targetType: "automatic_discount",
+        targetId: id,
+        before: { name: before.name, type: before.type, value: before.value, active: before.active },
+        after: values,
+        ip,
+      });
+    } else {
+      const newId = ids.automaticDiscount();
+      await db.insert(automaticDiscounts).values({ id: newId, ...values });
+      await writeAudit({
+        actor,
+        action: "automatic_discount.created",
+        targetType: "automatic_discount",
+        targetId: newId,
+        after: values,
+        ip,
+      });
+    }
+
+    revalidatePath("/admin/diskon");
+    revalidatePath("/checkout");
+    revalidatePath("/", "layout");
+    return { success: `Diskon otomatis “${name}” disimpan.` };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function adminToggleAutomaticDiscountAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("coupons.write");
+    const id = String(formData.get("discountId") ?? "").trim();
+    const discount = await db.query.automaticDiscounts.findFirst({ where: eq(automaticDiscounts.id, id) });
+    if (!discount) return { error: "Diskon otomatis tidak ditemukan." };
+    const active = !discount.active;
+    await db.update(automaticDiscounts).set({ active, updatedAt: new Date() }).where(eq(automaticDiscounts.id, id));
+    await writeAudit({
+      actor,
+      action: "automatic_discount.toggled",
+      targetType: "automatic_discount",
+      targetId: id,
+      before: { active: discount.active },
+      after: { active },
+      ip,
+    });
+    revalidatePath("/admin/diskon");
+    revalidatePath("/checkout");
+    revalidatePath("/", "layout");
+    return { success: `Diskon otomatis “${discount.name}” ${active ? "diaktifkan" : "dinonaktifkan"}.` };
   } catch (error) {
     return fail(error);
   }
@@ -1254,6 +1382,25 @@ export async function adminSetRoleAction(_prev: AdminState, formData: FormData):
   }
 }
 
+export async function adminRegisterStaffMinecraftAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("staff.write");
+    await registerStaffMinecraftAccount({ uuid: String(formData.get("uuid") ?? ""), staffUserId: String(formData.get("staffUserId") ?? ""), label: String(formData.get("label") ?? ""), reason: String(formData.get("reason") ?? ""), actor, ip });
+    return { success: "UUID staf dicatat. Periksa juga antrean lama dan semua akun alternatif." };
+  } catch (error) { return fail(error); }
+}
+
+export async function adminRemoveStaffMinecraftAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  try {
+    const { ip, actor } = await guard();
+    await requirePermissionApi("staff.write");
+    if (formData.get("confirmed") !== "on") return { error: "Konfirmasi penghapusan perlindungan diperlukan." };
+    await removeStaffMinecraftAccount({ uuid: String(formData.get("uuid") ?? ""), reason: String(formData.get("reason") ?? ""), actor, ip });
+    return { success: "Catatan UUID dihapus. Perubahan tercatat di audit." };
+  } catch (error) { return fail(error); }
+}
+
 /* ------------------------------------------------------------------ sesi staf */
 
 export async function adminRevokeSessionAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
@@ -1339,9 +1486,25 @@ export async function adminGrantCompAction(_prev: AdminState, formData: FormData
 
     const product = await db.query.products.findFirst({ where: eq(products.id, parsed.data.productId) });
     if (!product) return { error: "Produk tidak ditemukan." };
+    if (product.type === "RANK" && await hasKnownStaffRankRestriction(null, [parsed.data.uuid])) {
+      return { error: "Rank tidak tersedia untuk penerima yang terhubung dengan akun staf." };
+    }
     const season = await db.query.seasons.findFirst({ where: eq(seasons.status, "ACTIVE") });
     if (!season) return { error: "Tidak ada season aktif." };
 
+    const commands = await buildGrantCommands({
+      productId: product.id,
+      uuid: parsed.data.uuid,
+      player: parsed.data.playerName,
+      seasonSlug: season.slug,
+    });
+    if (commands.length && !deliveryCommandsAreSafe(commands, parsed.data.playerName, parsed.data.uuid)) {
+      return { error: "Template pengiriman tidak sesuai daftar aman; perbaiki sebelum comp." };
+    }
+    if (containsRankChange(commands)) {
+      const server = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
+      if (!server || server.deliveryMode !== "PLUGIN") return { error: "Comp rank memerlukan plugin dengan pemeriksaan grup staf; RCON tidak aman." };
+    }
     const grant = await grantEntitlement({
       uuid: parsed.data.uuid,
       playerName: parsed.data.playerName,
@@ -1352,12 +1515,6 @@ export async function adminGrantCompAction(_prev: AdminState, formData: FormData
       reason: parsed.data.reason,
     });
 
-    const commands = await buildGrantCommands({
-      productId: product.id,
-      uuid: parsed.data.uuid,
-      player: parsed.data.playerName,
-      seasonSlug: season.slug,
-    });
     let deliveryId: string | null = null;
     if (commands.length > 0) {
       deliveryId = ids.delivery();

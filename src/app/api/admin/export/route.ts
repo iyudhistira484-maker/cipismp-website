@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Jenis ekspor tidak dikenal." }, { status: 400 });
     }
     const permission = type === "customers" ? "customers.read" : "orders.read";
-    if (!hasPermission(viewer.user.role, permission)) {
+    if (!viewer.user.totpEnabledAt || !hasPermission(viewer.user.role, permission)) {
       return NextResponse.json({ error: "Tidak punya akses ekspor ini." }, { status: 403 });
     }
 

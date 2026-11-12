@@ -15,6 +15,8 @@ export interface PreviewResult {
   feeIdr: number;
   totalIdr: number;
   couponApplied: string | null;
+  discountLabel: string | null;
+  discountKind: "COUPON" | "AUTOMATIC" | null;
 }
 
 /**
@@ -35,6 +37,8 @@ export async function previewTotalsAction(input: {
     feeIdr: 0,
     totalIdr: 0,
     couponApplied: null,
+    discountLabel: null,
+    discountKind: null,
   };
 
   const identity = await getCartIdentity();
@@ -89,5 +93,7 @@ export async function previewTotalsAction(input: {
     feeIdr: pricing.result.feeIdr,
     totalIdr: pricing.result.totalIdr,
     couponApplied: pricing.result.couponCode,
+    discountLabel: pricing.result.discountLabel,
+    discountKind: pricing.result.discountKind,
   };
 }

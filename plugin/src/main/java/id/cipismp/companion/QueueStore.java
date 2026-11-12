@@ -6,6 +6,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -24,7 +28,14 @@ public final class QueueStore {
         this.plugin = plugin;
         this.file = new File(plugin.getDataFolder(), fileName);
         this.maxPerPlayer = maxPerPlayer;
-        this.data = YamlConfiguration.loadConfiguration(file);
+        this.data = new YamlConfiguration();
+        if (file.exists()) {
+            try {
+                this.data.load(file);
+            } catch (IOException | org.bukkit.configuration.InvalidConfigurationException e) {
+                throw new IllegalStateException("Antrean pengiriman rusak atau tidak dapat dibaca; plugin harus dihentikan dan direkonsiliasi.", e);
+            }
+        }
     }
 
     public synchronized boolean enqueue(Delivery delivery) {
@@ -66,7 +77,7 @@ public final class QueueStore {
         String path = "completed." + deliveryId;
         data.set(path + ".applied", Math.max(0, applied));
         data.set(path + ".at", System.currentTimeMillis());
-        pruneCompleted();
+        // Do not evict markers automatically: an old ACK can be retried later.
         return save();
     }
 
@@ -76,20 +87,8 @@ public final class QueueStore {
         save();
     }
 
-    private void pruneCompleted() {
-        ConfigurationSection section = data.getConfigurationSection("completed");
-        if (section == null) return;
-        List<String> completed = new ArrayList<>(section.getKeys(false));
-        if (completed.size() <= 2000) return;
-        completed.sort((left, right) -> Long.compare(
-                data.getLong("completed." + left + ".at", 0L),
-                data.getLong("completed." + right + ".at", 0L)));
-        for (int i = 0; i < completed.size() - 2000; i++) {
-            data.set("completed." + completed.get(i), null);
-        }
-    }
-
-    public synchronized List<Delivery> drain(String uuid) {
+    /** Read without deleting: a crash before execution must not lose acknowledged work. */
+    public synchronized List<Delivery> pending(String uuid) {
         String base = key(uuid);
         List<String> ids = data.getStringList(base + ".ids");
         String player = data.getString(base + ".player", "");
@@ -99,8 +98,26 @@ public final class QueueStore {
             List<String> commands = data.getStringList(entry + ".commands");
             out.add(new Delivery(id, uuid, player, commands, data.getString(entry + ".reason", "PURCHASE")));
         }
-        remove(uuid);
         return out;
+    }
+
+    /** Remove only one delivery after its completion marker is durably written. */
+    public synchronized boolean removeCompleted(String uuid, String deliveryId) {
+        String base = key(uuid);
+        List<String> ids = data.getStringList(base + ".ids");
+        if (!ids.contains(deliveryId)) return true;
+        List<String> original = new ArrayList<>(ids);
+        ids.remove(deliveryId);
+        // Keep entries until the save succeeds so the in-memory state can be restored.
+        data.set(base + ".ids", ids);
+        if (!save()) {
+            data.set(base + ".ids", original);
+            return false;
+        }
+        if (ids.isEmpty()) data.set(base, null);
+        else data.set(base + ".entries." + deliveryId, null);
+        save(); // Optional cleanup; the durable ID list already excludes this delivery.
+        return true;
     }
 
     public synchronized int pendingFor(String uuid) {
@@ -117,11 +134,6 @@ public final class QueueStore {
         return total;
     }
 
-    private void remove(String uuid) {
-        data.set(key(uuid), null);
-        save();
-    }
-
     private static String key(String uuid) {
         return "players." + uuid.toLowerCase();
     }
@@ -132,7 +144,17 @@ public final class QueueStore {
                 plugin.getLogger().warning("Tidak bisa membuat folder data plugin.");
                 return false;
             }
-            data.save(file);
+            var tmp = Files.createTempFile(plugin.getDataFolder().toPath(), "queue-", ".tmp");
+            try {
+                Files.writeString(tmp, data.saveToString(), StandardCharsets.UTF_8);
+                try {
+                    Files.move(tmp, file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(tmp, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(tmp);
+            }
             return true;
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Gagal menyimpan antrean pengiriman", e);

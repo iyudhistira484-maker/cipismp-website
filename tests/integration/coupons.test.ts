@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { coupons, seasons } from "@/server/db/schema";
 import { loadCouponInput } from "@/server/orders";
+import { loadCoupon } from "@/server/pricing-service";
 import { priceCart, type PriceableProduct, type PricingSettings } from "@/lib/pricing";
 import { databaseUrl, uniqueSuffix } from "./helpers";
 
@@ -45,6 +46,8 @@ describe.skipIf(!enabled)("kupon bertingkat dan eksklusif season (database)", ()
       ],
       seasonId,
       maxPerUser: 1,
+      rankOnly: true,
+      eligibleItemsOnly: true,
       active: true,
     });
   });
@@ -56,7 +59,8 @@ describe.skipIf(!enabled)("kupon bertingkat dan eksklusif season (database)", ()
 
   it("membaca JSONB tier + season dari database dan menerapkan tingkat tertinggi", async () => {
     const loaded = await loadCouponInput(couponCode, "buyer@example.test");
-    expect(loaded).toMatchObject({ code: couponCode, seasonId, minSubtotalIdr: 25_000 });
+    expect(loaded).toMatchObject({ code: couponCode, seasonId, minSubtotalIdr: 25_000, rankOnly: true, eligibleItemsOnly: true });
+    expect(await loadCoupon(couponCode, 0, "buyer@example.test")).toMatchObject({ eligibleItemsOnly: true });
     expect(loaded?.tiers).toEqual([
       { minSubtotalIdr: 100_000, type: "PERCENT", value: 15 },
       { minSubtotalIdr: 200_000, type: "FIXED", value: 35_000 },
@@ -85,6 +89,15 @@ describe.skipIf(!enabled)("kupon bertingkat dan eksklusif season (database)", ()
     expect(result.ok).toBe(true);
     expect(result.discountIdr).toBe(35_000);
     expect(result.totalIdr).toBe(215_000);
+  });
+
+  it("pilihan lama tanpa kolom cakupan tetap memakai seluruh keranjang", async () => {
+    const legacyId = `${couponId}-legacy`;
+    try {
+      await db.insert(coupons).values({ id: legacyId, code: `${couponCode}-OLD`, type: "PERCENT", value: 10 });
+      const old = await db.query.coupons.findFirst({ where: eq(coupons.id, legacyId) });
+      expect(old?.eligibleItemsOnly).toBe(false);
+    } finally { await db.delete(coupons).where(eq(coupons.id, legacyId)); }
   });
 
   it("menolak kupon jika checkout season berbeda dari season eksklusif kupon", async () => {

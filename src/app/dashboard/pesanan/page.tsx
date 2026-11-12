@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireViewer } from "@/server/auth/guard";
-import { ordersForUser } from "@/server/orders";
+import { requireCustomer } from "@/server/auth/guard";
+import { orderHistoryForUser } from "@/server/orders";
+import { Pagination } from "@/components/dashboard/pagination";
 import { getSeasonById } from "@/server/catalog";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
 import { formatDateTimeWIB } from "@/lib/dates";
@@ -11,9 +12,11 @@ import { EmptyState } from "@/components/ui/feedback";
 
 export const metadata: Metadata = { title: "Pesanan", robots: { index: false, follow: false } };
 
-export default async function OrdersPage() {
-  const viewer = await requireViewer("/dashboard/pesanan");
-  const orders = await ordersForUser(viewer.user.id, 50);
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
+  const viewer = await requireCustomer("/dashboard/pesanan");
+  const params = await searchParams;
+  const page = await orderHistoryForUser(viewer.user.id, params.cursor);
+  const orders = page.items;
   const seasons = new Map<string, string>();
   for (const order of orders) {
     if (!seasons.has(order.seasonId)) {
@@ -33,12 +36,12 @@ export default async function OrdersPage() {
       {orders.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title="Belum ada pesanan"
-          description="Setelah membeli rank atau kit, pesanan dan kuitansinya muncul di sini."
-          action={<Link href="/rank" className="text-[13px] text-accent hover:underline">Lihat rank</Link>}
+          title={params.cursor ? "Tidak ada pesanan di halaman ini" : "Belum ada pesanan"}
+          description={params.cursor ? "Kembali ke daftar terbaru untuk melanjutkan." : "Setelah membeli rank atau kit, pesanan dan kuitansinya muncul di sini."}
+          action={<Link href={params.cursor ? "/dashboard/pesanan" : "/rank"} className="text-[13px] text-accent hover:underline">{params.cursor ? "Lihat pesanan terbaru" : "Lihat rank"}</Link>}
         />
       ) : (
-        <div className="mt-6 space-y-2">
+        <div className="dashboard-scroll mt-6 max-h-[42rem] space-y-2 overflow-y-auto pr-1" tabIndex={0} role="region" aria-label="Daftar pesanan, gulir untuk melihat semua">
           {orders.map((order) => (
             <Link
               key={order.id}
@@ -61,6 +64,7 @@ export default async function OrdersPage() {
           ))}
         </div>
       )}
+      <Pagination path="/dashboard/pesanan" parameter="cursor" previous={page.previous} next={page.next} label="Halaman riwayat pembelian" />
     </div>
   );
 }

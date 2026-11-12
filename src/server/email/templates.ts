@@ -11,6 +11,7 @@ const BRAND = {
   text: "#342732",
   muted: "#695865",
   accent: "#a02b64",
+  success: "#26745b",
   line: "#eddde7",
 };
 
@@ -158,6 +159,9 @@ export interface OrderEmailData {
   playerName: string;
   seasonName: string;
   seasonEndsAt: Date;
+  subtotalIdr: number;
+  discountIdr: number;
+  discountLabel: string | null;
   totalIdr: number;
   items: Array<{ name: string; type: "RANK" | "KIT"; amountIdr: number }>;
   statusUrl: string;
@@ -178,8 +182,16 @@ function orderSummary(data: OrderEmailData): string {
       </tr>`,
     )
     .join("");
+  const subtotal = `<tr><td style="padding:7px 0;color:${BRAND.muted};font-size:13px;">Subtotal</td>
+      <td style="padding:7px 0;color:${BRAND.text};font-size:13px;text-align:right;">${escapeHtml(formatRp(data.subtotalIdr))}</td></tr>`;
+  const discount = data.discountIdr > 0
+    ? `<tr><td style="padding:7px 0;color:${BRAND.success};font-size:13px;">Diskon${data.discountLabel ? ` (${escapeHtml(data.discountLabel)})` : ""}</td>
+      <td style="padding:7px 0;color:${BRAND.success};font-size:13px;text-align:right;">−${escapeHtml(formatRp(data.discountIdr))}</td></tr>`
+    : "";
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 4px;">
     ${rows}
+    ${subtotal}
+    ${discount}
     <tr><td style="padding-top:12px;border-top:1px solid ${BRAND.line};color:${BRAND.muted};font-size:13px;">Total</td>
     <td style="padding-top:12px;border-top:1px solid ${BRAND.line};color:${BRAND.accent};font-size:16px;text-align:right;font-weight:700;">${escapeHtml(formatRp(data.totalIdr))}</td></tr>
   </table>
@@ -214,7 +226,7 @@ export function orderPaidTemplate(data: OrderEmailData): EmailContent {
       bodyHtml:
         p(`Halo <strong>${escapeHtml(data.playerName)}</strong>, pembayaran untuk order <strong>${escapeHtml(data.orderNumber)}</strong> sudah kami terima.`) +
         orderSummary(data) +
-        p("Akses rank atau permission PlayerKits sedang dikirim ke server. Kalau kamu sedang offline, perintah aktivasi dijalankan saat kamu masuk berikutnya.") +
+        p("Akses rank atau permission PlayerKits sedang dikirim ke server. Jika kamu offline, plugin akan mencoba aktivasi saat kamu masuk berikutnya; periksa status pesanan atau hubungi bantuan jika belum aktif.") +
         button(data.statusUrl, "Lihat status pesanan"),
     }),
     text: `Pembayaran diterima untuk ${data.orderNumber}. Total ${formatRp(data.totalIdr)}.\nStatus: ${data.statusUrl}`,

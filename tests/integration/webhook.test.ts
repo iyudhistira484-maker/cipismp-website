@@ -184,7 +184,38 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
     expect(await db.query.deliveries.findMany({ where: eq(deliveries.orderId, orderId) })).toHaveLength(0);
   });
 
-  it("memenuhi order sekali dan mengabaikan replay event yang sama", async () => {
+  it("tidak memenuhi order bila nominal tidak tersedia", async () => {
+    const { body, headers } = await fakeWebhook({ reference: providerRef, merchant_ref: orderNumber, status: "PAID" });
+    expect((await handleProviderWebhook("FAKE", body, headers, "127.0.0.1")).result).toBe("amount-unverified");
+    expect((await db.query.orders.findFirst({ where: eq(orders.id, orderId) }))?.status).toBe("PENDING");
+  });
+
+  it("menolak referensi pembayaran milik order lain", async () => {
+    const otherId = `other_${suffix}`, otherRef = `other-ref-${suffix}`;
+    await db.insert(orders).values({ id: otherId, orderNumber: `CIPI-OTHER-${suffix}`, publicToken: otherId, email: `other-${suffix}@example.test`, mcUuid: "other", mcName: "Other", seasonId, status: "PENDING", subtotalIdr: totalIdr, totalIdr, provider: "FAKE", expiresAt: new Date(Date.now() + 60000) });
+    await db.insert(payments).values({ id: otherId, orderId: otherId, provider: "FAKE", providerRef: otherRef, amountIdr: totalIdr });
+    try {
+      const { body, headers } = await fakeWebhook({ reference: otherRef, merchant_ref: orderNumber, status: "PAID", amount: totalIdr });
+      expect((await handleProviderWebhook("FAKE", body, headers, "127.0.0.1")).result).toBe("payment-reference-mismatch");
+      expect((await db.query.orders.findFirst({ where: eq(orders.id, orderId) }))?.status).toBe("PENDING");
+      expect((await db.query.payments.findFirst({ where: eq(payments.id, otherId) }))?.status).toBe("PENDING");
+    } finally { await db.delete(orders).where(eq(orders.id, otherId)); }
+  });
+
+  it("mencatat pembayaran order yang dibatalkan untuk ditinjau, tanpa mengirim", async () => {
+    const cancelledId = `cancelled_${suffix}`, cancelledRef = `cancelled-ref-${suffix}`, cancelledNumber = `CIPI-CANCEL-${suffix}`;
+    await db.insert(orders).values({ id: cancelledId, orderNumber: cancelledNumber, publicToken: cancelledId, email: `cancel-${suffix}@example.test`, mcUuid: "other", mcName: "Other", seasonId, status: "CANCELLED", subtotalIdr: totalIdr, totalIdr, provider: "FAKE", expiresAt: new Date() });
+    await db.insert(payments).values({ id: cancelledId, orderId: cancelledId, provider: "FAKE", providerRef: cancelledRef, amountIdr: totalIdr });
+    try {
+      const { body, headers } = await fakeWebhook({ reference: cancelledRef, merchant_ref: cancelledNumber, status: "PAID", amount: totalIdr });
+      expect((await handleProviderWebhook("FAKE", body, headers, "127.0.0.1")).result).toBe("cancelled-paid-review");
+      expect((await db.query.orders.findFirst({ where: eq(orders.id, cancelledId) }))?.status).toBe("CANCELLED");
+      expect((await db.query.payments.findFirst({ where: eq(payments.id, cancelledId) }))?.status).toBe("PAID");
+      expect(await db.query.deliveries.findMany({ where: eq(deliveries.orderId, cancelledId) })).toHaveLength(0);
+    } finally { await db.delete(orders).where(eq(orders.id, cancelledId)); }
+  });
+
+  it("melanjutkan event terputus, memenuhi order sekali dan mengabaikan replay", async () => {
     // Kembalikan payment ke PENDING seperti kondisi nyata sebelum pembayaran penuh.
     await db.update(payments).set({ status: "PENDING", amountIdr: totalIdr }).where(eq(payments.providerRef, providerRef));
 
@@ -195,6 +226,7 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
       amount: totalIdr,
     });
 
+    await db.insert(paymentEvents).values({ id: `interrupted-${suffix}`, provider: "FAKE", eventType: "fake:PAID", signatureValid: true, dedupeKey: `FAKE:${providerRef}:PAID:${totalIdr}`, rawPayload: JSON.parse(body) });
     const first = await handleProviderWebhook("FAKE", body, headers, "127.0.0.1");
     expect(first.httpStatus).toBe(200);
     expect(first.duplicate).toBe(false);
@@ -217,7 +249,13 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
 
     const events = await db.query.paymentEvents.findMany({ where: eq(paymentEvents.orderId, orderId) });
     const paidEvents = events.filter((e) => e.eventType.includes("PAID") && e.signatureValid);
-    expect(paidEvents.length).toBeGreaterThanOrEqual(2);
+    expect(paidEvents.length).toBeGreaterThanOrEqual(1);
+    const otherNotice = await fakeWebhook({ reference: providerRef, merchant_ref: orderNumber, status: "PAID", amount: totalIdr + 1 });
+    expect((await handleProviderWebhook("FAKE", otherNotice.body, otherNotice.headers, "127.0.0.1")).result).toBe("payment-already-recorded");
+    expect((await db.query.payments.findFirst({ where: eq(payments.providerRef, providerRef) }))?.status).toBe("PAID");
+    const lateUnderpaid = await fakeWebhook({ reference: providerRef, merchant_ref: orderNumber, status: "PAID", amount: totalIdr - 1 });
+    expect((await handleProviderWebhook("FAKE", lateUnderpaid.body, lateUnderpaid.headers, "127.0.0.1")).result).toBe("underpaid-flagged");
+    expect((await db.query.payments.findFirst({ where: eq(payments.providerRef, providerRef) }))?.status).toBe("PAID");
   });
 
   it("menandai order DISPUTED saat gateway melaporkan chargeback", async () => {
@@ -237,6 +275,6 @@ describe.skipIf(!enabled)("webhook gateway — validasi & idempotensi", () => {
     });
     // Pembayaran kedua untuk order yang sudah lunas -> dicatat sebagai duplikat, bukan pengiriman baru.
     const outcome = await handleProviderWebhook("FAKE", dispute.body, dispute.headers, "127.0.0.1");
-    expect(["duplicate-payment", "fulfilled", "pending-ignored"]).toContain(outcome.result);
+    expect(outcome.result).toBe("payment-reference-mismatch");
   });
 });

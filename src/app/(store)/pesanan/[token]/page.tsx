@@ -188,7 +188,16 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ to
             <dl className="mt-3 space-y-2 text-[13px]">
               <div className="flex justify-between"><dt className="text-muted">Subtotal</dt><dd className="text-ink">{formatRp(order.subtotalIdr)}</dd></div>
               {order.discountIdr > 0 ? (
-                <div className="flex justify-between text-success"><dt>Diskon</dt><dd>−{formatRp(order.discountIdr)}</dd></div>
+                <div className="flex justify-between text-success">
+                  <dt>
+                    Diskon {order.couponCode
+                      ? `(${order.couponCode})`
+                      : order.discountLabel
+                        ? `(otomatis: ${order.discountLabel})`
+                        : ""}
+                  </dt>
+                  <dd>−{formatRp(order.discountIdr)}</dd>
+                </div>
               ) : null}
               {order.taxIdr > 0 ? (
                 <div className="flex justify-between"><dt className="text-muted">Pajak</dt><dd className="text-ink">{formatRp(order.taxIdr)}</dd></div>

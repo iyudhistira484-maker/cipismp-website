@@ -21,5 +21,13 @@ luckperms:
   # perintah lain tetap dijalankan lewat konsol server.
   use-api: true
 
+# Opsional, aktifkan hanya setelah menguji di staging. Membaca grup utama
+# LuckPerms dan teks cooldown PlayerKits2 1.23.1 untuk pemain online; tidak
+# menjalankan perintah dan bukan bukti pemain dapat mengklaim kit.
+live-status:
+  enabled: false
+  # Nama kit yang dikonfirmasi pemilik (maks. 5). Perubahan memerlukan restart plugin.
+  kit-names: ["cipiprime", "cipi++"]
+
 verify:
   timeout-seconds: 10

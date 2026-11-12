@@ -6,19 +6,22 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { authTokens, minecraftProfiles, sessions, users } from "@/server/db/schema";
-import { requireViewer } from "@/server/auth/guard";
+import { requireCustomer, requireMfaEnrollmentViewer, requireViewer } from "@/server/auth/guard";
 import { hashPassword, verifyPassword, checkPasswordLocal, isPasswordBreached } from "@/server/auth/password";
 import { changeEmail, AuthError } from "@/server/auth/flows";
-import { revokeAllSessions, revokeSession } from "@/server/auth/session";
+import { markMfaSatisfied, revokeAllSessions, revokeSession } from "@/server/auth/session";
 import { beginTotpSetup, confirmTotpSetup, disableTotp } from "@/server/auth/twofactor";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { sha256 } from "@/server/crypto";
 import { ids } from "@/server/ids";
-import { resolvePlayer, upsertProfile } from "@/server/minecraft";
+import { resolvePlayer } from "@/server/minecraft";
 import { generateVerifyCode } from "@/lib/utils";
 import { writeAudit } from "@/server/audit";
 import { logoutAction } from "./auth";
+import { ProfileError, updateUserProfile } from "@/server/auth/profile";
+import { updateNotificationPreferences } from "@/server/auth/notification-preferences";
+import { markCustomerNotificationsRead, notify } from "@/server/notifications";
 
 export interface AccountState {
   error?: string;
@@ -26,18 +29,63 @@ export interface AccountState {
   data?: Record<string, string>;
 }
 
-async function guard(limit = 10, windowSeconds = 300): Promise<{ ip: string; userId: string }> {
+async function guard(limit = 10, windowSeconds = 300): Promise<{ ip: string; userId: string; sessionId: string }> {
   const requestHeaders = await headers();
   assertSameOrigin(new Request("http://internal/action", { method: "POST", headers: requestHeaders }));
   const viewer = await requireViewer();
   const ip = clientIp(requestHeaders);
   await enforceRateLimit(`account:${viewer.user.id}`, limit, windowSeconds);
-  return { ip, userId: viewer.user.id };
+  return { ip, userId: viewer.user.id, sessionId: viewer.sessionId };
+}
+
+export async function markNotificationsReadAction(): Promise<void> {
+  const requestHeaders = await headers();
+  assertSameOrigin(new Request("http://internal/action", { method: "POST", headers: requestHeaders }));
+  const viewer = await requireCustomer("/dashboard/notifikasi");
+  await enforceRateLimit(`notification-read:${viewer.user.id}`, 30, 60);
+  await markCustomerNotificationsRead(viewer.user.id);
+  revalidatePath("/dashboard/notifikasi");
+}
+
+export async function updateNotificationPreferencesAction(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  try {
+    const requestHeaders = await headers();
+    assertSameOrigin(new Request("http://internal/action", { method: "POST", headers: requestHeaders }));
+    const viewer = await requireCustomer("/dashboard/notifikasi");
+    await enforceRateLimit(`notification-settings:${viewer.user.id}`, 10, 300);
+    await updateNotificationPreferences(viewer.user.id, {
+      dashboardOrderUpdates: formData.get("dashboardOrderUpdates") === "on",
+      emailDeliveryUpdates: formData.get("emailDeliveryUpdates") === "on",
+    });
+    revalidatePath("/dashboard", "layout");
+    return { success: "Pengaturan notifikasi disimpan." };
+  } catch (error) {
+    if (error instanceof Error && error.name === "RateLimitError") return { error: "Terlalu sering. Coba lagi nanti." };
+    throw error;
+  }
+}
+
+export async function updateProfileAction(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  try {
+    const { ip, userId } = await guard();
+    const updated = await updateUserProfile(userId, {
+      displayName: String(formData.get("displayName") ?? ""),
+      username: String(formData.get("username") ?? ""),
+    });
+    await writeAudit({ actor: { id: userId, label: updated.username }, action: "account.profile.updated", targetType: "user", targetId: userId, after: updated, ip });
+    revalidatePath("/dashboard", "layout");
+    revalidatePath("/admin", "layout");
+    return { success: "Profil berhasil disimpan." };
+  } catch (error) {
+    if (error instanceof ProfileError) return { error: error.message };
+    if (error instanceof Error && error.name === "RateLimitError") return { error: "Terlalu sering. Coba lagi nanti." };
+    throw error;
+  }
 }
 
 export async function changePasswordAction(_prev: AccountState, formData: FormData): Promise<AccountState> {
   try {
-    const { ip, userId } = await guard(6);
+    const { ip, userId, sessionId } = await guard(6);
     const parsed = z
       .object({
         currentPassword: z.string().min(1, "Password saat ini wajib diisi."),
@@ -70,7 +118,7 @@ export async function changePasswordAction(_prev: AccountState, formData: FormDa
       .update(users)
       .set({ passwordHash: await hashPassword(parsed.data.password), updatedAt: new Date() })
       .where(eq(users.id, userId));
-    await revokeAllSessions(userId);
+    await revokeAllSessions(userId, sessionId);
     await writeAudit({
       actor: { id: userId, label: user.email },
       action: "account.password.change",
@@ -78,6 +126,7 @@ export async function changePasswordAction(_prev: AccountState, formData: FormDa
       targetId: userId,
       ip,
     });
+    if (user.role === "CUSTOMER") await notify({ userId, kind: "SYSTEM", title: "Password diubah", body: "Password akun telah diubah dan sesi lain dikeluarkan. Jika bukan kamu, segera hubungi bantuan.", href: "/dashboard/keamanan" });
     return { success: "Password diubah. Semua sesi lain sudah dikeluarkan." };
   } catch (error) {
     if (error instanceof Error && error.name === "RateLimitError") return { error: "Terlalu sering. Coba lagi nanti." };
@@ -111,12 +160,14 @@ export async function revokeSessionAction(formData: FormData): Promise<void> {
   if (rows.length === 0) return;
   await revokeSession(sessionId);
   revalidatePath("/dashboard/keamanan");
+  revalidatePath("/admin/keamanan");
 }
 
 export async function revokeAllOtherSessionsAction(): Promise<void> {
   const viewer = await requireViewer();
   await revokeAllSessions(viewer.user.id, viewer.sessionId);
   revalidatePath("/dashboard/keamanan");
+  revalidatePath("/admin/keamanan");
 }
 
 export async function unlinkDiscordAction(): Promise<void> {
@@ -129,11 +180,12 @@ export async function unlinkDiscordAction(): Promise<void> {
     targetId: viewer.user.id,
   });
   revalidatePath("/dashboard/keamanan");
+  revalidatePath("/admin/keamanan");
 }
 
 export async function startTotpSetupAction(): Promise<AccountState> {
   try {
-    const viewer = await requireViewer();
+    const viewer = await requireMfaEnrollmentViewer();
     const { uri, secret } = await beginTotpSetup(viewer.user.id);
     return { data: { uri, secret } };
   } catch (error) {
@@ -144,11 +196,16 @@ export async function startTotpSetupAction(): Promise<AccountState> {
 
 export async function confirmTotpAction(_prev: AccountState, formData: FormData): Promise<AccountState> {
   try {
-    const viewer = await requireViewer();
+    const viewer = await requireMfaEnrollmentViewer();
     const code = String(formData.get("code") ?? "").replace(/\s/g, "");
     if (!/^\d{6}$/.test(code)) return { error: "Masukkan 6 digit kode." };
     await confirmTotpSetup(viewer.user.id, code);
+    // The setup code verified this session; older sessions must authenticate again.
+    await markMfaSatisfied(viewer.sessionId);
+    await revokeAllSessions(viewer.user.id, viewer.sessionId);
     revalidatePath("/dashboard/keamanan");
+    revalidatePath("/admin/keamanan");
+    if (viewer.user.role === "CUSTOMER") await notify({ userId: viewer.user.id, kind: "SYSTEM", title: "2FA diaktifkan", body: "Verifikasi dua langkah telah diaktifkan pada akunmu.", href: "/dashboard/keamanan" });
     return { success: "2FA aktif. Kode akan diminta pada login berikutnya." };
   } catch (error) {
     if (error instanceof AuthError) return { error: error.message };
@@ -164,6 +221,7 @@ export async function disableTotpAction(_prev: AccountState, formData: FormData)
     }
     await disableTotp(viewer.user.id, String(formData.get("password") ?? ""));
     revalidatePath("/dashboard/keamanan");
+    revalidatePath("/admin/keamanan");
     return { success: "2FA dinonaktifkan." };
   } catch (error) {
     if (error instanceof AuthError) return { error: error.message };
@@ -211,24 +269,19 @@ export async function startMinecraftVerificationAction(
   _prev: AccountState,
   formData: FormData,
 ): Promise<AccountState> {
+  const viewer = await requireCustomer();
   try {
-    const viewer = await requireViewer();
     await enforceRateLimit(`mc-verify:${viewer.user.id}`, 5, 600);
     const mcName = String(formData.get("mcName") ?? "").trim();
     if (!mcName) return { error: "Masukkan username Minecraft." };
 
     const player = await resolvePlayer(mcName);
     const existing = await db.query.minecraftProfiles.findFirst({ where: eq(minecraftProfiles.uuid, player.uuid) });
-    if (existing?.userId && existing.userId !== viewer.user.id) {
+    if (existing?.verifiedAt && existing.userId && existing.userId !== viewer.user.id) {
       return { error: "Akun Minecraft ini sudah terhubung ke akun lain." };
     }
 
-    await upsertProfile({
-      uuid: player.uuid,
-      name: player.name,
-      edition: player.edition,
-      userId: viewer.user.id,
-    });
+    // Never reserve or transfer a profile before the in-game proof succeeds.
 
     const code = generateVerifyCode();
     await db.insert(authTokens).values({
@@ -258,7 +311,7 @@ export async function startMinecraftVerificationAction(
 }
 
 export async function checkMinecraftVerificationAction(): Promise<AccountState> {
-  const viewer = await requireViewer();
+  const viewer = await requireCustomer();
   const profiles = await db
     .select()
     .from(minecraftProfiles)
@@ -270,7 +323,7 @@ export async function checkMinecraftVerificationAction(): Promise<AccountState> 
 }
 
 export async function unlinkMinecraftAction(formData: FormData): Promise<void> {
-  const viewer = await requireViewer();
+  const viewer = await requireCustomer();
   const profileId = String(formData.get("profileId") ?? "");
   await db
     .update(minecraftProfiles)

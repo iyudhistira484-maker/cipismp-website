@@ -20,9 +20,8 @@ export function MobileNav({
   const links = [
     ...items,
     { href: "/keranjang", label: `Keranjang${cartCount > 0 ? ` (${cartCount})` : ""}` },
-    signedIn ? { href: "/dashboard", label: "Dashboard" } : { href: "/masuk", label: "Masuk" },
+    signedIn ? (isStaff ? { href: "/admin", label: "Panel admin" } : { href: "/dashboard", label: "Dashboard" }) : { href: "/masuk", label: "Masuk" },
     ...(signedIn ? [] : [{ href: "/daftar", label: "Daftar" }]),
-    ...(isStaff ? [{ href: "/admin", label: "Panel admin" }] : []),
   ];
 
   return (

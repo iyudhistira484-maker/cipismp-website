@@ -4,6 +4,7 @@ import { db } from "./db";
 import { cartItems, carts } from "./db/schema";
 import { ids } from "./ids";
 import { getViewer } from "./auth/guard";
+import { cookiePolicy } from "@/lib/cookie-policy";
 
 export const GUEST_COOKIE = "cipi_guest";
 
@@ -51,10 +52,7 @@ export async function getOrCreateCart(): Promise<CartIdentity & { cartId: string
   if (!identity.userId && !guestKey) {
     guestKey = ids.cartItem().replace("cit", "");
     jar.set(GUEST_COOKIE, guestKey, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
+      ...cookiePolicy(process.env.NODE_ENV, process.env.PREVIEW_PARTITIONED_COOKIES),
       maxAge: 60 * 60 * 24 * 30,
     });
   }
@@ -107,7 +105,7 @@ export async function addToCart(productId: string, quantity = 1, gift?: CartTarg
   if (existing) {
     await db
       .update(cartItems)
-      .set({ quantity: Math.min(99, existing.quantity + quantity) })
+      .set({ quantity: 1 })
       .where(eq(cartItems.id, existing.id));
   } else {
     await db.insert(cartItems).values({
@@ -161,7 +159,7 @@ export async function mergeGuestCart(userId: string, guestKey: string | null): P
     if (existing) {
       await db
         .update(cartItems)
-        .set({ quantity: Math.min(99, existing.quantity + line.quantity) })
+        .set({ quantity: 1 })
         .where(eq(cartItems.id, existing.id));
     } else {
       await db.insert(cartItems).values({

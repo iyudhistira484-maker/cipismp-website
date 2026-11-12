@@ -47,7 +47,7 @@ public final class AdminCommand implements CommandExecutor {
             case "reload" -> {
                 plugin.reloadConfig();
                 sender.sendMessage(Component.text("Konfigurasi dibaca ulang. Perubahan website-url, secret, "
-                        + "atau polling membutuhkan restart server.", NamedTextColor.GREEN));
+                        + "polling, atau live-status membutuhkan restart server.", NamedTextColor.GREEN));
             }
             default -> sender.sendMessage(Component.text("Subperintah tidak dikenal.", NamedTextColor.RED));
         }

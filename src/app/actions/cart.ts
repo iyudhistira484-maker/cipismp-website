@@ -7,7 +7,7 @@ import { getProductById } from "@/server/catalog";
 import { getActiveSeason } from "@/server/catalog";
 import { getSettings } from "@/server/settings";
 import { InvalidUsernameError, resolvePlayer } from "@/server/minecraft";
-import { assertSameOrigin } from "@/server/csrf";
+import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { headers } from "next/headers";
 import { enforceRateLimit } from "@/server/rate-limit";
 
@@ -47,7 +47,7 @@ export async function addToCartAction(_prev: CartActionState, formData: FormData
     }
   }
 
-  await enforceRateLimit(`cart:add:${productId}`, 30, 60);
+  await enforceRateLimit(`cart:add:${clientIp(requestHeaders)}`, 30, 60);
   await addToCart(product.id, 1, gift);
   revalidatePath("/keranjang");
   redirect("/keranjang");

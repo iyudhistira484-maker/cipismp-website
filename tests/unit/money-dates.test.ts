@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { clampNonNegative, computeTotal, formatIDR, formatRp, parseIdr, percentOf } from "@/lib/money";
 import { addDays, daysUntil, formatDateWIB, formatDateTimeWIB, jakartaDateKey, minutesAgo, startOfWibDay } from "@/lib/dates";
 import { maskEmail, normalizeEmail, randomToken } from "@/lib/tokens";
-import { safeNext } from "@/lib/safe-redirect";
+import { safeNext, safeNextForRole } from "@/lib/safe-redirect";
+import { daysLeftInSeason } from "@/lib/seasons";
 
 describe("uang (IDR integer)", () => {
   it("memformat rupiah tanpa desimal", () => {
@@ -54,6 +55,14 @@ describe("tanggal Asia/Jakarta", () => {
     expect(daysUntil(addDays(now, 7), now)).toBe(7);
     expect(minutesAgo(new Date(now.getTime() - 5 * 60_000), now)).toBe(5);
   });
+
+  it("menghitung waktu aktual sampai 14 Januari tanpa membatasi countdown", () => {
+    const endAt = new Date("2027-01-14T00:00:00.000+07:00");
+    expect(daysLeftInSeason({ endAt }, new Date("2026-11-11T12:00:00.000+07:00"))).toBe(64);
+    expect(daysLeftInSeason({ endAt }, new Date("2026-11-14T00:00:00.000+07:00"))).toBe(61);
+    expect(daysLeftInSeason({ endAt }, new Date("2027-01-13T12:00:00.000+07:00"))).toBe(1);
+    expect(daysLeftInSeason({ endAt }, endAt)).toBe(0);
+  });
 });
 
 describe("token dan email", () => {
@@ -72,6 +81,13 @@ describe("token dan email", () => {
 });
 
 describe("safeNext (anti open redirect)", () => {
+  it("mengarahkan akun staf ke area admin dan mempertahankan tujuan toko", () => {
+    expect(safeNextForRole(null, "ADMIN")).toBe("/admin");
+    expect(safeNextForRole("/dashboard/profil", "OWNER")).toBe("/admin");
+    expect(safeNextForRole("/dashboard", "CUSTOMER")).toBe("/dashboard");
+    expect(safeNextForRole("/checkout", "ADMIN")).toBe("/checkout");
+    expect(safeNextForRole("//evil.example", "ADMIN")).toBe("/admin");
+  });
   it("mengizinkan path internal", () => {
     expect(safeNext("/dashboard/pesanan")).toBe("/dashboard/pesanan");
     expect(safeNext("/checkout")).toBe("/checkout");

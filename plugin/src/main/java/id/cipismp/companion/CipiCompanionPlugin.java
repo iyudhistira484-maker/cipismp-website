@@ -55,6 +55,9 @@ public final class CipiCompanionPlugin extends JavaPlugin {
                     websiteUrl,
                     secret,
                     deliveries,
+                    getConfig().getBoolean("live-status.enabled", false)
+                            ? new PlayerStatusSnapshot(this, luckPerms, getConfig().getStringList("live-status.kit-names"))
+                            : null,
                     getConfig().getInt("polling.interval-seconds", 10),
                     getConfig().getInt("polling.batch-size", 5),
                     getConfig().getInt("polling.timeout-seconds", 15));

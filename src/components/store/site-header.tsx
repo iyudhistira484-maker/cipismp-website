@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShoppingBag, LayoutDashboard, Shield } from "lucide-react";
+import { ShoppingBag, LayoutDashboard } from "lucide-react";
 import { Logo } from "@/components/art/item-art";
 import { getViewer } from "@/server/auth/guard";
 import { getCartCount } from "@/server/cart";
@@ -45,16 +45,6 @@ export async function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {isStaff(viewer?.user.role ?? "CUSTOMER") ? (
-            <Link
-              href="/admin"
-              className="hidden items-center gap-1.5 rounded-md px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:flex"
-            >
-              <Shield className="size-4" aria-hidden />
-              {t("nav.admin")}
-            </Link>
-          ) : null}
-
           <Link
             href="/keranjang"
             className="relative inline-flex size-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
@@ -70,7 +60,7 @@ export async function SiteHeader() {
 
           {viewer ? (
             <Link
-              href="/dashboard"
+              href={isStaff(viewer.user.role) ? "/admin" : "/dashboard"}
               className="hidden items-center gap-2 rounded-md border border-line-strong bg-surface-2 px-3 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-surface-3 sm:inline-flex"
             >
               <LayoutDashboard className="size-4" aria-hidden />

@@ -6,6 +6,7 @@ import { Field, Input, CheckboxField } from "@/components/ui/field";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Alert } from "@/components/ui/feedback";
+import { Turnstile } from "@/components/store/turnstile";
 import {
   loginAction,
   registerAction,
@@ -73,7 +74,7 @@ export function MfaForm({ next }: { next: string }) {
   );
 }
 
-export function RegisterForm() {
+export function RegisterForm({ turnstileEnabled, turnstileSiteKey, nonce }: { turnstileEnabled: boolean; turnstileSiteKey?: string; nonce?: string }) {
   const [state, action] = useActionState(registerAction, initial);
   return (
     <form action={action} className="space-y-4" noValidate>
@@ -104,7 +105,8 @@ export function RegisterForm() {
         error={state.fields?.acceptTerms}
       />
       <CheckboxField name="marketingOptIn" label="Kirim info season baru (opsional)." />
-      <SubmitButton size="lg" className="w-full">Buat akun</SubmitButton>
+      {turnstileEnabled ? (turnstileSiteKey ? <Turnstile siteKey={turnstileSiteKey} nonce={nonce} resetKey={state.error} /> : <Alert tone="warning">Verifikasi bot belum dikonfigurasi. Hubungi admin sebelum mendaftar.</Alert>) : null}
+      <SubmitButton size="lg" className="w-full" disabled={turnstileEnabled && !turnstileSiteKey}>Buat akun</SubmitButton>
       <p className="text-center text-[13px] text-muted">
         Sudah punya akun?{" "}
         <Link href="/masuk" className="text-accent hover:underline">Masuk</Link>

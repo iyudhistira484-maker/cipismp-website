@@ -20,7 +20,6 @@ import {
 import { ids } from "../src/server/ids";
 import { hashPassword } from "../src/server/auth/password";
 import { DEFAULT_SETTINGS } from "../src/server/settings";
-import { addDays } from "../src/lib/dates";
 import { CIPI_KITS } from "../src/lib/cipi-kits";
 import { CIPI_RANKS } from "../src/lib/cipi-ranks";
 
@@ -51,14 +50,13 @@ async function seedServer() {
 async function seedSeason(): Promise<string> {
   const existing = await db.query.seasons.findFirst({ where: eq(seasons.slug, "season-1") });
   if (existing) return existing.id;
-  const start = new Date();
   const id = ids.season();
   await db.insert(seasons).values({
     id,
     name: "Season 1",
     slug: "season-1",
-    startAt: start,
-    endAt: addDays(start, 90),
+    startAt: new Date("2026-11-14T00:00:00.000+07:00"),
+    endAt: new Date("2027-01-14T00:00:00.000+07:00"),
     status: "ACTIVE",
     freezeDays: 3,
     notes: "Season pembuka CipiSMP. Rank & kit berlaku sampai akhir season.",
@@ -89,8 +87,8 @@ async function seedProducts() {
       maxPerSeason: 1,
     });
     await upsertCommands(productId, {
-      grant: `lp user {player} parent set ${rank.groupName}`,
-      revoke: "lp user {player} parent set default",
+      grant: `lp user {player} parent add ${rank.groupName}`,
+      revoke: `lp user {player} parent remove ${rank.groupName}`,
     });
   }
 

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cookiePolicy } from "@/lib/cookie-policy";
 
 /**
  * Middleware:
@@ -20,8 +21,8 @@ function makeNonce(): string {
 
 function contentSecurityPolicy(nonce: string, isDev: boolean): string {
   const scriptSrc = isDev
-    ? "'self' 'unsafe-eval' 'unsafe-inline'"
-    : `'self' 'nonce-${nonce}' 'strict-dynamic'`;
+    ? "'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com"
+    : `'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`;
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
@@ -29,7 +30,8 @@ function contentSecurityPolicy(nonce: string, isDev: boolean): string {
     "img-src 'self' data: blob: https://mc-heads.net https://crafatar.com",
     "media-src 'self' https://motionbgs.com",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://challenges.cloudflare.com",
+    "frame-src https://challenges.cloudflare.com",
     "form-action 'self'",
     isDev
       ? "frame-ancestors 'self' https://arena.ai https://*.arena.ai https://*.e2b.app"
@@ -70,10 +72,7 @@ export function middleware(request: NextRequest) {
     crypto.getRandomValues(bytes);
     const key = [...bytes].map((b) => b.toString(36).padStart(2, "0")).join("").slice(0, 28);
     response.cookies.set(GUEST_COOKIE, key, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
+      ...cookiePolicy(process.env.NODE_ENV, process.env.PREVIEW_PARTITIONED_COOKIES),
       maxAge: 60 * 60 * 24 * 30,
     });
   }

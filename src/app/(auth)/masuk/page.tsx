@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/store/auth-forms";
 import { Alert } from "@/components/ui/feedback";
 import { getViewer } from "@/server/auth/guard";
+import { getCurrentSession } from "@/server/auth/session";
 import { discordLoginAvailable } from "@/server/auth/discord";
-import { safeNext } from "@/lib/safe-redirect";
+import { safeNext, safeNextForRole } from "@/lib/safe-redirect";
 
 export const metadata: Metadata = { title: "Masuk", robots: { index: false, follow: false } };
 
@@ -22,7 +23,11 @@ const DISCORD_MESSAGE: Record<string, { tone: "info" | "warning" | "danger"; tex
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; discord?: string }> }) {
   const { next, discord } = await searchParams;
   const viewer = await getViewer();
-  if (viewer) redirect(safeNext(next));
+  if (viewer) redirect(safeNextForRole(next, viewer.user.role));
+  const current = await getCurrentSession();
+  if (current?.user.totpEnabledAt && !current.session.mfaSatisfiedAt) {
+    redirect(`/masuk/2fa?next=${encodeURIComponent(safeNextForRole(next, current.user.role))}`);
+  }
   const discordReady = await discordLoginAvailable();
   const message = discord ? DISCORD_MESSAGE[discord] : undefined;
 

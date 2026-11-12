@@ -5,6 +5,7 @@ import { getActiveSeason } from "./catalog";
 import { toPriceable } from "./catalog";
 import { ownedMap } from "./entitlements";
 import { getSettings } from "./settings";
+import { loadAutomaticDiscounts } from "./discounts";
 import { isPurchaseFrozen } from "@/lib/seasons";
 import {
   priceCart,
@@ -62,6 +63,7 @@ export async function loadCoupon(code: string, subtotal: number, buyerEmail?: st
     active: row.active,
     rankOnly: row.rankOnly,
     kitOnly: row.kitOnly,
+    eligibleItemsOnly: row.eligibleItemsOnly,
     redemptionsTotal: totalRows[0]?.count ?? 0,
     redemptionsByBuyer: buyerRows[0]?.count ?? 0,
   };
@@ -70,8 +72,11 @@ export async function loadCoupon(code: string, subtotal: number, buyerEmail?: st
 
 /** Harga keranjang yang sedang aktif — satu-satunya sumber kebenaran nominal. */
 export async function priceCurrentCart(options: PriceCartOptions): Promise<CartPricingResult> {
-  const season = await getActiveSeason();
-  const settings = await getSettings();
+  const [season, settings, automaticDiscounts] = await Promise.all([
+    getActiveSeason(),
+    getSettings(),
+    loadAutomaticDiscounts(),
+  ]);
   const lines = options.cartId
     ? await db.select().from(cartItems).where(eq(cartItems.cartId, options.cartId))
     : [];
@@ -107,6 +112,7 @@ export async function priceCurrentCart(options: PriceCartOptions): Promise<CartP
     catalog,
     ownedByTarget: owned,
     coupon,
+    automaticDiscounts,
     seasonId: season?.id ?? null,
     settings: {
       taxPercent: settings.store.taxPercent,
@@ -142,8 +148,11 @@ export async function priceSingleProduct(
   targetUuid: string,
   targetName: string,
 ): Promise<CartPricingResult> {
-  const season = await getActiveSeason();
-  const settings = await getSettings();
+  const [season, settings, automaticDiscounts] = await Promise.all([
+    getActiveSeason(),
+    getSettings(),
+    loadAutomaticDiscounts(),
+  ]);
   const rows = await db.select().from(products).where(eq(products.id, productId)).limit(1);
   const product = rows[0];
   const catalog = new Map<string, PriceableProduct>(product ? [[product.id, toPriceable(product)]] : []);
@@ -155,6 +164,8 @@ export async function priceSingleProduct(
     catalog,
     ownedByTarget: owned,
     coupon: null,
+    automaticDiscounts,
+    seasonId: season?.id ?? null,
     settings: {
       taxPercent: settings.store.taxPercent,
       feeMode: settings.store.feeMode,

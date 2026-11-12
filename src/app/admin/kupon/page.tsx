@@ -29,6 +29,7 @@ export default async function AdminCouponsPage({ searchParams }: { searchParams:
                 <p className="text-ink">
                   {coupon.type === "PERCENT" ? `${coupon.value}%` : formatRp(coupon.value)} · ≥ {formatRp(coupon.minSubtotalIdr)}
                 </p>
+                <p className="mt-1 text-muted-2">Cakupan: {coupon.eligibleItemsOnly ? "jenis terpilih" : "seluruh keranjang"}</p>
                 {coupon.tiers.map((tier, index) => (
                   <p key={`${coupon.id}-tier-${index}`} className="mt-1 text-muted-2">
                     {tier.type === "PERCENT" ? `${tier.value}%` : formatRp(tier.value)} · ≥ {formatRp(tier.minSubtotalIdr)}
@@ -75,6 +76,7 @@ export default async function AdminCouponsPage({ searchParams }: { searchParams:
                     endsAt: editing.endsAt,
                     rankOnly: editing.rankOnly,
                     kitOnly: editing.kitOnly,
+                    eligibleItemsOnly: editing.eligibleItemsOnly,
                     active: editing.active,
                   }
                 : undefined

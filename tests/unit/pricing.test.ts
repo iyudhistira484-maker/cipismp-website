@@ -3,6 +3,7 @@ import {
   couponDiscount,
   personalRankPrice,
   priceCart,
+  type AutomaticDiscountInput,
   type CouponInput,
   type OwnedEntitlement,
   type PriceableProduct,
@@ -68,6 +69,15 @@ const UUID_B = "22222222-2222-4222-8222-222222222222";
 function cart(product: PriceableProduct, targetUuid = UUID_A, quantity = 1) {
   return { productId: product.id, quantity, targetUuid, targetName: "Cipi" };
 }
+
+describe("priceCart — batas jumlah", () => {
+  it("menolak beberapa unit kit yang hanya menghasilkan satu entitlement", () => {
+    const item = kit("prime", 35_000, 1);
+    const result = priceCart({ items: [cart(item, UUID_A, 2)], catalog: new Map([[item.id, item]]), ownedByTarget: new Map(), settings });
+    expect(result.ok).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain("INVALID_QUANTITY");
+  });
+});
 
 describe("priceCart — aturan rank", () => {
   it("menagih harga penuh untuk rank baru", () => {
@@ -269,16 +279,16 @@ describe("priceCart — kit", () => {
     expect(cooled.ok).toBe(true);
   });
 
-  it("menghitung kuantitas kit", () => {
+  it("menghitung satu unit kit sesuai fulfillment", () => {
     const food = kit("food-kit", 5_000, 5);
     const result = priceCart({
-      items: [cart(food, UUID_A, 3)],
+      items: [cart(food, UUID_A, 1)],
       catalog: new Map([[food.id, food]]),
       ownedByTarget: new Map(),
       settings,
       now: NOW,
     });
-    expect(result.lines[0]!.lineTotalIdr).toBe(15_000);
+    expect(result.lines[0]!.lineTotalIdr).toBe(5_000);
   });
 
   it("menolak kuantitas tidak valid", () => {
@@ -563,5 +573,86 @@ describe("personalRankPrice", () => {
   it("menandai already owned dan downgrade", () => {
     expect(personalRankPrice(vip, owned(vip)).blocked).toBe("ALREADY_OWNED");
     expect(personalRankPrice(vip, owned(mvp)).blocked).toBe("DOWNGRADE");
+  });
+});
+
+function automatic(overrides: Partial<AutomaticDiscountInput> = {}): AutomaticDiscountInput {
+  return {
+    id: "auto-1", name: "Promo", type: "PERCENT", value: 20, minSubtotalIdr: 0,
+    seasonId: null, startsAt: null, endsAt: null, active: true, rankOnly: false, kitOnly: false,
+    ...overrides,
+  };
+}
+
+describe("priceCart — diskon otomatis", () => {
+  const vip = rank("vip-auto", 1, 100_000);
+  const base = { items: [cart(vip)], catalog: new Map([[vip.id, vip]]), ownedByTarget: new Map(), settings, now: NOW, seasonId: "season-1" };
+
+  it("memilih promo terbesar tanpa menumpuk dan mencatat atribusi", () => {
+    const result = priceCart({ ...base, coupon: coupon(), automaticDiscounts: [automatic(), automatic({ id: "auto-2", type: "FIXED", value: 25_000, name: "Promo tetap" })] });
+    expect(result).toMatchObject({ ok: true, discountIdr: 25_000, totalIdr: 75_000, couponCode: null, discountLabel: "Promo tetap", discountKind: "AUTOMATIC", automaticDiscountId: "auto-2" });
+  });
+
+  it("memilih kupon lebih besar atau setara tanpa mencatat promo otomatis", () => {
+    for (const value of [20, 30]) {
+      const result = priceCart({ ...base, coupon: coupon({ value }), automaticDiscounts: [automatic()] });
+      expect(result).toMatchObject({ discountIdr: value * 1000, couponCode: "HEMAT10", discountKind: "COUPON", automaticDiscountId: null });
+    }
+  });
+
+  it("menghormati periode, minimum, status, season dan jenis keranjang", () => {
+    const invalid = [
+      { active: false }, { minSubtotalIdr: 100_001 }, { seasonId: "season-2" }, { kitOnly: true },
+      { startsAt: new Date(NOW.getTime() + 1) }, { endsAt: new Date(NOW.getTime() - 1) },
+    ];
+    for (const override of invalid) {
+      expect(priceCart({ ...base, automaticDiscounts: [automatic(override)] }).discountIdr).toBe(0);
+    }
+    const eligible = automatic({ startsAt: NOW, endsAt: NOW, minSubtotalIdr: 100_000, seasonId: "season-1", rankOnly: true });
+    expect(priceCart({ ...base, automaticDiscounts: [eligible] }).discountIdr).toBe(20_000);
+  });
+
+  it("menghitung promo dari selisih upgrade dan membatasi ke subtotal sebelum pajak", () => {
+    const old = rank("old-auto", 1, 40_000);
+    const upgraded = rank("new-auto", 2, 100_000);
+    const result = priceCart({ ...base, items: [cart(upgraded)], catalog: new Map([[upgraded.id, upgraded]]), ownedByTarget: new Map([[UUID_A, [owned(old)]]]), automaticDiscounts: [automatic({ type: "FIXED", value: 100_000 })], settings: { ...settings, taxPercent: 11 } });
+    expect(result).toMatchObject({ subtotalIdr: 60_000, discountIdr: 60_000, taxIdr: 0, totalIdr: 0 });
+  });
+
+  it("tetap melaporkan kesalahan kupon yang tidak valid", () => {
+    const result = priceCart({ ...base, coupon: coupon({ active: false }), automaticDiscounts: [automatic()] });
+    expect(result.ok).toBe(false);
+    expect(result.errors.map((e) => e.code)).toContain("COUPON_INACTIVE");
+    expect(result.discountIdr).toBe(20_000);
+  });
+});
+
+describe("cakupan potongan pilihan admin", () => {
+  const r = rank("scope-rank", 1, 10_000);
+  const k = kit("scope-kit", 20_000);
+  const base = { items: [cart(r), cart(k)], catalog: new Map([[r.id, r], [k.id, k]]), ownedByTarget: new Map(), settings, now: NOW };
+  it("kupon rank dapat mencakup seluruh keranjang atau hanya harga rank", () => {
+    expect(priceCart({ ...base, coupon: coupon({ rankOnly: true }) }).discountIdr).toBe(3_000);
+    expect(priceCart({ ...base, coupon: coupon({ rankOnly: true, eligibleItemsOnly: true }) }).discountIdr).toBe(1_000);
+    expect(priceCart({ ...base, coupon: coupon({ kitOnly: true, eligibleItemsOnly: true }) }).discountIdr).toBe(2_000);
+    expect(priceCart({ ...base, coupon: coupon({ eligibleItemsOnly: true }) }).discountIdr).toBe(3_000);
+  });
+  it("diskon nominal tidak melebihi subtotal kategori; minimum/tier memakai seluruh keranjang", () => {
+    const result = priceCart({ ...base, coupon: coupon({ rankOnly: true, eligibleItemsOnly: true, minSubtotalIdr: 30_000, tiers: [{ minSubtotalIdr: 30_000, type: "FIXED", value: 15_000 }] }) });
+    expect(result).toMatchObject({ ok: true, subtotalIdr: 30_000, discountIdr: 10_000, totalIdr: 20_000 });
+  });
+  it("promo otomatis mengikuti cakupan dan tetap dibandingkan dengan kupon tanpa stacking", () => {
+    const restricted = automatic({ rankOnly: true, eligibleItemsOnly: true, value: 20 });
+    const autoResult = priceCart({ ...base, automaticDiscounts: [restricted] });
+    expect(autoResult).toMatchObject({ discountKind: "AUTOMATIC", discountIdr: 2_000 });
+    const tied = priceCart({ ...base, coupon: coupon({ kitOnly: true, eligibleItemsOnly: true }), automaticDiscounts: [restricted] });
+    expect(tied).toMatchObject({ discountKind: "COUPON", discountIdr: 2_000 });
+    const all = priceCart({ ...base, automaticDiscounts: [automatic({ rankOnly: true, value: 20 })] });
+    expect(all.discountIdr).toBe(6_000);
+  });
+  it("cakupan rank pada upgrade dihitung dari selisih, bukan harga katalog penuh", () => {
+    const old = rank("scope-old", 1, 40_000), upgraded = rank("scope-new", 2, 100_000);
+    const result = priceCart({ ...base, items: [cart(upgraded), cart(k)], catalog: new Map([[upgraded.id, upgraded], [k.id, k]]), ownedByTarget: new Map([[UUID_A, [owned(old)]]]), coupon: coupon({ rankOnly: true, eligibleItemsOnly: true }) });
+    expect(result).toMatchObject({ subtotalIdr: 80_000, discountIdr: 6_000, totalIdr: 74_000 });
   });
 });

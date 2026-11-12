@@ -5,6 +5,7 @@ import { sessions, users } from "../db/schema";
 import { ids } from "../ids";
 import { randomBase64, sha256 } from "../crypto";
 import type { Role } from "../rbac";
+import { cookiePolicy } from "@/lib/cookie-policy";
 
 export const SESSION_COOKIE = "cipi_session";
 const IDLE_MINUTES = Number(process.env.SESSION_IDLE_MINUTES ?? 120);
@@ -34,10 +35,7 @@ export interface ActiveSession {
 
 function cookieOptions(maxAgeSeconds: number) {
   return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
+    ...cookiePolicy(process.env.NODE_ENV, process.env.PREVIEW_PARTITIONED_COOKIES),
     maxAge: maxAgeSeconds,
   };
 }
@@ -167,8 +165,7 @@ export async function markMfaSatisfied(sessionId: string): Promise<void> {
 
 export async function clearSessionCookie(): Promise<void> {
   const jar = await cookies();
-  jar.set(SESSION_COOKIE, "", { ...cookieOptions(0), maxAge: 0 });
-  jar.delete(SESSION_COOKIE);
+  jar.set(SESSION_COOKIE, "", cookieOptions(0));
 }
 
 /** Label perangkat sederhana untuk daftar sesi (tanpa dependensi parsing UA). */
