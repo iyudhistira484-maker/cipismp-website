@@ -55,10 +55,13 @@ export function middleware(request: NextRequest) {
   if (PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
     const hasSession = request.cookies.get("cipi_session")?.value;
     if (!hasSession) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/masuk";
-      url.search = `?next=${encodeURIComponent(path)}`;
-      return NextResponse.redirect(url);
+      // NextURL can contain the internal proxy host. Use the configured public
+      // origin instead, so login and its host-only cookie stay on the same site.
+      const url = new URL("/masuk", process.env.APP_URL);
+      url.searchParams.set("next", `${path}${request.nextUrl.search}`);
+      const response = NextResponse.redirect(url);
+      response.headers.set("Cache-Control", "no-store");
+      return response;
     }
   }
 

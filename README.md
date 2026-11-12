@@ -62,7 +62,8 @@ npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, rem
 
 | Variabel | Keterangan |
 | --- | --- |
-| `APP_URL`, `NEXT_PUBLIC_APP_URL` | URL publik toko, dipakai untuk link email, webhook, dan cookie |
+| `APP_URL`, `NEXT_PUBLIC_APP_URL` | URL publik toko, dipakai untuk link email, webhook, dan redirect login; gunakan satu domain kanonis yang sama dengan origin browser |
+| `PREVIEW_PARTITIONED_COOKIES` | Khusus dev preview HTTPS dalam iframe lintas situs: set `1` agar sesi memakai cookie `Secure; SameSite=None; Partitioned`. Jangan aktifkan untuk deployment normal; tidak berpengaruh pada production. Jika browser memblokir cookie tertanam, buka preview di tab sendiri. |
 | `DATABASE_URL` | Koneksi PostgreSQL |
 | `SESSION_SECRET` | ≥ 32 karakter acak, dipakai juga untuk signature provider Fake |
 | `ENCRYPTION_KEY` | base64 32 byte untuk mengenkripsi kredensial gateway di database |

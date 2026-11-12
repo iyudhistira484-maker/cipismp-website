@@ -21,6 +21,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Keep middleware redirects on APP_URL rather than normalizing 127.0.0.1 to localhost.
+  skipMiddlewareUrlNormalize: true,
   // The preview runs at a per-sandbox *.e2b.app hostname.
   allowedDevOrigins: isDev ? ["*.e2b.app"] : undefined,
   output: "standalone",
