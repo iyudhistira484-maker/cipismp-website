@@ -10,9 +10,9 @@ export function CreateSupportForm({ orders, selectedOrder }: { orders: Array<{ i
   const [state, action] = useActionState(createSupportAction, {});
   return <form action={action} className="space-y-4">
     {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
-    <Field label="Pesanan terkait" htmlFor="support-order" hint="Opsional; hanya pesanan milik akun ini yang dapat dipilih."><Select id="support-order" name="orderId" defaultValue={selectedOrder ?? ""}><option value="">Pertanyaan umum</option>{orders.map((order) => <option key={order.id} value={order.id}>{order.orderNumber}</option>)}</Select></Field>
+    <Field label="Pesanan terkait" htmlFor="support-order" hint="Opsional; hanya pesanan milik akun ini yang dapat dipilih." className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1"><Select id="support-order" name="orderId" defaultValue={selectedOrder ?? ""}><option value="">Pertanyaan umum</option>{orders.map((order) => <option key={order.id} value={order.id}>{order.orderNumber}</option>)}</Select></Field>
     <Field label="Judul" htmlFor="support-subject" required><Input id="support-subject" name="subject" minLength={5} maxLength={120} required placeholder="Contoh: rank belum aktif" /></Field>
-    <Field label="Ceritakan kendalanya" htmlFor="support-body" required hint="Jangan sertakan password, kode 2FA, atau data pembayaran rahasia."><Textarea id="support-body" name="body" rows={5} minLength={10} maxLength={3000} required /></Field>
+    <Field label="Ceritakan kendalanya" htmlFor="support-body" required hint="Jangan sertakan password, kode 2FA, atau data pembayaran rahasia." className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1"><Textarea id="support-body" name="body" rows={5} minLength={10} maxLength={3000} required /></Field>
     <SubmitButton size="sm">Kirim permintaan</SubmitButton>
   </form>;
 }

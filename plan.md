@@ -396,11 +396,15 @@ Bagian ini mengumpulkan pekerjaan yang **belum dapat dibuktikan secara lokal**. 
 
 ## 28. Antrean rank offline dan audit registry
 
+> Catatan historis: perilaku kit dan waktu tunggu di bagian ini telah digantikan oleh bagian 31–32; sekarang rank **dan kit** menunggu lease baru.
+
 - [x] Plugin baru tidak mengeksekusi paket rank dari salinan antrean lokal saat pemain login atau perintah flush. Saat pemain online, paket rank harus di-lease lagi oleh website, sehingga pemeriksaan UUID staf dijalankan ulang. Marker selesai tetap dapat membersihkan antrean tanpa menjalankan ulang. Paket yang memuat rank dan kit bersama-sama juga menunggu lease baru; kit saja masih dapat diproses dari antrean lokal. Jeda normal setidaknya sampai polling website berikutnya setelah waktu antre lima menit.
 - [x] Uji integrasi memastikan penambahan UUID staf sesudah ACK offline menyebabkan polling berikutnya menahan rank; uji transaksi memastikan kegagalan insert audit menggagalkan penambahan/penghapusan registry. Uji Java mencakup klasifikasi paket rank.
 - [ ] Salinan rank yang sudah ditahan/dibatalkan di website bisa tetap tercatat di queue plugin dan perlu rekonsiliasi manual; jangan hapus tanpa bukti. Plugin lama tetap bisa menjalankan queue sendiri, dan lease baru masih tidak menutup sepenuhnya race setelah pemeriksaan website. Uji JAR, crash, status pemain, antrian yang tertahan dan pergantian plugin pada Paper/LuckPerms staging sebelum rilis; tidak menjanjikan exactly-once atau identifikasi alternatif tak dikenal.
 
 ## 29. Penemuan: server CipiSMP offline-mode
+
+> Catatan historis: temuan tentang kode plugin lama di bagian ini telah ditangani pada kode baru di bagian 31, tetapi masih perlu dibuktikan pada runtime staging.
 
 Owner menyatakan server Paper offline-mode dengan LoginSecurity **3.3.1** (lenis0012), Floodgate **2.2.5-SNAPSHOT b138-fc99cfc**, dan Geyser-Spigot **2.11.0-SNAPSHOT**. Ini mengubah asumsi identitas yang sebelumnya dipakai; jangan aktifkan checkout/pengiriman produksi berdasarkan hasil tes untuk online-mode.
 
@@ -422,3 +426,25 @@ Owner menyatakan server Paper offline-mode dengan LoginSecurity **3.3.1** (lenis
 - [ ] **Tetap STOP produksi:** uji build/runtime dengan plugin dan server nyata, bypass LoginSecurity, spoofing Floodgate, autentikasi sebelum/saat eksekusi, timeout/restart/crash dan HMAC, Java/Bedrock termasuk linked accounts dan prefix. Audit queue, marker, delivery dan profil/entitlement lama; jangan mass retry atau migrasi identitas dengan tebakan. Check-in siap bukan pengujian integrasi sesungguhnya. Catat hasil staging dan minta persetujuan sebelum deployment.
 - [ ] Semua akun alternatif staf perlu didaftarkan dan diverifikasi manusia; yang tidak diketahui tidak bisa otomatis diblokir. Lease yang sudah diberikan, perubahan bersamaan, akses lain, kerusakan data dan operasi lama tetap punya risiko. Tidak ada klaim exactly-once atau data produksi yang telah diubah.
 - [x] Validasi kode: PostgreSQL sementara menjalankan migrasi `0000`–`0019`, 98 tes integrasi dan 139 tes unit lulus; build website lulus. CI commit `0835b11` lulus termasuk build/JUnit plugin Paper 1.21.4/Java 21 dan 26.1.2/Java 25, Docker dan Playwright. Seed database sementara tidak membuat kupon. Sumber LoginSecurity 3.3.1 diperiksa; unduhan JAR rilis diblokir jaringan sandbox, sehingga API refleksi dan perilaku runtime belum diuji terhadap JAR terpasang. Ini bukan uji staging atau deployment.
+
+## 32. Langkah berikutnya: staging dan keputusan checkout produksi
+
+**Status: checkout/pengiriman produksi untuk server CipiSMP offline-mode tetap ditunda, bukan dilarang selamanya.** Mode offline bukan otomatis tidak aman; alasannya adalah integrasi dan data server nyata belum dibuktikan aman untuk menerima pembayaran. Build/JUnit dan tes database/website lulus, tetapi belum membuktikan interoperabilitas dengan JAR, konfigurasi jaringan dan sesi LoginSecurity yang benar-benar terpasang. Lihat `docs/GO_LIVE.md` dan `docs/RUNBOOK.md` untuk detail.
+
+### Mengapa ditunda?
+
+- UUID Java server offline bisa berbeda dari UUID Mojang, dan Bedrock/Floodgate termasuk akun tertaut tidak bisa diidentifikasi aman hanya dari format UUID. Salah konfigurasi, nama/kapitalisasi berubah, atau profil lama dapat mengarahkan pesanan ke identitas yang salah atau menahannya setelah pelanggan membayar. Mode baru memakai UUID aktual yang dilaporkan plugin setelah autentikasi, tetapi belum diuji pada server sebenarnya.
+- Checkout mengandalkan plugin dan LoginSecurity/Floodgate yang siap. Check-in protokol 2 hanya pemeriksaan kesiapan struktural; bukan bukti `/login`, bypass, logout/reconnect, API/refleksi, serta keamanan jalur koneksi benar pada konfigurasi server. Kegagalan dapat membuat verifikasi/pengiriman tertunda atau membuat asumsi identitas salah bila jaringan dapat di-bypass.
+- Salinan delivery dan queue plugin lama, marker intent, serta status pesanan mungkin sudah pernah dieksekusi atau menggunakan UUID/template lama. Mengaktifkannya tanpa rekonsiliasi dapat kehilangan, menduplikasi, atau mengirim item ke penerima yang salah; exactly-once belum terbukti.
+- Larangan rank staf mencakup role/group dan UUID yang diketahui, bukan kemampuan mengetahui semua akun alternatif yang tidak didaftarkan. Daftar lengkap, grup/inheritance nyata, serta race dan akses sistem lain tetap perlu ditinjau. `freerank` tidak boleh diubah.
+- Gateway, webhook dan delivery belum diuji bersama di staging dengan konfigurasi nyata. Jika ada pembayaran sukses tetapi delivery gagal/tertahan, perlu prosedur penanganan pelanggan dan rekonsiliasi yang jelas.
+
+### Checklist staging dan rilis
+
+1. [ ] Siapkan website, PostgreSQL, worker dan server Minecraft **terisolasi**, tidak terhubung ke gateway/queue/data produksi; gunakan akun dan pembayaran sandbox/dummy. Cocokkan versi Paper, Java, LoginSecurity, Floodgate, Geyser, LuckPerms dan PlayerKits dengan produksi, termasuk konfigurasi prefix dan jalur jaringan.
+2. [ ] Di staging saja, terapkan migrasi hingga `0019`, pasang JAR companion yang sesuai target Paper, konfigurasikan `MINECRAFT_LOOKUP_MODE=offline`, plugin polling, dan secret HMAC baru khusus staging. Pastikan login wajib untuk Java dan Bedrock serta tidak ada bypass jaringan yang memungkinkan penyamaran identitas. Jangan membagikan secret di chat atau menggunakan secret produksi.
+3. [ ] Uji Java dan Bedrock (termasuk akun tertaut dan nama/capitalization): `/verify` sebelum login harus ditolak, setelah login berhasil dengan UUID aktual; uji login gagal, bypass tanpa password, logout/reconnect, plugin hilang/tidak siap, restart, konflik profil dan verifikasi ulang profil lama.
+4. [ ] Uji pembayaran sandbox → webhook → delivery otomatis rank/kit untuk pemain online dan offline, upgrade, revoke, comp dan hadiah. Pemain harus login dan tetap online sampai polling memberi lease baru; uji queue penuh, ACK hilang, crash/restart dan partial failure. Pastikan kasus tidak pasti ditahan untuk rekonsiliasi, bukan di-retry massal.
+5. [ ] Uji staf dan UUID alternatif yang terdaftar sebagai pembeli maupun penerima hadiah, perubahan role, seluruh inheritance/konteks LuckPerms dan preservasi grup staf serta `freerank`. Owner harus memverifikasi dan mencatat seluruh akun staf/alternatif yang diketahui; daftar kosong atau tidak lengkap tidak menjamin larangan universal. Tidak perlu persetujuan Owner per pembelian.
+6. [ ] Siapkan prosedur produksi: hentikan checkout dan polling/plugin lama, backup database serta antrean dan `delivery-intents`, inventarisasi status dan hasil in-game, dan rekonsiliasi perintah/UUID lama satu per satu. Tinjau template kustom dan entitlement; jangan otomatis mengubah UUID, menghapus marker atau mengulang delivery yang hasilnya tidak pasti.
+7. [ ] Catat hasil tes, siapa yang menangani pembayaran/delivery bermasalah, monitoring, rollback dan risiko residual. Owner menyetujui go/no-go hanya setelah gerbang tersebut terpenuhi. Deployment/migrasi/data produksi tidak boleh diubah tanpa rencana dan persetujuan eksplisit.

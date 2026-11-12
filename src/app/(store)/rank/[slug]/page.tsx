@@ -1,20 +1,18 @@
-import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Check, Clock, Info, ShieldCheck } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { RankBadge } from "@/components/art/item-art";
-import { AddToCart } from "@/components/store/add-to-cart";
+import { DetailNote, PerksCard, ProductBreadcrumb, PurchaseCard } from "@/components/store/product-detail";
 import { ReviewSection } from "@/components/store/review-section";
-import { Alert } from "@/components/ui/feedback";
-import { Badge } from "@/components/ui/badge";
 import { getActiveSeason, getProductBySlug } from "@/server/catalog";
 import { getSettings } from "@/server/settings";
 import { getViewer } from "@/server/auth/guard";
 import { verifiedProfilesForUser } from "@/server/minecraft";
 import { priceSingleProduct } from "@/server/pricing-service";
 import { formatRp } from "@/lib/money";
-import { activeUntilLabel, isPurchaseFrozen } from "@/lib/seasons";
-import { formatDateWIB } from "@/lib/dates";
+import { isPurchaseFrozen } from "@/lib/seasons";
+import { getProductArtwork } from "@/lib/product-artwork";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -51,135 +49,32 @@ export default async function RankDetailPage({ params }: { params: Promise<{ slu
   );
   const frozen = season ? isPurchaseFrozen(season) : false;
 
+  const artwork = getProductArtwork(product.slug, product.artwork);
+
   return (
-    <div className="container-page py-10 lg:py-14">
-      <nav aria-label="Breadcrumb" className="text-[12.5px] text-muted-2">
-        <Link href="/" className="hover:text-ink">Beranda</Link>
-        <span aria-hidden> / </span>
-        <Link href="/rank" className="hover:text-ink">Rank</Link>
-        <span aria-hidden> / </span>
-        <span className="text-muted">{product.name}</span>
-      </nav>
-
-      <div className="mt-6 grid gap-10 lg:grid-cols-[1.55fr_1fr] lg:gap-14">
-        <div>
-          <div className="flex items-start gap-5">
-            <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={88} />
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="eyebrow">Rank tier {product.tier}</p>
-                {season ? <Badge tone="neutral">{season.name}</Badge> : null}
+    <div className="container-page py-8 lg:py-12">
+      <ProductBreadcrumb type="rank" name={product.name} />
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,.85fr)] lg:gap-8">
+        <div className="contents lg:block lg:min-w-0 lg:space-y-5">
+          <article className="order-1 overflow-hidden rounded-[24px] border border-[#eadde6] bg-white shadow-card">
+            <div className="grid sm:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]">
+              <div className="relative isolate flex min-h-[240px] items-end overflow-hidden bg-[#50394a] p-5 sm:min-h-[320px]" aria-hidden>
+                {artwork ? <Image src={artwork} alt="" fill sizes="(min-width: 1024px) 400px, (min-width: 640px) 45vw, 100vw" className="-z-10 object-cover" priority /> : <div className="absolute inset-0 -z-10 bg-[url('/images/gameplay/forest-path.webp')] bg-cover bg-center" />}
+                <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#30202e]/80 via-[#443240]/10 to-transparent" />
+                <span className="rounded-2xl border border-white/30 bg-white/80 p-2 backdrop-blur-sm"><RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={64} /></span>
               </div>
-              <h1 className="mt-1.5 font-display text-h1 text-ink">{product.name}</h1>
-              <p className="mt-1.5 max-w-lg text-pretty text-[15px] leading-relaxed text-muted">{product.tagline}</p>
+              <div className="flex flex-col justify-center p-6 sm:p-8"><p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#f9edf4] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.13em] text-accent-strong"><Sparkles className="size-3" aria-hidden /> Rank tier {product.tier}</p><h1 className="mt-4 break-words font-display text-[clamp(2.1rem,4vw,3rem)] leading-[1.05] tracking-[-.04em] text-ink">{product.name}<span className="text-accent">.</span></h1><p className="mt-3 text-[14px] leading-relaxed text-muted">{product.tagline}</p>{season ? <p className="mt-5 w-fit rounded-full border border-line bg-[#fdf9fb] px-3 py-1.5 text-[11px] font-semibold text-muted">{season.name}</p> : null}</div>
             </div>
+            <div className="border-t border-line px-6 py-5 sm:px-8"><p className="text-[13px] leading-relaxed text-muted">{product.description}</p></div>
+          </article>
+          <div className="order-3 min-w-0 space-y-5">
+          <PerksCard perks={product.perks} />
+          <DetailNote title="Sebelum memilih rank"><ul className="space-y-2"><li>• Satu pemain hanya bisa memegang satu rank per season.</li><li>• Upgrade ke tier lebih tinggi hanya membayar selisih harga.</li><li>• Membeli tier di bawah rank yang sedang aktif akan ditolak sistem.</li></ul></DetailNote>
           </div>
-
-          <div className="mt-8 max-w-2xl space-y-4 text-[14.5px] leading-relaxed text-muted">
-            <p>{product.description}</p>
-          </div>
-
-          <section aria-labelledby="perks" className="mt-10">
-            <h2 id="perks" className="font-display text-h3 text-ink">Yang kamu dapat</h2>
-            <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
-              {product.perks.map((perk) => (
-                <li key={perk} className="flex items-start gap-2.5 rounded-md border border-line bg-surface/60 px-3.5 py-3 text-[13.5px] text-ink">
-                  <Check className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-                  {perk}
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section aria-labelledby="aturan" className="mt-10 rounded-lg border border-line bg-surface/50 p-5">
-            <h2 id="aturan" className="font-display text-[15px] text-ink">Aturan rank</h2>
-            <ul className="mt-3 space-y-2 text-[13.5px] leading-relaxed text-muted">
-              <li>• Satu pemain hanya bisa memegang satu rank per season.</li>
-              <li>• Upgrade ke tier lebih tinggi hanya membayar selisih harga.</li>
-              <li>• Membeli tier di bawah rank yang sedang aktif akan ditolak sistem.</li>
-              <li>• Rank tidak memberi keuntungan PvP, damage, atau speed.</li>
-            </ul>
-          </section>
         </div>
-
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="surface-card p-5">
-            <p className="text-2xs uppercase tracking-wider text-muted-2">Harga</p>
-            <p className="mt-1 font-display text-[34px] leading-none text-ink">
-              {formatRp(payable)}
-            </p>
-            {autoDiscountApplied ? (
-              <p className="mt-1 text-[12px] text-muted-2">
-                Sebelum promo: <span className="line-through">{formatRp(basePayable)}</span>
-              </p>
-            ) : null}
-            {line?.upgradeFrom ? (
-              <p className="mt-2 rounded-md border border-accent/25 bg-accent/10 px-3 py-2 text-[12.5px] leading-relaxed text-accent">
-                Upgrade dari {line.upgradeFrom.name}: selisih normal {formatRp(basePayable)}
-                {autoDiscountApplied ? `, lalu promo otomatis ${pricing?.result.discountLabel} diterapkan.` : "."}
-              </p>
-            ) : (
-              <p className="mt-1 text-[12.5px] text-muted">
-                {autoDiscountApplied
-                  ? `Perkiraan promo otomatis${pricing?.result.discountLabel ? ` “${pricing.result.discountLabel}”` : ""}; harga akhir dihitung di checkout.`
-                  : "Sekali bayar untuk season ini."}
-              </p>
-            )}
-
-            {season ? (
-              <p className="mt-4 flex items-start gap-2 border-t border-line pt-3 text-[12.5px] leading-relaxed text-muted">
-                <Clock className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />
-                <span>
-                  <strong className="font-medium text-ink">{activeUntilLabel(season)}</strong>
-                  <br />
-                  Rank tidak diperpanjang otomatis dan harus dibeli lagi di season berikutnya.
-                </span>
-              </p>
-            ) : null}
-
-            <div className="mt-5">
-              {blocked ? (
-                <Alert tone="warning" title={blocked.code === "RANK_ALREADY_OWNED" ? "Sudah dimiliki" : "Tidak tersedia"}>
-                  {blocked.message}
-                </Alert>
-              ) : frozen ? (
-                <Alert tone="warning" title="Pembelian ditutup">
-                  Pembelian ditutup pada {season?.freezeDays ?? 3} hari terakhir season
-                  {season ? ` (${formatDateWIB(season.endAt)})` : ""}.
-                </Alert>
-              ) : (
-                <AddToCart productId={product.id} label="Tambah ke keranjang" giftingEnabled={giftingEnabled} />
-              )}
-            </div>
-
-            {!profile ? (
-              <p className="mt-3 flex items-start gap-2 text-2xs leading-relaxed text-muted-2">
-                <Info className="mt-0.5 size-3 shrink-0" aria-hidden />
-                Masuk dan hubungkan akun Minecraft untuk melihat harga upgrade personal.
-              </p>
-            ) : null}
-
-            <div className="mt-5 space-y-2 border-t border-line pt-4 text-2xs leading-relaxed text-muted-2">
-              <p className="flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
-                Pembelian bersifat final. Tidak ada refund, termasuk bila akun kemudian melanggar aturan server.
-              </p>
-              <p>Pembayaran: QRIS, virtual account, GoPay, OVO, DANA, ShopeePay.</p>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-lg border border-line p-4 text-[12.5px] leading-relaxed text-muted">
-            <p className="font-medium text-ink">Butuh tier lain?</p>
-            <div className="mt-2 flex gap-2">
-              <Link href="/rank" className="text-accent hover:underline">Bandingkan tier</Link>
-              <span className="text-line-strong" aria-hidden>·</span>
-              <Link href="/faq" className="hover:text-ink">Baca FAQ</Link>
-            </div>
-          </div>
-        </aside>
+        <PurchaseCard productId={product.id} type="RANK" name={product.name} payable={payable} basePayable={basePayable} autoDiscountApplied={autoDiscountApplied} discountLabel={pricing?.result.discountLabel} upgradeFrom={line?.upgradeFrom?.name} season={season} frozen={frozen} giftingEnabled={giftingEnabled} checkoutEnabled={settings.store.checkoutEnabled} blocked={blocked} hasProfile={Boolean(profile)} />
       </div>
-
-      <ReviewSection productId={product.id} productName={product.name} />
+      <div className="mt-12 border-t border-line pt-10"><ReviewSection productId={product.id} productName={product.name} /></div>
     </div>
   );
 }

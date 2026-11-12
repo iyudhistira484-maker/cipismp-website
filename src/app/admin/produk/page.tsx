@@ -20,7 +20,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
         description="Kelola rank dan kit: harga, tier, badge, ilustrasi, keuntungan, isi kit, serta perintah grant/revoke. Perubahan katalog tidak mengubah snapshot order yang sudah dibuat."
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Table head={["Produk", "Jenis", "Harga", "Status", "Terjual", "Aksi"]} empty={products.length === 0}>
           {products.map((product) => (
             <tr key={product.id} className="hover:bg-surface-2/40">

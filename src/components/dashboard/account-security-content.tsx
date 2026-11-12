@@ -10,6 +10,7 @@ import { db } from "@/server/db";
 import { users } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { discordLoginAvailable } from "@/server/auth/discord";
+import { ShieldCheck } from "lucide-react";
 
 export async function AccountSecurityContent({ viewer, params, basePath }: { viewer: Viewer; params: { "email-berubah"?: string; discord?: string }; basePath: "/admin/keamanan" | "/dashboard/keamanan" }) {
   if (viewer.user.role !== "CUSTOMER" && !viewer.user.totpEnabledAt) {
@@ -31,13 +32,15 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
     discordLoginAvailable(),
   ]);
   const discord = discordRow[0] ?? { discordId: null, discordUsername: null };
+  const customer = basePath === "/dashboard/keamanan";
 
   return (
     <div className="space-y-8">
-      <header>
+      <header className={customer ? "relative overflow-hidden rounded-[22px] border border-[#efdee8] bg-gradient-to-br from-[#fff3f8] via-[#fffafd] to-[#f2edf9] p-6 sm:p-8" : undefined}>
         <p className="eyebrow">Keamanan</p>
-        <h1 className="mt-2 font-display text-h1 text-ink">Akun dan sesi</h1>
-        <p className="mt-2 text-[14px] text-muted">Ubah password, kelola sesi aktif, dan aktifkan 2FA.</p>
+        <h1 className="mt-2 font-display text-h1 text-ink">Akun dan sesi{customer ? <span className="text-accent">.</span> : null}</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-muted">Ubah password, kelola sesi aktif, dan aktifkan 2FA.</p>
+        {customer ? <p className="mt-4 flex items-start gap-2 text-[12px] leading-relaxed text-muted"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent-strong" aria-hidden />Jangan bagikan password atau kode 2FA kepada siapa pun.</p> : null}
       </header>
 
       {params["email-berubah"] ? (
@@ -57,9 +60,9 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
         </Alert>
       ) : null}
 
-      <AccountSecurityForms email={viewer.user.email} verified={Boolean(viewer.user.emailVerifiedAt)} />
+      <AccountSecurityForms email={viewer.user.email} verified={Boolean(viewer.user.emailVerifiedAt)} customer={customer} />
 
-      <section aria-labelledby="discord" className="rounded-lg border border-line p-4">
+      <section aria-labelledby="discord" className={customer ? "rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-6" : "rounded-lg border border-line p-4"}>
         <h2 id="discord" className="font-display text-h3 text-ink">Discord</h2>
         {discord.discordId ? (
           <div className="mt-2 space-y-3">
@@ -90,9 +93,9 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
         )}
       </section>
 
-      <TotpPanel enabled={Boolean(viewer.user.totpEnabledAt)} isStaff={viewer.user.role !== "CUSTOMER"} />
+      <TotpPanel enabled={Boolean(viewer.user.totpEnabledAt)} isStaff={viewer.user.role !== "CUSTOMER"} customer={customer} />
 
-      <section aria-labelledby="sesi">
+      <section aria-labelledby="sesi" className={customer ? "rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-6" : undefined}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="sesi" className="font-display text-h3 text-ink">Sesi aktif</h2>
           <form action={revokeAllOtherSessionsAction}>
@@ -125,7 +128,7 @@ export async function AccountSecurityContent({ viewer, params, basePath }: { vie
         </p>
       </section>
 
-      {viewer.user.role === "CUSTOMER" ? <DeleteAccountPanel /> : null}
+      {viewer.user.role === "CUSTOMER" ? <DeleteAccountPanel customer={customer} /> : null}
     </div>
   );
 }

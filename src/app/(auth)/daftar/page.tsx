@@ -16,11 +16,10 @@ export default async function RegisterPage() {
 
   return (
     <div>
-      <p className="eyebrow">Akun baru</p>
-      <h1 className="mt-2 font-display text-[30px] leading-tight text-ink">Buat akun CipiSMP</h1>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-        Butuh 30 detik. Usia minimum {settings.store.minimumAge} tahun. Kamu tetap bisa checkout tanpa akun,
-        tetapi akun memudahkan melihat riwayat dan status pengiriman.
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-strong">MULAI PETUALANGANMU <span aria-hidden>✦</span></p>
+      <h1 className="mt-3 font-display text-[32px] leading-[1.1] tracking-[-0.04em] text-ink">Buat akun CipiSMP<span className="text-accent">.</span></h1>
+      <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+        Satu akun untuk semua ceritamu di CipiSMP. Usia minimum {settings.store.minimumAge} tahun.
       </p>
       <div className="mt-7">
         <RegisterForm turnstileEnabled={env.TURNSTILE_ENABLED} turnstileSiteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} nonce={(await headers()).get("x-nonce") ?? undefined} />

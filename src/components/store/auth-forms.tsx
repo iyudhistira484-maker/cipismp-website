@@ -26,7 +26,7 @@ export function LoginForm({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
       <Field label="Email atau username" htmlFor="identifier" required>
-        <Input id="identifier" name="identifier" autoComplete="username" required autoFocus />
+        <Input id="identifier" name="identifier" autoComplete="username" placeholder="Masukkan email atau username" required autoFocus />
       </Field>
       <Field label="Password" htmlFor="password" required>
         <PasswordInput id="password" name="password" autoComplete="current-password" required />
@@ -80,10 +80,10 @@ export function RegisterForm({ turnstileEnabled, turnstileSiteKey, nonce }: { tu
     <form action={action} className="space-y-4" noValidate>
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
       <Field label="Email" htmlFor="email" required error={state.fields?.email}>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input id="email" name="email" type="email" placeholder="nama@email.com" required autoComplete="email" />
       </Field>
       <Field label="Username toko" htmlFor="username" required error={state.fields?.username} hint="huruf, angka, _">
-        <Input id="username" name="username" required autoComplete="username" />
+        <Input id="username" name="username" placeholder="Pilih username untuk akunmu" required autoComplete="username" />
       </Field>
       <Field label="Password" htmlFor="password" required error={state.fields?.password}>
         <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={10} withMeter />

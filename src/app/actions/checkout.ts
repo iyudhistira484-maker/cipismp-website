@@ -71,6 +71,9 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
   }
   const lines = await getCartLines(identity.cartId);
   if (!identity.cartId || lines.length === 0) return { error: "Keranjang kosong." };
+  if (lines.some((line) => line.isGift && !line.targetName?.trim())) {
+    return { error: "Penerima hadiah tidak tersedia. Hapus item hadiah dari keranjang dan tambahkan kembali." };
+  }
 
   try {
     const result = await createOrder({

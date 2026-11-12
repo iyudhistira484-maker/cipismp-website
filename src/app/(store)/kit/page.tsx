@@ -1,18 +1,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Search } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock3, PackageCheck, ShieldCheck } from "lucide-react";
 import { KitCard } from "@/components/store/product-cards";
+import { CatalogEmpty, CatalogHero, CatalogToolbar } from "@/components/store/catalog-layout";
 import { Alert } from "@/components/ui/feedback";
-import { Input } from "@/components/ui/field";
 import { getActiveSeason, getKitItemsForProducts, getPublishedProducts } from "@/server/catalog";
 import { ratingMap } from "@/server/reviews";
 import { isPurchaseFrozen } from "@/lib/seasons";
-import { formatDateWIB } from "@/lib/dates";
 
 export const metadata: Metadata = {
   title: "Kit",
-  description:
-    "CipiPrime dan Cipi++: akses PlayerKits satu season, dibeli sekali per pemain dan dapat diklaim dengan cooldown 5 jam.",
+  description: "CipiPrime dan Cipi++: akses PlayerKits satu season, dibeli sekali per pemain dan dapat diklaim dengan cooldown 5 jam.",
   alternates: { canonical: "/kit" },
 };
 
@@ -20,81 +18,31 @@ export default async function KitListPage({ searchParams }: { searchParams: Prom
   const { q = "" } = await searchParams;
   const [all, season] = await Promise.all([getPublishedProducts("KIT"), getActiveSeason()]);
   const ratings = await ratingMap(all.map((kit) => kit.id));
-  const items = await getKitItemsForProducts(all.map((k) => k.id));
+  const items = await getKitItemsForProducts(all.map((kit) => kit.id));
   const itemsByProduct = new Map<string, typeof items>();
   for (const item of items) {
     const list = itemsByProduct.get(item.productId) ?? [];
     list.push(item);
     itemsByProduct.set(item.productId, list);
   }
-
   const query = q.trim().toLowerCase();
-  const kits = query
-    ? all.filter(
-        (kit) =>
-          kit.name.toLowerCase().includes(query) ||
-          kit.tagline.toLowerCase().includes(query) ||
-          (itemsByProduct.get(kit.id) ?? []).some((item) => item.name.toLowerCase().includes(query)),
-      )
-    : all;
+  const kits = query ? all.filter((kit) => kit.name.toLowerCase().includes(query) || kit.tagline.toLowerCase().includes(query) || (itemsByProduct.get(kit.id) ?? []).some((item) => item.name.toLowerCase().includes(query))) : all;
   const frozen = season ? isPurchaseFrozen(season) : false;
 
   return (
-    <div className="container-page py-12 lg:py-16">
-      <div className="max-w-2xl">
-        <p className="eyebrow">Kit · {season?.name ?? "Belum ada season"}</p>
-        <h1 className="mt-2 text-balance font-display text-h1 text-ink">
-          Isi kit yang jelas, tanpa kotak misterius.
-        </h1>
-        <p className="mt-3 text-pretty text-[15px] leading-relaxed text-muted">
-          Pilih <strong className="font-medium text-ink">CipiPrime</strong> atau{" "}
-          <strong className="font-medium text-ink">Cipi++</strong> dan lihat semua reward sebelum membeli.
-          Setiap kit dibeli satu kali per pemain per season, lalu akses PlayerKits berlaku sampai
-          season berakhir. Klaim ulang memiliki cooldown 5 jam yang diatur di server.
-          {season ? ` Season ini berakhir ${formatDateWIB(season.endAt)}.` : ""}
-        </p>
+    <div className="container-page space-y-8 py-8 lg:space-y-10 lg:py-12">
+      <CatalogHero type="kit" season={season} count={all.length} />
+      {frozen && season ? <Alert tone="warning" title="Pembelian sedang ditutup">Pembelian ditutup pada {season.freezeDays} hari terakhir season. Akses kit yang sudah dibeli tetap aktif dan dapat diklaim melalui PlayerKits sampai season berakhir.</Alert> : null}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-8">
+        <section id="katalog" aria-labelledby="catalog-heading" className="min-w-0 scroll-mt-24">
+          <CatalogToolbar type="kit" query={q} count={kits.length} />
+          {kits.length ? <div className="mt-5 grid gap-4 sm:grid-cols-2">{kits.map((kit) => <KitCard key={kit.id} product={kit} items={itemsByProduct.get(kit.id) ?? []} season={season ? { name: season.name, endAt: season.endAt } : null} rating={ratings.get(kit.id)} />)}</div> : <CatalogEmpty type="kit" query={q} />}
+        </section>
+        <aside aria-label="Informasi kit" className="space-y-4 lg:sticky lg:top-24">
+          <section className="rounded-[22px] border border-[#eadbe7] bg-[#fcf4f9] p-5 sm:p-6"><span className="grid size-11 place-items-center rounded-2xl bg-white text-accent-strong shadow-sm"><PackageCheck className="size-5" aria-hidden /></span><p className="mt-5 text-[10px] font-bold uppercase tracking-[.14em] text-accent-strong">Kenali kit-mu</p><h2 className="mt-1 font-display text-[20px] leading-tight text-ink">Pilih dengan tenang.</h2><p className="mt-2 text-[12.5px] leading-relaxed text-muted">Lihat isi, jumlah item, dan batas pembelian pada detail setiap kit sebelum checkout.</p><Link href="/cara-kerja" className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-accent-strong hover:underline">Cara kerja <ArrowRight className="size-3.5" aria-hidden /></Link></section>
+          <section className="rounded-[22px] border border-line bg-white p-5 sm:p-6"><ul className="space-y-4"><li className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-4 shrink-0 text-accent-strong" aria-hidden /><div><h3 className="text-[12.5px] font-semibold text-ink">Akses per season</h3><p className="mt-1 text-[12px] leading-relaxed text-muted">Akses PlayerKits berlaku sampai akhir season.</p></div></li><li className="flex items-start gap-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-accent-strong" aria-hidden /><div><h3 className="text-[12.5px] font-semibold text-ink">Cooldown klaim</h3><p className="mt-1 text-[12px] leading-relaxed text-muted">Klaim ulang mengikuti cooldown 5 jam yang diatur server.</p></div></li><li className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent-strong" aria-hidden /><div><h3 className="text-[12.5px] font-semibold text-ink">Pembayaran terverifikasi</h3><p className="mt-1 text-[12px] leading-relaxed text-muted">Akses diproses otomatis setelah pembayaran terkonfirmasi dan pemain siap.</p></div></li></ul></section>
+        </aside>
       </div>
-
-      {frozen && season ? (
-        <Alert tone="warning" className="mt-6 max-w-2xl" title="Pembelian sedang ditutup">
-          Pembelian ditutup pada {season.freezeDays} hari terakhir season. Akses kit yang sudah dibeli
-          tetap aktif dan dapat diklaim melalui PlayerKits sampai season berakhir.
-        </Alert>
-      ) : null}
-
-      <form method="get" className="mt-8 flex max-w-md items-center gap-2" role="search">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-2" aria-hidden />
-          <Input name="q" defaultValue={q} placeholder="Cari kit atau nama item…" className="pl-9" aria-label="Cari kit" />
-        </div>
-        <button
-          type="submit"
-          className="h-11 rounded-md border border-line-strong bg-surface-2 px-4 text-[13px] font-medium text-ink transition-colors hover:bg-surface-3"
-        >
-          Cari
-        </button>
-      </form>
-
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {kits.map((kit) => (
-          <KitCard
-            key={kit.id}
-            product={kit}
-            items={itemsByProduct.get(kit.id) ?? []}
-            season={season ? { name: season.name, endAt: season.endAt } : null}
-            rating={ratings.get(kit.id)}
-          />
-        ))}
-      </div>
-
-      {kits.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-line px-6 py-14 text-center">
-          <p className="text-[15px] text-ink">Tidak ada kit yang cocok dengan “{q}”.</p>
-          <Link href="/kit" className="mt-2 inline-block text-[13px] text-accent hover:underline">
-            Tampilkan semua kit
-          </Link>
-        </div>
-      ) : null}
     </div>
   );
 }

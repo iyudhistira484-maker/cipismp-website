@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getSettings } from "@/server/settings";
 import { orderTrackingMessage, deliveryTrackingMessage } from "@/lib/order-tracking";
+import { OrderTimeline } from "@/components/store/order-timeline";
 
 export const metadata: Metadata = { title: "Detail pesanan", robots: { index: false, follow: false } };
 
@@ -30,18 +31,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       <Link href="/dashboard/pesanan" className="text-[12.5px] text-muted hover:text-accent">
         ← Semua pesanan
       </Link>
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="eyebrow">Pesanan</p>
-          <h1 className="mt-2 font-display text-h2 text-ink">{order.orderNumber}</h1>
-          <p className="mt-1 text-2xs text-muted-2">
-            {formatDateTimeWIB(order.createdAt)} WIB · {order.mcName} · {season?.name}
-          </p>
-        </div>
-        <Badge tone={order.status === "DELIVERED" ? "success" : order.status === "PENDING" ? "accent" : "warning"}>
-          {ORDER_STATUS_LABEL[order.status as OrderStatus]}
-        </Badge>
-      </div>
+      <header className="relative isolate mt-4 overflow-hidden rounded-[22px] bg-[#493342] px-6 py-8 text-white sm:px-8">
+        <div className="absolute inset-0 -z-10 bg-[url('/images/gameplay/forest-path.webp')] bg-cover bg-center" aria-hidden />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#2f1c2c]/95 via-[#4d3044]/90 to-[#4a3042]/65" aria-hidden />
+        <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#ffe0ee]">YOUR ORDER JOURNEY</p><h1 className="mt-3 break-all font-display text-[clamp(1.7rem,4vw,2.5rem)] leading-tight text-white">{order.orderNumber}</h1><p className="mt-2 text-[12px] leading-relaxed text-white/75">{formatDateTimeWIB(order.createdAt)} WIB · {order.mcName}{season ? ` · ${season.name}` : ""}</p></div><span className="rounded-full bg-white"><Badge tone={order.status === "DELIVERED" ? "success" : order.status === "PENDING" && payments[0]?.status !== "UNDERPAID" ? "accent" : "warning"}>{order.status === "PENDING" && payments[0]?.status === "UNDERPAID" ? "Perlu pemeriksaan" : ORDER_STATUS_LABEL[order.status as OrderStatus]}</Badge></span></div>
+      </header>
 
       <section aria-labelledby="tracking-title" className="mt-6 rounded-xl border border-line bg-white p-5 shadow-card">
         <p className="eyebrow">Pelacakan pesanan</p>
@@ -59,6 +53,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
         <p className="mt-3 text-[11px] text-muted-2">Tampilan ini menggunakan catatan toko, bukan pemeriksaan langsung inventaris di game.</p>
       </section>
+
+      <div className="mt-6"><OrderTimeline status={order.status} paymentStatus={payments[0]?.status} paidAt={order.paidAt} deliveredAt={order.deliveredAt} /></div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="divide-y divide-line rounded-lg border border-line">
@@ -103,6 +99,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 </div>
               ) : null}
               {order.taxIdr > 0 ? <div className="flex justify-between"><dt className="text-muted">Pajak</dt><dd className="text-ink">{formatRp(order.taxIdr)}</dd></div> : null}
+              {order.feeIdr > 0 ? <div className="flex justify-between"><dt className="text-muted">Biaya</dt><dd className="text-ink">{formatRp(order.feeIdr)}</dd></div> : null}
               <div className="flex justify-between border-t border-line pt-2 text-[15px]"><dt className="text-ink">Total</dt><dd className="text-ink">{formatRp(order.totalIdr)}</dd></div>
             </dl>
             <p className="mt-2 text-2xs text-muted-2">Gateway: {payments[0]?.provider ?? "—"} · {payments[0]?.status ?? "—"}</p>

@@ -9,7 +9,7 @@ import { env } from "@/server/env";
 export interface PreviewResult {
   ok: boolean;
   errors: string[];
-  lines: Array<{ productId: string; name: string; amountIdr: number; note?: string }>;
+  lines: Array<{ cartItemId: string | null; productId: string; name: string; amountIdr: number; note?: string }>;
   subtotalIdr: number;
   discountIdr: number;
   taxIdr: number;
@@ -83,6 +83,7 @@ export async function previewTotalsAction(input: {
     ok: pricing.result.ok,
     errors: pricing.result.errors.map((error) => error.message),
     lines: pricing.result.lines.map((line) => ({
+      cartItemId: lines.find((item) => item.productId === line.productId && (item.targetUuid ?? uuid).toLowerCase() === line.targetUuid.toLowerCase())?.id ?? null,
       productId: line.productId,
       name: line.name,
       amountIdr: line.lineTotalIdr,

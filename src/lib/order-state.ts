@@ -74,8 +74,8 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 
 export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   QUEUED: "Dalam antrean",
-  SENT: "Terkirim ke server",
-  DELIVERED: "Diterima pemain",
-  FAILED: "Gagal, akan dicoba lagi",
+  SENT: "Sedang diproses / belum pasti",
+  DELIVERED: "Tercatat selesai",
+  FAILED: "Pengiriman belum berhasil",
   DEAD: "Gagal permanen",
 };

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const VIDEO_URL = "https://motionbgs.com/media/9360/minecraft-northern-light.960x540.mp4";
+const VIDEO_URL = "https://motionbgs.com/media/2438/sunset-shader.960x540.mp4";
 
 /** Decorative landing hero video; don't download or animate it for reduced-motion users. */
 export function HeroVideoBackground() {

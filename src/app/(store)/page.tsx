@@ -45,8 +45,8 @@ export default async function HomePage() {
       <section className="landing-hero">
         <HeroVideoBackground />
         <div className="landing-hero__scrim" aria-hidden="true" />
-        <div className="container-page grid gap-10 py-12 sm:py-16 lg:grid-cols-12 lg:items-center lg:gap-12 lg:py-20">
-          <div className="lg:col-span-7">
+        <div className="container-page flex min-h-[580px] items-start pb-44 pt-10 sm:min-h-[610px] sm:pb-48 sm:pt-16 lg:min-h-[610px] lg:items-center lg:py-20">
+          <div className="w-full max-w-xl lg:max-w-[52%]">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="accent">
                 {season ? season.name : "Server survival Minecraft"}
@@ -84,7 +84,7 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <dl className="mt-9 grid max-w-xl grid-cols-1 gap-3 border-t border-line pt-5 sm:grid-cols-3 sm:gap-4">
+            <dl className="mt-8 grid max-w-xl grid-cols-3 gap-2 rounded-xl border border-white/70 bg-white/85 px-3 py-3 sm:gap-4 sm:px-4 lg:rounded-none lg:border-0 lg:border-t lg:border-line lg:bg-transparent lg:px-0 lg:pb-0 lg:pt-5">
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-2">Edisi</dt>
                 <dd className="mt-1 text-[13px] font-medium text-ink">Java &amp; Bedrock</dd>
@@ -100,28 +100,31 @@ export default async function HomePage() {
             </dl>
           </div>
 
-          <div className="space-y-4 lg:col-span-5">
-            <BrandScene seasonName={season?.name} />
-
-            <Suspense fallback={<ServerStatusSkeleton />}>
-              <ServerStatus />
-            </Suspense>
-
-            <div className="grid gap-3 rounded-xl border border-line bg-white p-4 sm:grid-cols-2">
-              <p className="flex items-start gap-2.5 text-[12.5px] leading-relaxed text-muted">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-                Pembayaran melalui Tripay &amp; Midtrans: QRIS, virtual account, dan e-wallet.
-              </p>
-              <p className="flex items-start gap-2.5 text-[12.5px] leading-relaxed text-muted">
-                <Clock3 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-                Item dikirim setelah pembayaran terverifikasi. Jika offline, item menunggu sampai login.
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
       <DoubleMarquee />
+
+      <section id="info-server" aria-labelledby="server-info-heading" className="container-page scroll-mt-24 py-10 sm:py-14">
+        <div className="relative isolate overflow-hidden rounded-[24px] border border-line bg-gradient-to-br from-[#fff8fc] via-white to-[#f5f1fa] p-5 shadow-card sm:p-7 lg:p-9">
+          <span aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-[#efdeed]/60 blur-3xl" />
+          <div className="relative grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10">
+            <div className="min-w-0">
+              <p className="eyebrow">CipiSMP · Java &amp; Bedrock</p>
+              <h2 id="server-info-heading" className="mt-2 font-display text-h2 text-ink">Siap bertemu di server<span className="text-accent">.</span></h2>
+              <p className="mt-2 max-w-lg text-[13px] leading-relaxed text-muted sm:text-[14px]">Simpan alamat server untuk mulai bermain. Cek status dan pilih edisi Minecraft yang kamu gunakan.</p>
+              <BrandScene seasonName={season?.name} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <p className="flex items-start gap-2.5 rounded-2xl border border-line bg-white/80 p-3.5 text-[12px] leading-relaxed text-muted"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />Pembayaran melalui Tripay atau Midtrans; metode yang tersedia mengikuti konfigurasi aktif.</p>
+                <p className="flex items-start gap-2.5 rounded-2xl border border-line bg-white/80 p-3.5 text-[12px] leading-relaxed text-muted"><Clock3 className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />Pengiriman otomatis setelah pembayaran terverifikasi; pemain offline perlu masuk dan login di server.</p>
+              </div>
+            </div>
+            <Suspense fallback={<ServerStatusSkeleton />}>
+              <ServerStatus />
+            </Suspense>
+          </div>
+        </div>
+      </section>
       <StoreHighlights />
       <GameplayGallery />
       <ScrollReveal delay={60} className="join-guide-reveal">

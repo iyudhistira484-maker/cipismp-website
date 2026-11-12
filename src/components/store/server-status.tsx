@@ -62,7 +62,7 @@ export function ServerStatusPanel({ initial }: { initial: Status }) {
               <span className="text-[15px] text-muted">Tidak tersedia</span>
             ) : online ? (
               <>
-                <span className="font-display text-[28px] leading-none text-ink">{status.players ?? 0}</span>
+                <span className="font-display text-[28px] leading-none text-ink">{status.players ?? "—"}</span>
                 <span className="text-[13px] text-muted">
                   / {status.maxPlayers ?? "—"} pemain online
                 </span>
@@ -75,32 +75,32 @@ export function ServerStatusPanel({ initial }: { initial: Status }) {
             <p className="mt-1 text-2xs text-muted-2">Data pemain tidak bisa diambil saat ini.</p>
           ) : null}
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2/70 px-2.5 py-1 text-2xs text-muted">
+        <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface-2/70 px-2.5 py-1 text-2xs text-muted">
           <Dot tone={online === null ? "neutral" : online ? "success" : "danger"} className={online ? "animate-pulse-dot" : ""} />
           {online === null ? "Tidak diketahui" : online ? "Online" : "Offline"}
         </span>
       </div>
 
       <dl className="mt-5 space-y-3 border-t border-line/80 pt-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <dt className="text-[13px] text-muted">Java Edition</dt>
-          <dd className="flex items-center gap-2">
-            <code className="font-mono text-[11px] tracking-wide text-ink">{javaAddress}</code>
-            <CopyButton value={javaAddress} label="Salin" compact />
+          <dd className="flex min-w-0 flex-wrap items-center gap-2">
+            <code className="break-all font-mono text-[11px] tracking-wide text-ink">{javaAddress}</code>
+            <CopyButton value={javaAddress} label="alamat Java" buttonText="Salin" compact />
           </dd>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <dt className="text-[13px] text-muted">Bedrock Edition</dt>
-          <dd className="flex items-center gap-2">
-            <code className="font-mono text-[11px] tracking-wide text-ink">{bedrockAddress}</code>
-            <CopyButton value={bedrockAddress} label="Salin" compact />
+          <dd className="flex min-w-0 flex-wrap items-center gap-2">
+            <code className="break-all font-mono text-[11px] tracking-wide text-ink">{bedrockAddress}</code>
+            <CopyButton value={bedrockAddress} label="alamat Bedrock" buttonText="Salin" compact />
           </dd>
         </div>
       </dl>
 
       <p className="mt-4 flex items-center gap-2 border-t border-line/80 pt-3 text-2xs text-muted-2">
         <span className={refreshing ? "opacity-60" : "opacity-100"}>
-          {status.version ? `Paper ${status.version}` : "Port default Java 25565"} · Cross-play Java &amp; Bedrock
+          {status.version ? `Paper ${status.version}` : `Port Java ${status.javaPort}`} · Cross-play Java &amp; Bedrock
         </span>
       </p>
     </section>

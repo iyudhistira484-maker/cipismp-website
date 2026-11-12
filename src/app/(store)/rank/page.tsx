@@ -1,151 +1,44 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Search } from "lucide-react";
+import { ArrowRight, CalendarDays, CircleHelp, TrendingUp } from "lucide-react";
 import { RankCard } from "@/components/store/product-cards";
+import { CatalogEmpty, CatalogHero, CatalogToolbar } from "@/components/store/catalog-layout";
 import { Alert } from "@/components/ui/feedback";
 import { getActiveSeason, getPublishedProducts } from "@/server/catalog";
 import { ratingMap } from "@/server/reviews";
 import { isPurchaseFrozen } from "@/lib/seasons";
 import { formatDateWIB } from "@/lib/dates";
-import { Input } from "@/components/ui/field";
+import { formatRp } from "@/lib/money";
 
 export const metadata: Metadata = {
   title: "Rank",
-  description:
-    "Pilih rank CipiSMP untuk season ini. Lihat keuntungan, harga, dan masa aktif setiap tier sebelum membeli.",
+  description: "Pilih rank CipiSMP untuk season ini. Lihat keuntungan, harga, dan masa aktif setiap tier sebelum membeli.",
   alternates: { canonical: "/rank" },
 };
 
-export default async function RankListPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function RankListPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
   const [all, season] = await Promise.all([getPublishedProducts("RANK"), getActiveSeason()]);
   const ratings = await ratingMap(all.map((rank) => rank.id));
   const query = q.trim().toLowerCase();
-  const ranks = query
-    ? all.filter(
-        (rank) =>
-          rank.name.toLowerCase().includes(query) ||
-          rank.tagline.toLowerCase().includes(query) ||
-          rank.perks.some((perk) => perk.toLowerCase().includes(query)),
-      )
-    : all;
+  const ranks = query ? all.filter((rank) => rank.name.toLowerCase().includes(query) || rank.tagline.toLowerCase().includes(query) || rank.perks.some((perk) => perk.toLowerCase().includes(query))) : all;
   const frozen = season ? isPurchaseFrozen(season) : false;
+  const perks = Array.from(new Set(all.flatMap((rank) => rank.perks).filter((perk) => !/^semua (fitur|keuntungan)/i.test(perk))));
 
   return (
-    <div className="container-page py-12 lg:py-16">
-      <div className="max-w-2xl">
-        <p className="eyebrow">Rank · {season?.name ?? "Belum ada season"}</p>
-        <h1 className="mt-2 text-balance font-display text-h1 text-ink">
-          Rank Cipi untuk season ini.
-        </h1>
-        <p className="mt-3 text-pretty text-[15px] leading-relaxed text-muted">
-          Rank berlaku sampai akhir season dan tidak diperpanjang otomatis. Kalau kamu sudah punya tier
-          lebih rendah, upgrade hanya membayar selisih harga.
-          {season ? ` Masa aktif saat ini: sampai ${formatDateWIB(season.endAt)}.` : ""}
-        </p>
-      </div>
-
-      {frozen && season ? (
-        <Alert tone="warning" className="mt-6 max-w-2xl" title="Pembelian sedang ditutup">
-          Pembelian ditutup pada {season.freezeDays} hari terakhir season ({formatDateWIB(season.endAt)}).
-          Rank yang ada tetap aktif sampai season berakhir.
-        </Alert>
-      ) : null}
-
-      <form method="get" className="mt-8 flex max-w-md items-center gap-2" role="search">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-2" aria-hidden />
-          <Input
-            name="q"
-            defaultValue={q}
-            placeholder="Cari rank atau keuntungan…"
-            className="pl-9"
-            aria-label="Cari rank"
-          />
-        </div>
-        <button
-          type="submit"
-          className="h-11 rounded-md border border-line-strong bg-surface-2 px-4 text-[13px] font-medium text-ink transition-colors hover:bg-surface-3"
-        >
-          Cari
-        </button>
-      </form>
-
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {ranks.map((rank) => (
-          <RankCard
-            key={rank.id}
-            product={rank}
-            season={season ? { name: season.name, endAt: season.endAt } : null}
-            rating={ratings.get(rank.id)}
-          />
-        ))}
-      </div>
-
-      {ranks.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-line px-6 py-14 text-center">
-          <p className="text-[15px] text-ink">Tidak ada rank yang cocok dengan “{q}”.</p>
-          <Link href="/rank" className="mt-2 inline-block text-[13px] text-accent hover:underline">
-            Tampilkan semua rank
-          </Link>
-        </div>
-      ) : null}
-
-      <section className="mt-16 border-t border-line pt-10">
-        <h2 className="font-display text-h2 text-ink">Perbandingan tier</h2>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-muted">
-          Semua tier mewarisi keuntungan tier di bawahnya. Tidak ada keuntungan PvP, damage, atau
-          pengurangan biaya ekonomi di tier mana pun.
-        </p>
-        <div className="mt-6 overflow-x-auto rounded-lg border border-line">
-          <table className="w-full min-w-[560px] border-collapse text-left text-[13.5px]">
-            <thead>
-              <tr className="border-b border-line bg-surface-2/60">
-                <th scope="col" className="px-4 py-3 font-medium text-muted">Keuntungan</th>
-                {all.map((rank) => (
-                  <th key={rank.id} scope="col" className="px-4 py-3 text-center font-medium text-ink">
-                    {rank.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from(
-                new Set(
-                  all.flatMap((rank) => rank.perks).filter((perk) => !perk.startsWith("Semua keuntungan")),
-                ),
-              ).map((perk) => (
-                <tr key={perk} className="border-b border-line/60 last:border-0">
-                  <th scope="row" className="px-4 py-3 text-left font-normal text-muted">
-                    {perk}
-                  </th>
-                  {all.map((rank) => (
-                    <td key={rank.id} className="px-4 py-3 text-center">
-                      {rank.perks.includes(perk) ? (
-                        <span className="text-accent" aria-label="Termasuk">●</span>
-                      ) : (
-                        <span className="text-line-strong" aria-label="Tidak termasuk">—</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              <tr className="bg-surface-2/40">
-                <th scope="row" className="px-4 py-3 text-left font-medium text-ink">Harga per season</th>
-                {all.map((rank) => (
-                  <td key={rank.id} className="px-4 py-3 text-center font-medium text-ink">
-                    {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(rank.priceIdr)}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+    <div className="container-page space-y-8 py-8 lg:space-y-10 lg:py-12">
+      <CatalogHero type="rank" season={season} count={all.length} />
+      {frozen && season ? <Alert tone="warning" title="Pembelian sedang ditutup">Pembelian ditutup pada {season.freezeDays} hari terakhir season ({formatDateWIB(season.endAt)}). Rank yang ada tetap aktif sampai season berakhir.</Alert> : null}
+      <section id="katalog" aria-labelledby="catalog-heading" className="scroll-mt-24">
+        <CatalogToolbar type="rank" query={q} count={ranks.length} />
+        {ranks.length ? <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{ranks.map((rank) => <RankCard key={rank.id} product={rank} season={season ? { name: season.name, endAt: season.endAt } : null} rating={ratings.get(rank.id)} />)}</div> : <CatalogEmpty type="rank" query={q} />}
       </section>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex items-start gap-3 rounded-[20px] border border-line bg-white p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#faeaf2] text-accent-strong"><TrendingUp className="size-5" aria-hidden /></span><div><h2 className="font-display text-[16px] text-ink">Mau upgrade?</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Untuk upgrade yang memenuhi syarat, harga rank yang sudah dimiliki diperhitungkan. Harga akhir dihitung saat checkout.</p></div></div>
+        <div className="flex items-start gap-3 rounded-[20px] border border-line bg-white p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f2ecfa] text-[#8963a1]"><CalendarDays className="size-5" aria-hidden /></span><div><h2 className="font-display text-[16px] text-ink">Berlaku per season</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Rank berlaku hingga akhir season dan tidak diperpanjang otomatis.</p></div></div>
+      </div>
+      {all.length ? <section aria-labelledby="comparison-heading" className="rounded-[22px] border border-line bg-white p-5 shadow-card sm:p-7"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow">Bandingkan pilihanmu</p><h2 id="comparison-heading" className="mt-1 font-display text-[25px] text-ink">Perbandingan tier<span className="text-accent">.</span></h2><p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-muted">Tabel ini menampilkan keuntungan yang tercantum langsung pada tiap rank. Tanda — berarti tidak tercantum secara terpisah, bukan berarti pasti tidak termasuk; baca detail tiap rank untuk fitur yang diwarisi.</p></div><span className="text-[11px] text-muted-2">Geser tabel ke samping di layar kecil →</span></div><div role="region" aria-label="Tabel perbandingan rank, dapat digeser" tabIndex={0} className="mt-5 overflow-x-auto rounded-2xl border border-line focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"><table className="w-full min-w-[560px] border-collapse text-left text-[12.5px]"><thead><tr className="border-b border-line bg-[#fcf5f9]"><th scope="col" className="px-4 py-3 font-semibold text-muted">Keuntungan tercantum</th>{all.map((rank) => <th key={rank.id} scope="col" className="px-4 py-3 text-center font-semibold text-ink">{rank.name}</th>)}</tr></thead><tbody>{perks.map((perk) => <tr key={perk} className="border-b border-line/60 last:border-0"><th scope="row" className="px-4 py-3 text-left font-normal text-muted">{perk}</th>{all.map((rank) => <td key={rank.id} className="px-4 py-3 text-center">{rank.perks.includes(perk) ? <span className="font-bold text-accent-strong" aria-label="Tercantum">●</span> : <span className="text-muted-2" aria-label="Tidak tercantum secara terpisah">—</span>}</td>)}</tr>)}<tr className="bg-[#fcf5f9]"><th scope="row" className="px-4 py-3 text-left font-semibold text-ink">Harga per season</th>{all.map((rank) => <td key={rank.id} className="whitespace-nowrap px-4 py-3 text-center font-semibold text-ink">{formatRp(rank.priceIdr)}</td>)}</tr></tbody></table></div></section> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ebdce9] bg-[#f9f4f9] p-5"><div className="flex items-start gap-3"><CircleHelp className="mt-0.5 size-5 shrink-0 text-accent-strong" aria-hidden /><div><h2 className="font-display text-[16px] text-ink">Masih ingin tahu lebih banyak?</h2><p className="mt-1 text-[12px] leading-relaxed text-muted">Baca panduan sebelum memilih dan membeli.</p></div></div><Link href="/faq" className="inline-flex items-center gap-1 text-[12px] font-semibold text-accent-strong hover:underline">Lihat FAQ <ArrowRight className="size-3.5" aria-hidden /></Link></div>
     </div>
   );
 }

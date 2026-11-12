@@ -311,16 +311,22 @@ export async function startMinecraftVerificationAction(
   }
 }
 
-export async function checkMinecraftVerificationAction(): Promise<AccountState> {
+export async function checkMinecraftVerificationAction(code: string): Promise<AccountState> {
   const viewer = await requireCustomer();
-  const profiles = await db
-    .select()
-    .from(minecraftProfiles)
-    .where(eq(minecraftProfiles.userId, viewer.user.id));
-  const verified = profiles.filter((p) => p.verifiedAt && (env.MINECRAFT_LOOKUP_MODE !== "offline" || p.identityVerifiedVersion === 2));
-  if (verified.length === 0) return { error: "Belum ada akun yang terverifikasi. Selesaikan langkah di server." };
+  const normalized = code.trim().toUpperCase();
+  if (!/^[A-Z2-9]{6}$/.test(normalized)) return { error: "Kode tidak valid. Buat kode baru." };
+  const token = await db.query.authTokens.findFirst({
+    where: and(eq(authTokens.tokenHash, sha256(normalized)), eq(authTokens.type, "MC_VERIFY"), eq(authTokens.userId, viewer.user.id)),
+  });
+  if (!token?.usedAt) {
+    return { error: token && token.expiresAt <= new Date() ? "Kode kedaluwarsa. Buat kode baru dan coba lagi." : "Belum terverifikasi. Selesaikan langkah di server, lalu cek lagi." };
+  }
+  const payload = (token.payload ?? {}) as { playerName?: string; edition?: string };
+  const profiles = await db.select().from(minecraftProfiles).where(eq(minecraftProfiles.userId, viewer.user.id));
+  const profile = profiles.find((p) => p.displayName.toLowerCase() === payload.playerName?.toLowerCase() && p.edition === payload.edition && p.verifiedAt && (env.MINECRAFT_LOOKUP_MODE !== "offline" || p.identityVerifiedVersion === 2));
+  if (!profile) return { error: "Akun ini belum terhubung. Buat kode baru atau hubungi bantuan." };
   revalidatePath("/dashboard/minecraft");
-  return { success: `Terverifikasi: ${verified.map((p) => p.displayName).join(", ")}` };
+  return { success: `Terverifikasi: ${profile.displayName}` };
 }
 
 export async function unlinkMinecraftAction(formData: FormData): Promise<void> {

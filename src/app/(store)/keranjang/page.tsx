@@ -1,172 +1,42 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Trash2, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Gift, Package, ShieldCheck, ShoppingBag, Sparkles, Trash2 } from "lucide-react";
 import { getCartIdentity, getCartLines } from "@/server/cart";
 import { getActiveSeason, getKitItemsForProducts, getPublishedProducts } from "@/server/catalog";
 import { getSettings } from "@/server/settings";
-import { ItemArt } from "@/components/art/item-art";
-import { EmptyState } from "@/components/ui/feedback";
-import { Button } from "@/components/ui/button";
+import { ItemArt, RankBadge } from "@/components/art/item-art";
 import { removeFromCartAction } from "@/app/actions/cart";
 import { formatRp } from "@/lib/money";
 import { activeUntilLabel, isPurchaseFrozen } from "@/lib/seasons";
 import { formatDateWIB } from "@/lib/dates";
 
-export const metadata: Metadata = {
-  title: "Keranjang",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = { title: "Keranjang", robots: { index: false, follow: false } };
 
 export default async function CartPage() {
-  const [identity, season, settings] = await Promise.all([
-    getCartIdentity(),
-    getActiveSeason(),
-    getSettings(),
-  ]);
+  const [identity, season, settings] = await Promise.all([getCartIdentity(), getActiveSeason(), getSettings()]);
   const lines = await getCartLines(identity.cartId);
-  const allProducts = await getPublishedProducts();
-  const kitItems = await getKitItemsForProducts(allProducts.map((p) => p.id));
-  const productById = new Map(allProducts.map((p) => [p.id, p]));
-  const firstItemByProduct = new Map<string, string>();
-  for (const item of kitItems) {
-    if (!firstItemByProduct.has(item.productId)) firstItemByProduct.set(item.productId, item.itemKey);
-  }
-
-  const subtotal = lines.reduce(
-    (sum, line) => sum + (productById.get(line.productId)?.priceIdr ?? 0) * line.quantity,
-    0,
-  );
+  const products = await getPublishedProducts();
+  const kitItems = await getKitItemsForProducts(products.filter((p) => p.type === "KIT").map((p) => p.id));
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const firstItem = new Map<string, string>();
+  for (const item of kitItems) if (!firstItem.has(item.productId)) firstItem.set(item.productId, item.itemKey);
+  const unavailable = lines.some((line) => !productById.has(line.productId));
+  const missingGiftRecipient = lines.some((line) => line.isGift && !line.targetName?.trim());
+  const subtotal = lines.reduce((sum, line) => sum + (productById.get(line.productId)?.priceIdr ?? 0) * line.quantity, 0);
   const frozen = season ? isPurchaseFrozen(season) : false;
+  const blocked = !season || frozen || !settings.store.checkoutEnabled || unavailable || missingGiftRecipient;
 
   return (
-    <div className="container-page py-12 lg:py-16">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">Keranjang</p>
-          <h1 className="mt-2 font-display text-h1 text-ink">Periksa pesananmu</h1>
-        </div>
-        <Link href="/rank" className="text-[13px] text-muted transition-colors hover:text-accent">
-          Tambah rank atau kit lain
-        </Link>
-      </div>
-
-      {lines.length === 0 ? (
-        <EmptyState
-          className="mt-10"
-          title="Keranjang masih kosong"
-          description="Pilih rank atau kit untuk season ini. Akses berlaku sampai akhir season dan diaktifkan otomatis setelah pembayaran."
-          action={
-            <div className="flex gap-2">
-              <Link href="/rank">
-                <Button variant="primary">Lihat rank</Button>
-              </Link>
-              <Link href="/kit">
-                <Button variant="secondary">Lihat kit</Button>
-              </Link>
-            </div>
-          }
-        />
-      ) : (
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-          <div className="divide-y divide-line rounded-lg border border-line">
-            {lines.map((line) => {
-              const product = productById.get(line.productId);
-              if (!product) return null;
-              const artKey =
-                product.type === "KIT"
-                  ? (firstItemByProduct.get(product.id) ?? "map")
-                  : product.accent === "diamond"
-                    ? "compass"
-                    : product.accent === "gold"
-                      ? "lantern"
-                      : "stone_sword";
-              return (
-                <div key={line.id} className="flex items-center gap-4 p-4 sm:p-5">
-                  <div className="grid size-14 shrink-0 place-items-center rounded-md border border-line bg-bg/60">
-                    <ItemArt itemKey={artKey} className="size-9" title={product.name} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <h2 className="text-[15px] font-medium text-ink">{product.name}</h2>
-                      <span className="text-2xs uppercase tracking-wider text-muted-2">
-                        {product.type === "RANK" ? "Rank" : "Kit"}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{product.tagline}</p>
-                    {line.isGift && line.targetName ? (
-                      <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10.5px] text-accent">
-                        Hadiah untuk {line.targetName}
-                      </p>
-                    ) : null}
-                    {season ? (
-                      <p className="mt-1 text-2xs text-muted-2">{activeUntilLabel(season)}</p>
-                    ) : null}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[15px] text-ink">{formatRp(product.priceIdr * line.quantity)}</p>
-                    <form action={removeFromCartAction} className="mt-1.5">
-                      <input type="hidden" name="itemId" value={line.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex items-center gap-1 text-2xs text-muted-2 transition-colors hover:text-danger"
-                      >
-                        <Trash2 className="size-3" aria-hidden />
-                        Hapus
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="surface-card p-5">
-              <h2 className="font-display text-[16px] text-ink">Ringkasan</h2>
-              <dl className="mt-4 space-y-2.5 text-[13.5px]">
-                <div className="flex justify-between">
-                  <dt className="text-muted">Subtotal</dt>
-                  <dd className="text-ink">{formatRp(subtotal)}</dd>
-                </div>
-                {settings.store.taxPercent > 0 ? (
-                  <div className="flex justify-between">
-                    <dt className="text-muted">{settings.store.taxLabel} {settings.store.taxPercent}%</dt>
-                    <dd className="text-muted">dihitung saat checkout</dd>
-                  </div>
-                ) : null}
-                <div className="flex justify-between border-t border-line pt-2.5 text-[15px]">
-                  <dt className="text-ink">Perkiraan total</dt>
-                  <dd className="font-medium text-ink">{formatRp(subtotal)}</dd>
-                </div>
-              </dl>
-
-              <p className="mt-3 text-2xs leading-relaxed text-muted-2">
-                Harga upgrade (bila kamu sudah punya rank lebih rendah) dan kupon dihitung ulang di
-                halaman checkout berdasarkan data server.
-              </p>
-
-              {frozen ? (
-                <div className="mt-4 rounded-md border border-warning/30 bg-warning/10 p-3 text-[12.5px] leading-relaxed text-warning">
-                  Pembelian ditutup pada {season?.freezeDays ?? 3} hari terakhir season
-                  {season ? ` (${formatDateWIB(season.endAt)})` : ""}. Kamu masih bisa menyimpan keranjang,
-                  tetapi checkout akan ditolak.
-                </div>
-              ) : (
-                <Link href="/checkout" className="mt-4 block">
-                  <Button size="lg" className="w-full">
-                    Lanjut ke pembayaran
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Button>
-                </Link>
-              )}
-
-              <p className="mt-3 text-2xs leading-relaxed text-muted-2">
-                Semua pembelian bersifat final dan tidak dapat direfund.
-              </p>
-            </div>
-          </aside>
-        </div>
-      )}
+    <div className="container-page space-y-6 py-8 lg:py-12">
+      <Link href="/rank" className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-accent-strong"><ArrowLeft className="size-3.5" aria-hidden /> Kembali ke toko</Link>
+      <header className="relative isolate overflow-hidden rounded-[24px] bg-[#493342] px-6 py-8 text-white shadow-[0_18px_45px_-28px_rgba(69,35,55,.6)] sm:px-9 sm:py-10"><div className="absolute inset-0 -z-10 bg-[url('/images/gameplay/forest-path.webp')] bg-cover bg-center" aria-hidden /><div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#2f1c2c]/95 via-[#4d3044]/90 to-[#4a3042]/65" aria-hidden /><p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.17em] text-[#ffe0ee]"><Sparkles className="size-3" aria-hidden /> YOUR SHOPPING JOURNEY</p><h1 className="mt-5 font-display text-[clamp(2rem,4vw,2.9rem)] leading-[1.1] tracking-[-.04em]">Keranjangmu<span className="text-[#f6b6d1]">.</span></h1><p className="mt-3 max-w-lg text-[13px] leading-relaxed text-white/80">Lihat kembali pilihanmu sebelum melanjutkan ke checkout.</p></header>
+      {lines.length === 0 ? <section className="rounded-[22px] border border-dashed border-[#e7d2df] bg-white px-6 py-14 text-center shadow-card"><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#f9eaf2] text-accent"><ShoppingBag className="size-6" aria-hidden /></span><h2 className="mt-4 font-display text-[22px] text-ink">Keranjang masih kosong</h2><p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted">Pilih rank atau kit untuk petualanganmu. Masa berlaku mengikuti season.</p><div className="mt-5 flex flex-wrap justify-center gap-2"><Link href="/rank" className="inline-flex min-h-10 items-center rounded-xl bg-accent px-4 text-[12px] font-semibold text-white hover:bg-accent-strong">Lihat rank</Link><Link href="/kit" className="inline-flex min-h-10 items-center rounded-xl border border-line-strong px-4 text-[12px] font-semibold text-ink hover:border-accent/40">Lihat kit</Link></div></section> : <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,.85fr)] lg:gap-7">
+        <section aria-labelledby="cart-items" className="min-w-0 rounded-[22px] border border-line bg-white p-5 shadow-card sm:p-6"><div className="flex flex-wrap items-end justify-between gap-2"><div><p className="dashboard-kicker">YOUR PICKS</p><h2 id="cart-items" className="mt-1 font-display text-[22px] text-ink">Pilihanmu<span className="text-accent">.</span></h2></div><p className="text-[11px] text-muted">{lines.length} pilihan di keranjang</p></div><ul className="mt-5 space-y-3">{lines.map((line) => {
+          const product = productById.get(line.productId);
+          return <li key={line.id} className="rounded-2xl border border-[#f0e5ec] bg-[#fdfafd] p-4"><div className="flex items-start gap-3"><span className="grid size-14 shrink-0 place-items-center rounded-2xl border border-line bg-white">{!product ? <Package className="size-5 text-muted-2" aria-hidden /> : product.type === "RANK" ? <RankBadge accent={product.accent} label={product.name.slice(0, 3)} size={48} /> : <ItemArt itemKey={firstItem.get(product.id) ?? "map"} className="size-9" title="" />}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[.1em] text-muted-2">{product ? product.type === "RANK" ? "Rank" : "Kit" : "Produk tidak tersedia"}</p><h3 className="mt-1 break-words text-[14px] font-semibold text-ink">{product?.name ?? "Produk tidak lagi tersedia"}</h3></div>{product ? <p className="text-[14px] font-semibold text-ink">{formatRp(product.priceIdr * line.quantity)}</p> : null}</div>{product ? <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{product.tagline}</p> : <p className="mt-1 text-[11.5px] leading-relaxed text-warning">Hapus produk ini untuk melanjutkan.</p>}<p className="mt-2 flex items-center gap-1.5 break-words text-[11px] font-semibold text-accent-strong">{line.isGift ? <><Gift className="size-3.5 shrink-0" aria-hidden />{line.targetName?.trim() ? `Hadiah untuk ${line.targetName}` : "Penerima hadiah tidak tersedia"}</> : "Untuk pemain yang dipilih saat checkout"}</p>{line.quantity !== 1 ? <p className="mt-1 text-[11px] text-muted">Jumlah: {line.quantity}</p> : null}{season ? <p className="mt-2 text-[11px] leading-relaxed text-muted-2">{activeUntilLabel(season)}</p> : null}<form action={removeFromCartAction} className="mt-3"><input type="hidden" name="itemId" value={line.id} /><button type="submit" aria-label={`Hapus ${product?.name ?? "produk tidak tersedia"}${line.isGift && line.targetName ? ` untuk ${line.targetName}` : ""}`} className="inline-flex min-h-8 items-center gap-1.5 text-[11px] font-semibold text-muted hover:text-danger"><Trash2 className="size-3.5" aria-hidden /> Hapus</button></form></div></div></li>;
+        })}</ul><div className="mt-5 flex flex-wrap gap-4 text-[12px] font-semibold text-accent-strong"><Link href="/rank" className="hover:underline">Tambah rank →</Link><Link href="/kit" className="hover:underline">Tambah kit →</Link></div></section>
+        <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start"><section className="overflow-hidden rounded-[22px] border border-[#eadde6] bg-white shadow-card"><div className="bg-[#f9f0f5] px-5 py-4 sm:px-6"><p className="dashboard-kicker">ORDER SUMMARY</p><h2 className="mt-1 font-display text-[19px] text-ink">Ringkasan pilihan</h2></div><div className="p-5 sm:p-6"><dl className="space-y-3 text-[13px]"><div className="flex justify-between gap-3"><dt className="text-muted">Subtotal harga katalog</dt><dd className="font-semibold text-ink">{unavailable ? "Belum tersedia" : formatRp(subtotal)}</dd></div>{settings.store.taxPercent > 0 ? <div className="flex justify-between gap-3"><dt className="text-muted">{settings.store.taxLabel} {settings.store.taxPercent}%</dt><dd className="text-right text-muted">Dihitung saat checkout</dd></div> : null}</dl><p className="mt-3 text-[11px] leading-relaxed text-muted">Belum termasuk penyesuaian upgrade, diskon, pajak, atau biaya. Total dihitung ulang di checkout sesuai penerima.</p><div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#eee0e9] bg-[#fdf8fb] p-4"><CalendarDays className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden /><div><p className="text-[10px] font-semibold uppercase tracking-[.1em] text-muted-2">Masa berlaku</p><p className="mt-1 text-[12px] leading-relaxed text-ink">{season ? activeUntilLabel(season) : "Belum ada season aktif."}</p></div></div>{!season ? <p role="status" className="mt-4 text-[12px] leading-relaxed text-warning">Belum ada season aktif. Keranjang tetap tersimpan.</p> : frozen ? <p role="status" className="mt-4 text-[12px] leading-relaxed text-warning">Pembelian ditutup pada {season.freezeDays} hari terakhir season (berakhir {formatDateWIB(season.endAt)}). Keranjang tetap tersimpan.</p> : null}{!settings.store.checkoutEnabled ? <p role="status" className="mt-4 text-[12px] leading-relaxed text-warning">Checkout sedang dinonaktifkan. Keranjang tetap tersimpan.</p> : null}{unavailable ? <p role="status" className="mt-4 text-[12px] leading-relaxed text-warning">Hapus produk yang tidak tersedia sebelum checkout.</p> : null}{missingGiftRecipient ? <p role="status" className="mt-4 text-[12px] leading-relaxed text-warning">Hapus hadiah tanpa penerima dan tambahkan kembali.</p> : null}{!blocked ? <Link href="/checkout" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 text-[13px] font-semibold text-white hover:bg-accent-strong">Lanjut ke checkout <ArrowRight className="size-4" aria-hidden /></Link> : !settings.store.checkoutEnabled && season && !frozen && !unavailable && !missingGiftRecipient ? <Link href="/checkout" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line-strong px-4 text-[13px] font-semibold text-ink hover:border-accent/40">Lihat checkout <ArrowRight className="size-4" aria-hidden /></Link> : null}<p className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-muted"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#8d6a99]" aria-hidden />Pembelian bersifat final dan tidak dapat direfund.</p></div></section></aside>
+      </div>}
     </div>
   );
 }

@@ -33,10 +33,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <p className="eyebrow">Akun</p>
-      <h1 className="mt-2 font-display text-[30px] leading-tight text-ink">Masuk ke CipiSMP</h1>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-        Email atau username toko, lalu password. Kalau 2FA aktif, kamu akan diminta kode 6 digit.
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent-strong">SENANG MELIHATMU LAGI <span aria-hidden>✦</span></p>
+      <h1 className="mt-3 font-display text-[32px] leading-[1.1] tracking-[-0.04em] text-ink">Masuk ke CipiSMP<span className="text-accent">.</span></h1>
+      <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+        Lanjutkan petualanganmu. Masuk untuk melihat rank, kit, dan riwayat pesananmu.
       </p>
       {message ? (
         <div className="mt-5">

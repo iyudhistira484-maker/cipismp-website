@@ -73,11 +73,11 @@ sistem agar tetap mudah dibaca.
 
 ## 6. Video latar hero
 
-- Halaman beranda merujuk video Minecraft Northern Light dari MotionBGS:
-  `https://motionbgs.com/media/9360/minecraft-northern-light.960x540.mp4` (tautan diberikan pengguna).
+- Halaman beranda merujuk video Sunset Shader dari MotionBGS:
+  `https://motionbgs.com/media/2438/sunset-shader.960x540.mp4` (tautan diberikan pengguna).
 - Video dimuat langsung dari host tersebut, tidak disalin ke repo. Komponen dekoratif diputar
-  tanpa suara, inline dan loop; pada `prefers-reduced-motion` video tidak dimuat. Gradien CSS
-  tetap menjadi fallback bila video gagal atau jaringan tidak tersedia.
+  tanpa suara, inline dan loop; pada `prefers-reduced-motion` video tidak dimuat. Screenshot
+  lokal `season-one-spawn.webp` dan gradien menjadi fallback bila video gagal atau jaringan tidak tersedia; screenshot tersebut bukan cuplikan video.
 - Izin penggunaan/redistribusi dan ketersediaan URL belum diverifikasi. Konfirmasikan hak
   penggunaan sebelum go-live; untuk produksi, pertimbangkan salinan/host yang dikendalikan
   proyek jika lisensi dan ukuran berkas mengizinkan.
@@ -96,3 +96,36 @@ Jika menambahkan aset pihak ketiga:
 2. Simpan berkas sumber di `public/` atau `src/assets/` dengan nama deskriptif.
 3. Tambahkan sumber/penulis, versi, hak/lisensi, serta tautan ketentuannya ke dokumen ini.
 4. Untuk font, gunakan paket `@fontsource` (self-host), bukan CDN.
+
+## 9. Video latar halaman akun
+
+- Halaman masuk dan daftar memakai video Minecraft Sunset yang ditautkan pengguna:
+  `https://motionbgs.com/media/2978/minecraft-sunset.960x540.mp4`, dimuat langsung dari MotionBGS dan tidak disalin ke repositori.
+- Video dekoratif tanpa suara tidak dimuat ketika reduced motion aktif dan dijeda saat tab tersembunyi. Screenshot gameplay lokal menjadi fallback bila video gagal atau tidak dimuat. Browser pengguna terhubung langsung ke MotionBGS; tidak tersedia tombol jeda pada halaman sesuai permintaan.
+- Hak penggunaan komersial/embedding, privasi dan ketersediaan host belum diverifikasi. Owner perlu memeriksanya sebelum go-live; bila diperlukan, gunakan aset berizin yang di-host sendiri.
+
+## 10. Video pembuka halaman Cara Kerja
+
+- Pembuka `/cara-kerja` memakai video Minecraft Sunset Farm yang dipilih pengguna: `https://motionbgs.com/media/9266/minecraft-sunset-farm.960x540.mp4`, dimuat langsung dari MotionBGS; gambar lokal `forest-path.webp` digunakan sebagai poster dan fallback.
+- Video tanpa suara dihentikan saat tab tersembunyi atau di luar viewport dan tidak dimuat jika reduced motion aktif. Tidak ada tombol jeda, sesuai permintaan.
+- Browser pengunjung terhubung ke MotionBGS. Hak embedding dan penggunaan komersial, privasi, serta ketersediaannya belum diverifikasi; pemilik perlu memastikan izin sebelum go-live.
+
+## 11. Video pembuka halaman FAQ
+
+- Pembuka `/faq` menggunakan video Christmas in Minecraft yang dipilih pengguna: `https://motionbgs.com/media/3761/christmas-in-minecraft.960x540.mp4`, dimuat langsung dari MotionBGS. Screenshot lokal `forest-path.webp` adalah poster dan fallback, bukan cuplikan video tersebut.
+- Video dekoratif tanpa suara dijeda ketika tab tersembunyi atau berada di luar viewport dan tidak dimuat jika reduced motion aktif. Browser pengunjung terhubung ke MotionBGS; hak embedding dan penggunaan komersial, privasi, serta ketersediaan host belum diverifikasi.
+
+## 12. Video pembuka halaman Ulasan
+
+- Pembuka `/ulasan` menggunakan video Minecraft Rainy Landscape yang dipilih pengguna: `https://motionbgs.com/media/3071/minecraft-rainy-landscape.960x540.mp4`, dimuat langsung dari MotionBGS. Screenshot lokal `forest-path.webp` adalah poster dan fallback, bukan cuplikan video.
+- Video dekoratif tanpa suara dijeda saat tab tersembunyi atau di luar viewport dan tidak dimuat jika reduced motion aktif. Browser pengunjung terhubung ke MotionBGS; hak embedding dan penggunaan komersial, privasi, serta ketersediaan host belum diverifikasi.
+
+## 13. Video pembuka halaman Rank
+
+- Pembuka `/rank` menggunakan video Water World Minecraft yang dipilih pengguna: `https://motionbgs.com/media/531/water-world-minecraft.960x540.mp4`, dimuat langsung dari MotionBGS. Screenshot lokal `forest-path.webp` dipakai sebagai poster dan fallback, bukan cuplikan video.
+- Video dekoratif tanpa suara dijeda saat tab tersembunyi atau di luar viewport dan tidak dimuat jika reduced motion aktif. Browser pengunjung terhubung ke MotionBGS; hak embedding dan penggunaan komersial, privasi, serta ketersediaan host belum diverifikasi.
+
+## 14. Video pembuka halaman Kit
+
+- Pembuka `/kit` menggunakan video Fireplace in Minecraft yang dipilih pengguna: `https://motionbgs.com/media/1963/fireplace-in-minecraft.960x540.mp4`, dimuat langsung dari MotionBGS. Screenshot lokal `forest-path.webp` dipakai sebagai poster dan fallback, bukan cuplikan video.
+- Video dekoratif tanpa suara dijeda saat tab tersembunyi atau di luar viewport dan tidak dimuat jika reduced motion aktif. Browser pengunjung terhubung ke MotionBGS; hak embedding dan penggunaan komersial, privasi, serta ketersediaan host belum diverifikasi.

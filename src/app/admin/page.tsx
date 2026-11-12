@@ -4,7 +4,7 @@ import { requireStaff } from "@/server/auth/guard";
 import { analyticsSummary, listOrders, deliveryOverview, revenueTrend, listPublishedProductsForComp } from "@/server/admin/queries";
 import { formatRp } from "@/lib/money";
 import { formatDateWIB, formatDateTimeWIB } from "@/lib/dates";
-import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
+import { DELIVERY_STATUS_LABEL, ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-state";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader, Card, Stat, Table, Td } from "@/components/admin/shell";
 import { CompForm } from "@/components/admin/admin-forms";
@@ -37,7 +37,7 @@ export default async function AdminHomePage() {
         title="Ringkasan toko"
         description={
           canReadAnalytics
-            ? "Angka pendapatan dihitung dari order berstatus dibayar. Tidak ada refund: semua penjualan final."
+            ? "Pantau pesanan, pendapatan, dan hal yang perlu ditindaklanjuti dalam satu tempat."
             : canReadDelivery
               ? "Tampilan operasional untuk pesanan dan pengiriman yang perlu ditindaklanjuti."
               : "Tampilan operasional untuk pesanan yang perlu ditindaklanjuti."
@@ -46,7 +46,8 @@ export default async function AdminHomePage() {
 
       {summary ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-3 flex items-end justify-between gap-3"><div><p className="dashboard-kicker">IKHTISAR</p><h2 className="mt-1 font-display text-[17px] font-semibold text-ink">Aktivitas toko</h2></div><p className="text-right text-[11px] text-muted-2">Berdasarkan data pesanan</p></div>
+          <div className="grid gap-3 min-[380px]:grid-cols-2 xl:grid-cols-4">
             <Stat label="Pendapatan hari ini" value={formatRp(summary.revenueTodayIdr)} hint={`30 hari: ${formatRp(summary.revenue30dIdr)}`} tone="success" />
             <Stat label="Total pendapatan" value={formatRp(summary.revenueAllIdr)} hint={`${summary.paidOrders} order dibayar`} />
             <Stat label="Menunggu bayar" value={String(summary.pendingOrders)} />
@@ -59,13 +60,13 @@ export default async function AdminHomePage() {
           </div>
 
           {summary.activeSeason ? (
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-accent/25 bg-accent/[0.05] px-4 py-3 text-[13px]">
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[16px] border border-[#ead9e6] bg-[#fbf2f8] px-5 py-4 text-[13px]">
               <span className="text-accent">Season aktif</span>
               <span className="text-ink">{summary.activeSeason.name}</span>
               <span className="text-muted">berakhir {formatDateTimeWIB(summary.activeSeason.endAt)} WIB</span>
-              <Link href="/admin/season" className="ml-auto inline-flex items-center gap-1 text-2xs text-muted hover:text-accent">
+              {hasPermission(viewer.user.role, "seasons.write") ? <Link href="/admin/season" className="ml-auto inline-flex items-center gap-1 text-2xs font-semibold text-accent-strong hover:underline">
                 Kelola season <ArrowUpRight className="size-3" aria-hidden />
-              </Link>
+              </Link> : null}
             </div>
           ) : (
             <div className="mt-3 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/[0.06] px-4 py-3 text-[13px] text-warning">
@@ -91,7 +92,7 @@ export default async function AdminHomePage() {
         </>
       ) : monitor ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Stat label="Pengiriman gagal" value={String(monitor.stats.FAILED ?? 0)} hint="Dapat dicoba ulang dari monitor pengiriman." />
+          <Stat label="Pengiriman gagal" value={String(monitor.stats.FAILED ?? 0)} hint="Periksa hasil di server sebelum mencoba kirim ulang." />
           <Stat
             label="Gagal permanen"
             value={String(monitor.stats.DEAD ?? 0)}
@@ -126,12 +127,12 @@ export default async function AdminHomePage() {
 
         <div className="min-w-0 space-y-4">
           {monitor ? (
-            <Card title="Monitor pengiriman" description="Antrean terakhir; kirim ulang dari halaman Pengiriman.">
+            <Card title="Monitor pengiriman" description="Antrean terakhir. Periksa hasil di server sebelum kirim ulang; hasil yang tidak pasti memerlukan rekonsiliasi manual.">
               <Table head={["Pemain", "Status", "Percobaan"]} empty={monitor.rows.length === 0}>
                 {monitor.rows.map((row) => (
                   <tr key={row.id}>
                     <Td className="text-ink">{row.playerName}</Td>
-                    <Td>{row.status}</Td>
+                    <Td>{DELIVERY_STATUS_LABEL[row.status] ?? row.status}</Td>
                     <Td className="tabular-nums">{row.attempts}</Td>
                   </tr>
                 ))}
@@ -140,7 +141,7 @@ export default async function AdminHomePage() {
           ) : null}
 
           {canComp ? (
-            <Card title="Comp manual" description="Berikan rank/kit tanpa pembayaran. Wajib beralasan dan tercatat di audit log.">
+            <Card title="Comp manual" description="Berikan rank/kit tanpa pembayaran. Wajib beralasan dan tercatat di audit log; pembatasan staf tetap berlaku.">
               <CompForm products={products} />
             </Card>
           ) : null}

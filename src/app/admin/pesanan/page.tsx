@@ -36,11 +36,11 @@ export default async function AdminOrdersPage({
         actions={<ExportLink type="orders" label="Ekspor CSV (100 hari)" from={new Date(Date.now() - 100 * 86_400_000).toISOString().slice(0, 10)} />}
       />
 
-      <form className="mb-4 flex flex-wrap items-end gap-2" method="get">
-        <Field label="Cari" htmlFor="order-q" className="min-w-56 flex-1">
-          <Input id="order-q" name="q" defaultValue={params.q ?? ""} placeholder="CIPI-20250101-0001 / email / pemain" />
+      <form className="mb-4 flex flex-wrap items-end gap-3 rounded-[20px] border border-line bg-white p-4 shadow-card sm:p-5" method="get">
+        <Field label="Cari" htmlFor="order-q" className="min-w-0 flex-[1_1_14rem]">
+          <Input id="order-q" name="q" defaultValue={params.q ?? ""} placeholder="CIPS-7K3M9QX2 / email / pemain" />
         </Field>
-        <Field label="Status" htmlFor="order-status" className="w-52">
+        <Field label="Status" htmlFor="order-status" className="w-full sm:w-52">
           <Select id="order-status" name="status" defaultValue={params.status ?? ""}>
             <option value="">Semua status</option>
             {ORDER_STATUSES.map((status) => (
