@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { cookiePolicy } from "@/lib/cookie-policy";
+import { currentCodespacesPreviewHost, isAllowedCodespacesMutation } from "@/lib/codespaces-preview";
 
 /**
  * Middleware:
@@ -44,6 +45,14 @@ function contentSecurityPolicy(nonce: string, isDev: boolean): string {
 
 export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV !== "production";
+  const codespacesHost = currentCodespacesPreviewHost(process.env.APP_URL ?? "");
+  // Apply before ALL Server Actions, including those without their own CSRF
+  // guard. Browser mutations require the exact proxy host and Fetch Metadata;
+  // non-browser API clients still use their existing signature/token checks.
+  if (codespacesHost && !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
+      !isAllowedCodespacesMutation(request.headers, codespacesHost, request.nextUrl.pathname)) {
+    return NextResponse.json({ error: "Origin tidak valid." }, { status: 403 });
+  }
   const nonce = makeNonce();
   const csp = contentSecurityPolicy(nonce, isDev);
 

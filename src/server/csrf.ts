@@ -1,4 +1,5 @@
 import { env } from "./env";
+import { currentCodespacesPreviewHost, isCodespacesSameOriginRequest } from "@/lib/codespaces-preview";
 
 export class CsrfError extends Error {
   constructor(message = "Permintaan ditolak: origin tidak valid.") {
@@ -23,7 +24,17 @@ export function assertSameOrigin(request: Request): void {
   const allowedOrigin = new URL(env.APP_URL).origin;
 
   if (origin) {
-    if (new URL(origin).origin !== allowedOrigin) throw new CsrfError(`Origin tidak dikenal: ${origin}`);
+    // Codespaces' proxy may replace the browser Origin with localhost. Never
+    // trust that rewritten value alone: the exact configured proxy host and
+    // browser's same-origin Fetch Metadata are required, and only in dev.
+    if (isCodespacesSameOriginRequest(request.headers, currentCodespacesPreviewHost(env.APP_URL))) return;
+    let parsedOrigin: string;
+    try {
+      parsedOrigin = new URL(origin).origin;
+    } catch {
+      throw new CsrfError("Origin tidak valid.");
+    }
+    if (parsedOrigin !== allowedOrigin) throw new CsrfError(`Origin tidak dikenal: ${origin}`);
     return;
   }
   if (fetchSite && (fetchSite === "same-origin" || fetchSite === "none")) return;

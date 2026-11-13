@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
+import { currentCodespacesPreviewHost } from "./src/lib/codespaces-preview";
 
 const isDev = process.env.NODE_ENV !== "production";
+const codespacesHost = currentCodespacesPreviewHost(process.env.APP_URL ?? "");
 
 /**
  * Header keamanan. CSP dirakit manual (nonce per request ditambahkan di
@@ -24,14 +26,16 @@ const nextConfig: NextConfig = {
   // Keep middleware redirects on APP_URL rather than normalizing 127.0.0.1 to localhost.
   skipMiddlewareUrlNormalize: true,
   // The preview runs at a per-sandbox *.e2b.app hostname.
-  allowedDevOrigins: isDev ? ["*.e2b.app"] : undefined,
+  allowedDevOrigins: isDev ? ["*.e2b.app", ...(codespacesHost ? [codespacesHost] : [])] : undefined,
   output: "standalone",
   serverExternalPackages: ["nodemailer", "ioredis"],
   images: {
     formats: ["image/avif", "image/webp"],
   },
   experimental: {
-    serverActions: { bodySizeLimit: "2mb" },
+    // The proxy rewrites Origin to localhost. The application also checks
+    // the exact forwarded host and same-origin Fetch Metadata on mutations.
+    serverActions: { bodySizeLimit: "2mb", ...(codespacesHost ? { allowedOrigins: ["localhost:3000"] } : {}) },
   },
   async headers() {
     return [

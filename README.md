@@ -61,6 +61,21 @@ npm run dev          # http://localhost:3000
 npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, reminder season
 ```
 
+## Preview GitHub Codespaces
+
+Codespaces hanya untuk pengembangan terisolasi, bukan produksi. Pakai database dan
+akun uji terpisah, biarkan port web **Private**, dan gunakan URL HTTPS port 3000
+Codespaces yang sama persis sebagai `APP_URL`. Set `APP_ENV=development`; Codespaces
+menyediakan `CODESPACES=true`, `CODESPACE_NAME` dan domain forwarding otomatis.
+
+Proxy Codespaces dapat menulis ulang `Origin` menjadi `localhost:3000`. Pengecualian
+khusus preview hanya aktif pada profil tersebut dengan URL Codespace yang cocok;
+semua mutasi browser tetap mensyaratkan forwarded host yang tepat dan
+`Sec-Fetch-Site: same-origin`. Browser yang tidak mengirim Fetch Metadata akan ditolak
+untuk mutasi dalam preview ini. Di luar Codespaces atau pada production tidak ada
+pengecualian. Pemeriksaan API non-browser tidak diubah; webhook dan plugin tetap
+menggunakan validasi yang tersedia. Jangan gunakan profil preview atau kredensial uji untuk transaksi nyata.
+
 ## Variabel `.env` yang wajib benar
 
 | Variabel | Keterangan |
