@@ -129,16 +129,13 @@ export function mergeSettings(base: StoreSettings, patch: DeepPartial<StoreSetti
   return out;
 }
 
-let cache: { value: StoreSettings; at: number } | null = null;
-const CACHE_TTL_MS = 10_000;
-
 export async function getSettings(): Promise<StoreSettings> {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value;
+  // Read the source of truth on every request. A process-local cache can keep
+  // serving stale settings from another Next.js route bundle or web instance
+  // even after an admin saves and revalidates the layout.
   const row = await db.query.settings.findFirst({ where: eq(settingsTable.key, SETTINGS_KEY) });
   const defaults = defaultSettingsForAppEnv(env.APP_ENV);
-  const parsed = row ? mergeSettings(defaults, row.value as DeepPartial<StoreSettings>) : defaults;
-  cache = { value: parsed, at: Date.now() };
-  return parsed;
+  return row ? mergeSettings(defaults, row.value as DeepPartial<StoreSettings>) : defaults;
 }
 
 export async function updateSettings(patch: DeepPartial<StoreSettings>, updatedBy: string): Promise<StoreSettings> {
@@ -148,10 +145,5 @@ export async function updateSettings(patch: DeepPartial<StoreSettings>, updatedB
     .insert(settingsTable)
     .values({ key: SETTINGS_KEY, value: next, updatedBy })
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: next, updatedBy, updatedAt: new Date() } });
-  cache = { value: next, at: Date.now() };
   return next;
-}
-
-export function invalidateSettingsCache(): void {
-  cache = null;
 }

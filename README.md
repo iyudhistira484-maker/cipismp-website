@@ -61,6 +61,32 @@ npm run dev          # http://localhost:3000
 npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, reminder season
 ```
 
+## Preview GitHub Codespaces
+
+Codespaces hanya untuk pengembangan terisolasi, bukan produksi. Pakai database dan
+akun uji terpisah, biarkan port web **Private**, dan gunakan URL HTTPS port 3000
+Codespaces yang sama persis sebagai `APP_URL`. Set `APP_ENV=development`; Codespaces
+menyediakan `CODESPACES=true`, `CODESPACE_NAME` dan domain forwarding otomatis.
+
+Proxy Codespaces dapat menulis ulang `Origin` menjadi `localhost:3000`. Pengecualian
+khusus preview hanya aktif pada profil tersebut dengan URL Codespace yang cocok;
+semua mutasi browser tetap mensyaratkan forwarded host yang tepat dan
+`Sec-Fetch-Site: same-origin`. Browser yang tidak mengirim Fetch Metadata akan ditolak
+untuk mutasi dalam preview ini. Di luar Codespaces atau pada production tidak ada
+pengecualian. Pemeriksaan API non-browser tidak diubah; webhook dan plugin tetap
+menggunakan validasi yang tersedia. Jangan gunakan profil preview atau kredensial uji untuk transaksi nyata.
+
+### Email konfirmasi
+
+Mode `outbox` hanya mencatat pesan di tabel `email_outbox` untuk pengujian; pesan
+tersebut tidak sampai ke inbox. Untuk pengiriman sungguhan, pilih `resend` atau
+`smtp`, konfigurasikan pengirim serta kredensial provider di environment web dan
+worker, dan jalankan worker secara terus-menerus. Pastikan domain pengirim sudah
+diverifikasi oleh provider dan `APP_URL` adalah URL HTTPS yang bisa diakses penerima.
+Respons setelah mengirim formulir berarti pesan masuk antrean, bukan jaminan
+provider telah menerima atau inbox telah menerimanya. Periksa status job dan error
+provider bila email tidak tiba; jangan membagikan kredensial atau tautan token.
+
 ## Variabel `.env` yang wajib benar
 
 | Variabel | Keterangan |
@@ -73,7 +99,7 @@ npm run worker        # terminal lain: email, pengiriman, kedaluwarsa order, rem
 | `ENCRYPTION_KEY` | base64 32 byte untuk mengenkripsi kredensial gateway di database |
 | `SEED_OWNER_EMAIL` / `SEED_OWNER_USERNAME` / `SEED_OWNER_PASSWORD` | akun Owner pertama |
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | opsional; login Discord (redirect URI `<APP_URL>/api/auth/discord/callback`) |
-| `EMAIL_PROVIDER` | `resend`, `smtp`, atau `outbox` (dev, email ditulis ke log) |
+| `EMAIL_PROVIDER` | `resend`, `smtp`, atau `outbox` (dev, disimpan di database dan tidak dikirim ke penerima) |
 | `PLUGIN_SHARED_SECRET` | ≥ 16 karakter acak, sama dengan `shared-secret` plugin; dipakai untuk HMAC polling HTTPS dan `/verify` |
 | `CRON_SECRET` | pengaman endpoint `POST /api/cron` |
 

@@ -13,7 +13,7 @@ export * from "./templates";
 /**
  * Email keluar selalu lewat antrean: simpan ke outbox, lalu job `email.send`
  * mengirim dengan retry. Di dev, provider `outbox` menyimpan email di database
- * dan bisa dibaca di /admin/email (kotak surat pengembangan).
+ * dan tidak dikirim ke kotak masuk penerima.
  */
 export async function queueEmail(input: { to: string; content: EmailContent }): Promise<string> {
   const id = ids.email();

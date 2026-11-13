@@ -11,16 +11,28 @@ import { cn } from "@/lib/utils";
 import { RatingInline } from "@/components/ui/stars";
 import { getProductArtwork } from "@/lib/product-artwork";
 
+type CatalogPromotion = { discountIdr: number; discountLabel: string | null };
+
+function CatalogPrice({ price, promotion, className }: { price: number; promotion?: CatalogPromotion; className: string }) {
+  return <div>
+    {promotion && promotion.discountIdr > 0 ? <p className="text-[12px] text-muted">Harga normal <span className="line-through">{formatRp(price)}</span></p> : null}
+    <p className={className}>{formatRp(price - (promotion?.discountIdr ?? 0))}<span className="ml-1.5 text-[12px] font-normal text-muted">per season</span></p>
+    {promotion && promotion.discountIdr > 0 ? <p className="mt-1 text-[11px] font-semibold text-accent-strong">Promo otomatis{promotion.discountLabel ? `: ${promotion.discountLabel}` : ""} · perkiraan</p> : null}
+  </div>;
+}
+
 // Use document navigation: catalog client-router transitions can stall in production.
 export function RankCard({
   product,
   season,
   highlighted = false,
   rating,
+  promotion,
 }: {
   product: Product;
   season: { name: string; endAt: Date } | null;
   highlighted?: boolean;
+  promotion?: CatalogPromotion;
   rating?: { count: number; average: number };
 }) {
   const artwork = getProductArtwork(product.slug, product.artwork);
@@ -64,10 +76,7 @@ export function RankCard({
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <p className="font-display text-[26px] leading-none text-ink">
-          {formatRp(product.priceIdr)}
-          <span className="ml-1.5 text-[12px] font-normal text-muted">per season</span>
-        </p>
+        <CatalogPrice price={product.priceIdr} promotion={promotion} className="font-display text-[26px] leading-none text-ink" />
         <ul className="mt-4 flex-1 space-y-2">
           {product.perks.slice(0, 4).map((perk) => (
             <li key={perk} className="flex items-start gap-2 text-[13px] leading-relaxed text-muted">
@@ -104,9 +113,11 @@ export function KitCard({
   items,
   season,
   rating,
+  promotion,
 }: {
   product: Product;
   items: KitItem[];
+  promotion?: CatalogPromotion;
   season: { name: string; endAt: Date } | null;
   rating?: { count: number; average: number };
 }) {
@@ -164,7 +175,7 @@ export function KitCard({
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-5">
-          <p className="font-display text-[22px] leading-none text-ink">{formatRp(product.priceIdr)}</p>
+          <CatalogPrice price={product.priceIdr} promotion={promotion} className="font-display text-[22px] leading-none text-ink" />
           <a
             href={`/kit/${product.slug}`}
             className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-2 text-[12.5px] font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"

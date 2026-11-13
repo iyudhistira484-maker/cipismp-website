@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckboxField, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toJakartaInput } from "@/lib/form-datetime";
+import { formatDateWIB } from "@/lib/dates";
 import type { CouponTier } from "@/lib/pricing";
 import type { PaymentMethodOption } from "@/lib/payment-methods";
 import { PRODUCT_ACCENT_CHOICES, PRODUCT_ARTWORK_CHOICES } from "@/lib/product-artwork";
@@ -394,7 +395,7 @@ export function SeasonTransitionPanel({ seasons }: { seasons: Array<{ id: string
         <Select id="transition-season" value={seasonId} disabled={previewing} onChange={(event) => { setSeasonId(event.target.value); setPreview(empty); }}>
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>
-              {season.name} — {season.status} (selesai {new Date(season.endAt).toLocaleDateString("id-ID")})
+              {season.name} — {season.status} (selesai {formatDateWIB(new Date(season.endAt))})
             </option>
           ))}
         </Select>
@@ -784,28 +785,38 @@ export interface SiteSettingsValues {
 
 export function SiteSettingsForm({ settings }: { settings: SiteSettingsValues }) {
   const [state, action] = useActionState(adminSaveSiteSettingsAction, empty);
+  // Controlled inputs are not reset to stale initial values after a successful
+  // React form action, so a second save cannot resurrect an old announcement.
+  const [values, setValues] = useState({
+    name: settings.name,
+    tagline: settings.tagline,
+    supportEmail: settings.supportEmail,
+    discordUrl: settings.discordUrl,
+    announcement: settings.announcement ?? "",
+  });
   return (
     <form action={action} className="space-y-3">
       <StateAlert state={state} />
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nama situs" htmlFor="site-name">
-          <Input id="site-name" name="siteName" defaultValue={settings.name} maxLength={40} required />
+          <Input id="site-name" name="siteName" value={values.name} onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))} maxLength={40} required />
         </Field>
         <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Email bantuan" htmlFor="site-email" hint="Tampil di footer, FAQ, dan halaman bantuan">
-          <Input id="site-email" name="supportEmail" type="email" defaultValue={settings.supportEmail} required />
+          <Input id="site-email" name="supportEmail" type="email" value={values.supportEmail} onChange={(event) => setValues((current) => ({ ...current, supportEmail: event.target.value }))} required />
         </Field>
         <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Tagline" htmlFor="site-tagline" hint="Maksimal 160 karakter">
-          <Input id="site-tagline" name="siteTagline" defaultValue={settings.tagline} maxLength={160} />
+          <Input id="site-tagline" name="siteTagline" value={values.tagline} onChange={(event) => setValues((current) => ({ ...current, tagline: event.target.value }))} maxLength={160} />
         </Field>
         <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="URL Discord" htmlFor="site-discord" hint="Diawali https:// — boleh dikosongkan">
-          <Input id="site-discord" name="discordUrl" defaultValue={settings.discordUrl} maxLength={200} />
+          <Input id="site-discord" name="discordUrl" value={values.discordUrl} onChange={(event) => setValues((current) => ({ ...current, discordUrl: event.target.value }))} maxLength={200} />
         </Field>
       </div>
       <Field className="[&>div:first-child]:flex-col [&>div:first-child]:items-start [&>div:first-child]:gap-1" label="Pengumuman di atas situs" htmlFor="site-announcement" hint="Kosongkan untuk menyembunyikan banner">
         <Textarea
           id="site-announcement"
           name="announcement"
-          defaultValue={settings.announcement ?? ""}
+          value={values.announcement}
+          onChange={(event) => setValues((current) => ({ ...current, announcement: event.target.value }))}
           maxLength={280}
           rows={2}
           className="min-h-16"

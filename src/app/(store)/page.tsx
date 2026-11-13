@@ -11,10 +11,12 @@ import { ServerStatusPanel, ServerStatusSkeleton } from "@/components/store/serv
 import { KitCard, RankCard } from "@/components/store/product-cards";
 import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { getActiveSeason, getKitItemsForProducts, getPublishedProducts } from "@/server/catalog";
+import { getActiveSeason, getKitItemsForProducts, getPublishedProducts, toPriceable } from "@/server/catalog";
 import { getServerConnectionInfo, getServerStatus } from "@/server/server-status";
 import { getSettings } from "@/server/settings";
 import { ratingMap } from "@/server/reviews";
+import { loadAutomaticDiscounts } from "@/server/discounts";
+import { estimateCatalogPricing } from "@/lib/catalog-pricing";
 import { formatDateWIB } from "@/lib/dates";
 import { daysLeftInSeason } from "@/lib/seasons";
 import { FAQ_ITEMS } from "@/content/faq";
@@ -23,12 +25,15 @@ import { Suspense } from "react";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [ranks, kits, season, settings] = await Promise.all([
+  const [ranks, kits, season, settings, discounts] = await Promise.all([
     getPublishedProducts("RANK"),
     getPublishedProducts("KIT"),
     getActiveSeason(),
     getSettings(),
+    loadAutomaticDiscounts(),
   ]);
+  const now = new Date();
+  const promotionFor = (product: (typeof ranks)[number]) => estimateCatalogPricing([{ product: toPriceable(product), quantity: 1 }], discounts, season?.id ?? null, now);
   const ratings = await ratingMap([...ranks, ...kits].map((product) => product.id));
   const kitItems = await getKitItemsForProducts(kits.map((k) => k.id));
   const itemsByProduct = new Map<string, typeof kitItems>();
@@ -163,6 +168,7 @@ export default async function HomePage() {
                 product={rank}
                 season={season ? { name: season.name, endAt: season.endAt } : null}
                 rating={ratings.get(rank.id)}
+                promotion={promotionFor(rank)}
               />
             ))}
           </div>
@@ -200,6 +206,7 @@ export default async function HomePage() {
                   items={itemsByProduct.get(kit.id) ?? []}
                   season={season ? { name: season.name, endAt: season.endAt } : null}
                   rating={ratings.get(kit.id)}
+                  promotion={promotionFor(kit)}
                 />
               ))}
             </div>

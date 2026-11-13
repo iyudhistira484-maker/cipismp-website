@@ -142,7 +142,9 @@ export async function changeEmailAction(_prev: AccountState, formData: FormData)
     const email = String(formData.get("email") ?? "").trim();
     if (!email.includes("@")) return { error: "Format email tidak valid." };
     await changeEmail((await requireViewer()).user.id, email);
-    return { success: "Tautan konfirmasi dikirim ke email baru. Email berubah setelah kamu mengonfirmasi." };
+    return env.EMAIL_PROVIDER === "outbox"
+      ? { error: "Mode email uji (outbox): pesan hanya disimpan di database dan tidak dikirim ke kotak masuk. Hubungi pengelola untuk mengaktifkan layanan email." }
+      : { success: "Permintaan email konfirmasi masuk antrean. Email akan dikirim jika layanan email dan worker aktif; periksa kotak masuk atau spam. Email berubah setelah dikonfirmasi." };
   } catch (error) {
     if (error instanceof AuthError) return { error: error.message };
     if (error instanceof Error && error.name === "RateLimitError") return { error: "Terlalu sering. Coba lagi nanti." };
