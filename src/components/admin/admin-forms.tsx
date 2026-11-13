@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckboxField, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toJakartaInput } from "@/lib/form-datetime";
+import { formatDateWIB } from "@/lib/dates";
 import type { CouponTier } from "@/lib/pricing";
 import type { PaymentMethodOption } from "@/lib/payment-methods";
 import { PRODUCT_ACCENT_CHOICES, PRODUCT_ARTWORK_CHOICES } from "@/lib/product-artwork";
@@ -394,7 +395,7 @@ export function SeasonTransitionPanel({ seasons }: { seasons: Array<{ id: string
         <Select id="transition-season" value={seasonId} disabled={previewing} onChange={(event) => { setSeasonId(event.target.value); setPreview(empty); }}>
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>
-              {season.name} — {season.status} (selesai {new Date(season.endAt).toLocaleDateString("id-ID")})
+              {season.name} — {season.status} (selesai {formatDateWIB(new Date(season.endAt))})
             </option>
           ))}
         </Select>
