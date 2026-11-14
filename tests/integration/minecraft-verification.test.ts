@@ -13,7 +13,7 @@ const first = `mc-user-a-${suffix}`;
 const second = `mc-user-b-${suffix}`;
 const javaUuid = randomUUID();
 const bedrockUuid = randomUUID();
-const name = `.Bed${suffix.slice(0, 6)}`;
+const name = `_Bed${suffix.slice(0, 6)}`;
 const ids = [first, second];
 async function token(id: string, userId: string, code: string, payload: Record<string, string>) {
   await db.insert(authTokens).values({ id, type: "MC_VERIFY", userId, tokenHash: sha256(code), payload, expiresAt: new Date(Date.now() + 60_000) });
@@ -51,8 +51,8 @@ describe.skipIf(!databaseUrl())("verifikasi Minecraft in-game", () => {
 
   it("memeriksa nama Bedrock dan memakai UUID asli plugin setelah verifikasi", async () => {
     await token(`mcc-${suffix}`, first, "GHJ456", { uuid: randomUUID(), playerName: name, edition: "BEDROCK" });
-    expect(await consumeMinecraftVerification({ code: "GHJ456", uuid: bedrockUuid, player: ".wrongname" })).toMatchObject({ ok: false, status: 409 });
+    expect(await consumeMinecraftVerification({ code: "GHJ456", uuid: bedrockUuid, player: "_wrongname" })).toMatchObject({ ok: false, status: 409 });
     expect(await consumeMinecraftVerification({ code: "GHJ456", uuid: bedrockUuid, player: name })).toMatchObject({ ok: true, uuid: bedrockUuid });
-    expect(await resolvePlayer(name)).toMatchObject({ uuid: bedrockUuid, edition: "BEDROCK", source: "cache" });
+    expect(await resolvePlayer(name, "BEDROCK")).toMatchObject({ uuid: bedrockUuid, edition: "BEDROCK", source: "cache" });
   });
 });

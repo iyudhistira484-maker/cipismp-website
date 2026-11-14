@@ -278,7 +278,9 @@ export async function startMinecraftVerificationAction(
     const mcName = String(formData.get("mcName") ?? "").trim();
     if (!mcName) return { error: "Masukkan username Minecraft." };
 
-    const player = await resolvePlayer(mcName);
+    const edition = String(formData.get("edition") ?? "") || undefined;
+    if (edition && edition !== "JAVA" && edition !== "BEDROCK") return { error: "Pilih edisi Minecraft yang valid." };
+    const player = await resolvePlayer(mcName, edition === "JAVA" || edition === "BEDROCK" ? edition : undefined);
     const existing = await db.query.minecraftProfiles.findFirst({ where: eq(minecraftProfiles.uuid, player.uuid) });
     if (existing?.verifiedAt && existing.userId && existing.userId !== viewer.user.id) {
       return { error: "Akun Minecraft ini sudah terhubung ke akun lain." };

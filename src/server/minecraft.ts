@@ -23,33 +23,24 @@ export class InvalidUsernameError extends Error {
 }
 
 const JAVA_NAME = /^[A-Za-z0-9_]{3,16}$/;
-const BEDROCK_NAME = /^\.?[A-Za-z0-9_ ]{3,16}$/;
+const BEDROCK_NAME = /^_[A-Za-z0-9_ ]{3,16}$/;
 
-export function detectEdition(name: string): Edition {
-  return name.startsWith(".") ? "BEDROCK" : "JAVA";
-}
-
-/** Nama Bedrock di Floodgate selalu berawalan titik; input pengguna boleh tanpa titik. */
-export function normalizeUsername(raw: string): { name: string; edition: Edition } {
-  const trimmed = raw.trim().replace(/\s+/g, " ");
-  if (!trimmed) throw new InvalidUsernameError("Username Minecraft wajib diisi.");
-  let edition: Edition;
-  let name: string;
-  if (trimmed.startsWith(".")) {
-    edition = "BEDROCK";
-    name = trimmed;
-  } else if (trimmed.includes(" ")) {
-    edition = "BEDROCK";
-    name = `.${trimmed}`;
-  } else {
-    edition = "JAVA";
-    name = trimmed;
+/** A leading underscore is ambiguous: Java usernames can begin with it too. */
+export function normalizeUsername(raw: string, selectedEdition?: Edition): { name: string; edition: Edition } {
+  const name = raw.trim().replace(/\s+/g, " ");
+  if (!name) throw new InvalidUsernameError("Username Minecraft wajib diisi.");
+  if (selectedEdition !== undefined && selectedEdition !== "JAVA" && selectedEdition !== "BEDROCK") {
+    throw new InvalidUsernameError("Pilih edisi Minecraft yang valid.");
   }
+  if (!selectedEdition && name.startsWith("_")) {
+    throw new InvalidUsernameError("Pilih edisi Java atau Bedrock untuk nama yang diawali _.");
+  }
+  const edition = selectedEdition ?? "JAVA";
   if (edition === "JAVA" && !JAVA_NAME.test(name)) {
     throw new InvalidUsernameError("Username Java 3–16 karakter, hanya huruf, angka, dan garis bawah.");
   }
   if (edition === "BEDROCK" && !BEDROCK_NAME.test(name)) {
-    throw new InvalidUsernameError("Nama Bedrock 3–16 karakter.");
+    throw new InvalidUsernameError("Nama Bedrock harus menggunakan awalan _ dan 3–16 karakter setelahnya.");
   }
   return { name, edition };
 }
@@ -101,8 +92,8 @@ async function fetchMojang(name: string, timeoutMs = 4000): Promise<MojangProfil
 }
 
 /** Resolusi nama → UUID. Mode `mock` dipakai di dev/test agar tidak butuh jaringan. */
-export async function resolvePlayer(rawName: string): Promise<ResolvedPlayer> {
-  const { name, edition } = normalizeUsername(rawName);
+export async function resolvePlayer(rawName: string, selectedEdition?: Edition): Promise<ResolvedPlayer> {
+  const { name, edition } = normalizeUsername(rawName, selectedEdition);
 
   if (edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") {
     // In offline mode only a freshly authenticated v2 plugin identity is usable

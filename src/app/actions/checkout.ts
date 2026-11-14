@@ -19,6 +19,7 @@ export interface CheckoutState {
 }
 
 const checkoutSchema = z.object({
+  mcEdition: z.enum(["JAVA", "BEDROCK"]).optional(),
   mcName: z.string().trim().min(3, "Username Minecraft wajib diisi.").max(32),
   email: z.string().trim().email("Format email tidak valid."),
   provider: z.enum(["TRIPAY", "MIDTRANS", "FAKE"]),
@@ -36,6 +37,7 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
 
   const raw = {
     mcName: String(formData.get("mcName") ?? ""),
+    mcEdition: String(formData.get("mcEdition") ?? "") || undefined,
     email: String(formData.get("email") ?? ""),
     provider: String(formData.get("provider") ?? ""),
     method: String(formData.get("method") ?? "") || undefined,
@@ -81,8 +83,10 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
         productId: line.productId,
         quantity: line.quantity,
         targetName: line.isGift ? line.targetName : null,
+        targetUuid: line.isGift ? line.targetUuid : null,
       })),
       mcName: parsed.data.mcName,
+      mcEdition: parsed.data.mcEdition,
       email: parsed.data.email,
       couponCode: parsed.data.couponCode ?? null,
       userId: viewer?.user.id ?? null,

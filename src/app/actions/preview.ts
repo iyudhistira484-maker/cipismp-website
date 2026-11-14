@@ -27,6 +27,7 @@ export interface PreviewResult {
 export async function previewTotalsAction(input: {
   mcName: string;
   couponCode?: string;
+  edition?: "JAVA" | "BEDROCK";
 }): Promise<PreviewResult> {
   const empty: PreviewResult = {
     ok: false,
@@ -51,7 +52,7 @@ export async function previewTotalsAction(input: {
   let name = "";
   try {
     const { resolvePlayer } = await import("@/server/minecraft");
-    const player = await resolvePlayer(input.mcName);
+    const player = await resolvePlayer(input.mcName, input.edition);
     if (env.MINECRAFT_LOOKUP_MODE === "offline" && player.source !== "cache") {
       return { ...empty, errors: ["Hubungkan akun Minecraft di dashboard sebelum checkout."] };
     }
@@ -60,7 +61,7 @@ export async function previewTotalsAction(input: {
   } catch {
     if (env.MINECRAFT_LOOKUP_MODE === "offline") return { ...empty, errors: ["Nama atau profil Minecraft tidak dapat dipastikan. Hubungi bantuan."] };
     try {
-      const normalized = normalizeUsername(input.mcName);
+      const normalized = normalizeUsername(input.mcName, input.edition);
       const { deterministicUuid } = await import("@/server/minecraft");
       name = normalized.name;
       uuid = deterministicUuid(name, normalized.edition);

@@ -25,7 +25,7 @@ export const FAQ_ITEMS: FaqEntry[] = [
     category: "pemain-dan-pengiriman",
     question: "Saya main dari HP atau konsol. Bisa beli?",
     answer:
-      "Bisa. Bedrock terhubung lewat Geyser/Floodgate. Hubungkan akun di dashboard dengan nama yang tampil di server, termasuk awalan titik Floodgate jika ada. Masuk ke server, selesaikan /login melalui LoginSecurity, lalu gunakan kode /verify. Java dan Bedrock sama-sama perlu login. Nama dengan spasi belum didukung untuk pengiriman otomatis.",
+      "Bisa. Bedrock terhubung lewat Geyser/Floodgate. Hubungkan akun di dashboard dengan nama yang tampil di server, termasuk awalan _ Floodgate untuk Bedrock, dan pilih edisi yang benar. Masuk ke server, selesaikan /login melalui LoginSecurity, lalu gunakan kode /verify. Java dan Bedrock sama-sama perlu login. Nama dengan spasi belum didukung untuk pengiriman otomatis.",
   },
   {
     id: "pengiriman",

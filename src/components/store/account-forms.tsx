@@ -203,6 +203,8 @@ export function DeleteAccountPanel({ customer = false }: { customer?: boolean })
 
 export function MinecraftPanel() {
   const [state, action] = useActionState(startMinecraftVerificationAction, empty);
+  const [mcName, setMcName] = useState("");
+  const [edition, setEdition] = useState("");
 
   return (
     <section aria-labelledby="verifikasi-minecraft" className="rounded-[20px] border border-line bg-white p-5 shadow-card sm:p-7">
@@ -213,9 +215,13 @@ export function MinecraftPanel() {
       <form action={action} className="mt-6 space-y-4">
         {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
         <Field label="Username Minecraft" htmlFor="mcName" required>
-          <Input id="mcName" name="mcName" required placeholder="Contoh: CipiPlayer" autoComplete="off" aria-describedby="minecraft-name-hint" />
+          <Input id="mcName" name="mcName" value={mcName} onChange={(event) => setMcName(event.target.value)} required placeholder="Contoh: CipiPlayer" autoComplete="off" aria-describedby="minecraft-name-hint" />
         </Field>
-        <p id="minecraft-name-hint" className="text-[11.5px] leading-relaxed text-muted">Java: masukkan username seperti biasa. Bedrock: tambahkan titik di depan nama, misalnya <span className="font-mono text-ink">.CipiPlayer</span>.</p>
+        <label htmlFor="mc-edition" className="block text-[13px] font-semibold text-ink">Edisi Minecraft</label>
+        <select id="mc-edition" name="edition" value={edition} onChange={(event) => setEdition(event.target.value)} className="h-11 w-full rounded-md border border-line bg-white px-3 text-sm text-ink">
+          <option value="">Pilih edisi</option><option value="JAVA">Java</option><option value="BEDROCK">Bedrock</option>
+        </select>
+        <p id="minecraft-name-hint" className="text-[11.5px] leading-relaxed text-muted">Pilih edisi yang benar. Java: masukkan username seperti biasa. Bedrock: gunakan nama yang tampil di server beserta awalan garis bawah, misalnya <span className="font-mono text-ink">_CipiPlayer</span>. Nama Java juga bisa diawali _.</p>
         <SubmitButton className="w-full sm:w-auto">{state.data?.code ? "Buat kode baru" : "Buat kode verifikasi"}</SubmitButton>
       </form>
       {state.data?.code && state.data.playerName ? <VerificationSteps key={state.data.code} code={state.data.code} playerName={state.data.playerName} /> : (

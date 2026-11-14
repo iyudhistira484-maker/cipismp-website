@@ -1519,7 +1519,8 @@ export async function adminGrantCompAction(_prev: AdminState, formData: FormData
     if (env.MINECRAFT_LOOKUP_MODE === "offline") {
       const server = await db.query.servers.findFirst({ where: eq(servers.isDefault, true) });
       if (!offlinePluginReady(server)) return { error: "Plugin dan sistem autentikasi belum siap untuk comp." };
-      const resolved = await resolvePlayer(parsed.data.playerName);
+      const profile = await db.query.minecraftProfiles.findFirst({ where: eq(minecraftProfiles.uuid, parsed.data.uuid.toLowerCase()) });
+      const resolved = await resolvePlayer(parsed.data.playerName, profile?.edition);
       if (resolved.source !== "cache" || resolved.uuid.toLowerCase() !== parsed.data.uuid.toLowerCase()) {
         return { error: "Pemain dan UUID comp harus cocok dengan profil server yang sudah diverifikasi ulang." };
       }
