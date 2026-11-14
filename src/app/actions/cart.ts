@@ -40,8 +40,10 @@ export async function addToCartAction(_prev: CartActionState, formData: FormData
     const settings = await getSettings();
     if (!settings.features.gifting) return { error: "Fitur hadiah sedang dinonaktifkan." };
     try {
-      const recipient = await resolvePlayer(giftName);
-      if (env.MINECRAFT_LOOKUP_MODE === "offline" && recipient.source !== "cache") {
+      const edition = String(formData.get("giftEdition") ?? "") || undefined;
+      if (edition && edition !== "JAVA" && edition !== "BEDROCK") return { error: "Pilih edisi penerima yang valid." };
+      const recipient = await resolvePlayer(giftName, edition === "JAVA" || edition === "BEDROCK" ? edition : undefined);
+      if ((recipient.edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") && recipient.source !== "cache") {
         return { error: "Penerima harus menghubungkan akun Minecraft di server sebelum menerima hadiah." };
       }
       gift = { uuid: recipient.uuid, name: recipient.name };

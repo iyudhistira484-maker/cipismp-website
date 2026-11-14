@@ -227,7 +227,7 @@ export default async function HomePage() {
             {[
               {
                 title: "Tulis username Minecraft",
-                body: "Java atau Bedrock (nama dengan titik di depan). Kami memverifikasi ke Mojang dan menampilkan kepala skin sebelum kamu bayar.",
+                body: "Pilih edisi dan masukkan nama yang tampil di server. Bedrock menggunakan awalan _. Verifikasi in-game diperlukan sebelum pembelian.",
               },
               {
                 title: "Pilih rank atau kit",

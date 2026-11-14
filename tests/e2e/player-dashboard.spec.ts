@@ -54,8 +54,11 @@ test.describe("dashboard pemain", () => {
     await page.goto("/dashboard/minecraft");
     await expect(page.getByRole("heading", { name: /Hubungkan akun Minecraft/ })).toBeVisible();
     await expect(page.getByText("PlayerUji", { exact: true })).toBeVisible();
-    const name = `.B${suffix}`;
+    const name = `_B${suffix}`;
     await page.getByLabel("Username Minecraft").fill(name);
+    await page.getByRole("button", { name: "Buat kode verifikasi" }).click();
+    await expect(page.getByText(/Pilih edisi Java atau Bedrock/)).toBeVisible();
+    await page.getByLabel("Edisi Minecraft").selectOption("BEDROCK");
     await page.getByRole("button", { name: "Buat kode verifikasi" }).click();
     await expect(page.getByText("Simpan kode verifikasi")).toBeVisible();
     await expect(page.getByText(/Java dan Bedrock sama-sama perlu login/)).toBeVisible();
@@ -68,6 +71,8 @@ test.describe("dashboard pemain", () => {
 
     // Simulate the database result of a completed plugin verification; this is not a server runtime test.
     const hash = createHash("sha256").update(code).digest("hex");
+    const tokenRow = (await pool.query("select payload from auth_tokens where token_hash = $1", [hash])).rows[0];
+    expect(tokenRow.payload).toMatchObject({ playerName: name, edition: "BEDROCK" });
     await pool.query("update auth_tokens set used_at = now() where token_hash = $1", [hash]);
     await pool.query("insert into minecraft_profiles (id,uuid,edition,display_name,user_id,verified_at,identity_verified_version) values ($1,$2,'BEDROCK',$3,$4,now(),2)", [`bedrock-${suffix}`, randomUUID(), name, users[0]]);
     await page.getByRole("button", { name: "Cek status verifikasi" }).click();

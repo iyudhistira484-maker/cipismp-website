@@ -56,7 +56,7 @@ pengembangan). Di produksi isi `RESEND_API_KEY` atau kredensial SMTP.
   sana. Nama yang tidak ada ditolak sebelum checkout.
 - Mode `mock` (dev/test): UUID deterministik ala offline-mode (`OfflinePlayer:<nama>`),
   sehingga tidak butuh jaringan dan tetap stabil antar-restart.
-- Bedrock: nama Floodgate berawalan titik. Karena XUID tidak tersedia lewat API publik,
+- Bedrock: nama Floodgate berawalan `_`; edisi dipilih secara eksplisit karena nama Java juga bisa diawali `_`. Karena XUID tidak tersedia lewat API publik,
   UUID Bedrock deterministik (`FloodgatePlayer:<nama>`) sampai plugin melaporkan UUID
   asli saat verifikasi in-game; setelah itu UUID asli yang dipakai.
 - Avatar kepala memakai `mc-heads.net` (layanan publik, hanya URL, bukan aset yang

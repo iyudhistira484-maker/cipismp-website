@@ -65,7 +65,7 @@ Panduan ini untuk Owner dan operator server. Tujuannya membuktikan bahwa website
    - `polling.enabled: true` dan `luckperms.use-api: true`.
    - Biarkan `live-status.enabled: false` kecuali fitur tambahan ini juga sedang diuji.
 4. Restart **server staging**, lalu periksa log plugin dan `/admin/server`. Status check-in baru menunjukkan plugin bisa menghubungi website, **bukan** bukti LoginSecurity, Floodgate atau pengiriman sudah benar. Catat kesalahan tanpa menyalin secret.
-5. Cek koneksi Java dan Bedrock ke staging, prefix Floodgate yang tampil pada nama pemain, dan bahwa keduanya memang harus mendaftar/login melalui LoginSecurity. Website saat ini mengharapkan nama Bedrock berawalan titik; bila konfigurasi server berbeda, hentikan dan sesuaikan/ujikan integrasi sebelum lanjut.
+5. Cek koneksi Java dan Bedrock ke staging, prefix Floodgate yang tampil pada nama pemain, dan bahwa keduanya memang harus mendaftar/login melalui LoginSecurity. Website mengharapkan nama Bedrock berawalan `_`; pilih edisi yang benar karena nama Java juga dapat dimulai dengan `_`. Bila konfigurasi server berbeda, hentikan dan sesuaikan/ujikan integrasi sebelum lanjut. Profil lama berawalan titik perlu diverifikasi ulang; jangan pindahkan UUID atau akses secara otomatis.
 
 ## 5. Uji verifikasi identitas
 

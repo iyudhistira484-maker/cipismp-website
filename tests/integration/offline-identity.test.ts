@@ -18,9 +18,9 @@ vi.mock("@/server/env", async (original) => {
 const suffix = uniqueSuffix();
 const owner = `offline-user-${suffix}`, staff = `offline-staff-${suffix}`;
 const server = `offline-server-${suffix}`, season = `offline-season-${suffix}`, product = `offline-product-${suffix}`;
-const javaName = `Java${suffix.slice(0, 7)}`, bedrockName = `.Bed${suffix.slice(0, 6)}`;
+const javaName = `Java${suffix.slice(0, 7)}`, bedrockName = `_Bed${suffix.slice(0, 6)}`;
 const javaUuid = randomUUID(), bedrockUuid = "00000000-0000-0000-0009-01fd62950c17";
-const legacyUuid = randomUUID(), delivery = `offline-delivery-${suffix}`;
+const legacyUuid = randomUUID(), oldBedrockUuid = randomUUID(), oldChangedUuid = randomUUID(), newChangedUuid = randomUUID(), collisionJavaUuid = randomUUID(), collisionBedrockUuid = randomUUID(), delivery = `offline-delivery-${suffix}`;
 let previousServers: string[] = [];
 const input = { mcName: javaName, email: `offline-${suffix}@example.test`, provider: "FAKE" as const, ip: "127.0.0.1", userAgent: "test", noRefundAccepted: true, legalVersions: { tos: "v1", privacy: "v1", sales: "v1" }, items: [{ productId: product }] };
 async function token(id: string, code: string, name: string, edition: "JAVA" | "BEDROCK", mode = "offline", userId = owner) {
@@ -48,7 +48,7 @@ describe.skipIf(!databaseUrl())("identitas server offline terautentikasi", () =>
     await db.delete(orders).where(eq(orders.email, input.email));
     await db.delete(staffMinecraftAccounts).where(eq(staffMinecraftAccounts.staffUserId, staff));
     await db.delete(authTokens).where(inArray(authTokens.userId, [owner, staff]));
-    await db.delete(minecraftProfiles).where(inArray(minecraftProfiles.uuid, [javaUuid, bedrockUuid, legacyUuid]));
+    await db.delete(minecraftProfiles).where(inArray(minecraftProfiles.uuid, [javaUuid, bedrockUuid, legacyUuid, oldBedrockUuid, oldChangedUuid, newChangedUuid, collisionJavaUuid, collisionBedrockUuid]));
     await db.delete(commandTemplates).where(eq(commandTemplates.productId, product));
     await db.delete(products).where(eq(products.id, product));
     await db.delete(seasons).where(eq(seasons.id, season));
@@ -99,12 +99,48 @@ describe.skipIf(!databaseUrl())("identitas server offline terautentikasi", () =>
   it("menggunakan UUID Floodgate yang ditandatangani dan melarang pembelian/hadiah untuk staf yang terdaftar", async () => {
     await token(`off-bed-${suffix}`, "CDE456", bedrockName, "BEDROCK");
     expect(await consumeMinecraftVerification({ code: "CDE456", uuid: bedrockUuid, player: bedrockName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
-    expect(await resolvePlayer(bedrockName.toLowerCase())).toMatchObject({ uuid: bedrockUuid, name: bedrockName, source: "cache" });
+    expect(await resolvePlayer(bedrockName.toLowerCase(), "BEDROCK")).toMatchObject({ uuid: bedrockUuid, name: bedrockName, source: "cache" });
     const order = await createOrder(input);
     expect(order.order.mcUuid).toBe(javaUuid);
-    await expect(createOrder({ ...input, items: [{ productId: product, targetName: ".NotVerified" }] })).rejects.toThrow(/memverifikasi/);
+    await expect(createOrder({ ...input, items: [{ productId: product, targetName: "_NotVerified", targetEdition: "BEDROCK" }] })).rejects.toThrow(/memverifikasi/);
     await db.insert(staffMinecraftAccounts).values({ uuid: bedrockUuid, staffUserId: staff, label: "alternatif" });
-    await expect(createOrder({ ...input, items: [{ productId: product, targetName: bedrockName }] })).rejects.toThrow(/Rank tidak tersedia untuk staf/);
+    await expect(createOrder({ ...input, items: [{ productId: product, targetName: bedrockName, targetEdition: "BEDROCK" }] })).rejects.toThrow(/Rank tidak tersedia untuk staf/);
     await db.delete(staffMinecraftAccounts).where(eq(staffMinecraftAccounts.uuid, bedrockUuid));
   });
+  it("menjaga edisi dan UUID untuk nama ambigu serta profil prefiks lama", async () => {
+    const name = `_Same${suffix.slice(0, 5)}`;
+    await token(`same-java-${suffix}`, "EFG567", name, "JAVA");
+    expect(await consumeMinecraftVerification({ code: "EFG567", uuid: collisionJavaUuid, player: name, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: false, status: 409 });
+    expect(await consumeMinecraftVerification({ code: "EFG567", uuid: collisionJavaUuid, player: name, edition: "JAVA", identityVersion: 2 })).toMatchObject({ ok: true });
+    await token(`same-bed-${suffix}`, "FGH678", name, "BEDROCK");
+    expect(await consumeMinecraftVerification({ code: "FGH678", uuid: collisionBedrockUuid, player: name, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
+    expect(await resolvePlayer(name, "JAVA")).toMatchObject({ uuid: collisionJavaUuid, edition: "JAVA" });
+    expect(await resolvePlayer(name, "BEDROCK")).toMatchObject({ uuid: collisionBedrockUuid, edition: "BEDROCK" });
+    await expect(resolvePlayer(name)).rejects.toThrow(/Pilih edisi/);
+    await expect(createOrder({ ...input, items: [{ productId: product, targetName: name, targetUuid: collisionJavaUuid, targetEdition: "BEDROCK" }] })).rejects.toThrow(/Identitas penerima berubah/);
+
+    const oldName = `.Old${suffix.slice(0, 5)}`;
+    const newName = `_Old${suffix.slice(0, 5)}`;
+    await db.insert(minecraftProfiles).values({ id: `old-bed-${suffix}`, uuid: oldBedrockUuid, edition: "BEDROCK", displayName: oldName, userId: owner, verifiedAt: new Date(), identityVerifiedVersion: 2 });
+    await token(`old-code-${suffix}`, "GHJ789", oldName, "BEDROCK");
+    expect(await consumeMinecraftVerification({ code: "GHJ789", uuid: oldBedrockUuid, player: oldName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: false, status: 409 });
+    await expect(resolvePlayer(oldName, "BEDROCK")).rejects.toThrow();
+    await token(`new-code-${suffix}`, "HJK892", newName, "BEDROCK", "offline", staff);
+    expect(await consumeMinecraftVerification({ code: "HJK892", uuid: oldBedrockUuid, player: newName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: false, status: 409 });
+    expect((await db.query.minecraftProfiles.findFirst({ where: eq(minecraftProfiles.uuid, oldBedrockUuid) }))).toMatchObject({ userId: owner, displayName: oldName });
+    await token(`new-owner-${suffix}`, "JKM923", newName, "BEDROCK");
+    expect(await consumeMinecraftVerification({ code: "JKM923", uuid: oldBedrockUuid, player: newName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
+    expect(await resolvePlayer(newName, "BEDROCK")).toMatchObject({ uuid: oldBedrockUuid, name: newName });
+  });
+
+  it("tidak memindahkan data jika UUID Floodgate berubah", async () => {
+    const oldName = `.Changed${suffix.slice(0, 4)}`;
+    const newName = `_Changed${suffix.slice(0, 4)}`;
+    await db.insert(minecraftProfiles).values({ id: `changed-old-${suffix}`, uuid: oldChangedUuid, edition: "BEDROCK", displayName: oldName, userId: owner, verifiedAt: new Date(), identityVerifiedVersion: 2 });
+    await token(`changed-new-${suffix}`, "KNM234", newName, "BEDROCK");
+    expect(await consumeMinecraftVerification({ code: "KNM234", uuid: newChangedUuid, player: newName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
+    expect(await db.query.minecraftProfiles.findFirst({ where: eq(minecraftProfiles.uuid, oldChangedUuid) })).toMatchObject({ userId: owner, displayName: oldName });
+    expect(await resolvePlayer(newName, "BEDROCK")).toMatchObject({ uuid: newChangedUuid });
+  });
+
 });

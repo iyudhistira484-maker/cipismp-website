@@ -29,7 +29,7 @@ import { loadAutomaticDiscounts } from "./discounts";
 import { buildGrantCommands, buildRevokeCommands } from "./delivery/commands";
 import { deliveryCommandsAreSafe } from "./delivery/command-safety";
 import { offlinePluginReady } from "./delivery/plugin-readiness";
-import { resolvePlayer, upsertProfile } from "./minecraft";
+import { resolvePlayer, upsertProfile, findProfileByUuid, type Edition } from "./minecraft";
 import { env } from "./env";
 import { hasKnownStaffRankRestriction } from "./staff-rank";
 import { priceCart, type CouponInput, type PriceableProduct } from "@/lib/pricing";
@@ -50,8 +50,9 @@ export class CheckoutError extends Error {
 
 export interface CreateOrderInput {
   /** `targetName` diisi untuk item hadiah; aturan rank dievaluasi terhadap penerima. */
-  items: Array<{ productId: string; quantity?: number; targetName?: string | null }>;
+  items: Array<{ productId: string; quantity?: number; targetName?: string | null; targetUuid?: string | null; targetEdition?: Edition }>;
   mcName: string;
+  mcEdition?: Edition;
   email: string;
   couponCode?: string | null;
   userId?: string | null;
@@ -111,7 +112,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     if (!offlinePluginReady(server)) throw new CheckoutError("Pengiriman sementara tidak siap. Plugin, LoginSecurity, dan Floodgate harus terhubung; coba lagi nanti.");
   }
 
-  const player = await resolvePlayer(input.mcName);
+  const player = await resolvePlayer(input.mcName, input.mcEdition);
   if ((player.edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") && player.source !== "cache") {
     throw new CheckoutError("Akun Minecraft harus diverifikasi in-game sebelum pembelian agar pengiriman sampai ke UUID server yang benar.", { mcName: "Hubungkan akun melalui dashboard terlebih dahulu." });
   }
@@ -122,7 +123,17 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
   for (const item of input.items) {
     const giftName = item.targetName?.trim();
     if (giftName) {
-      const recipient = await resolvePlayer(giftName);
+      // The cart records the chosen UUID. Re-resolve its edition and reject any
+      // changed identity rather than silently sending a gift to another player.
+      const stored = item.targetUuid ? await findProfileByUuid(item.targetUuid) : null;
+      let edition = item.targetEdition ?? stored?.edition;
+      // Bedrock gifts must have a verified profile; an uncached cart target can
+      // only be Java (e.g. a Mojang lookup). UUID is checked again below.
+      if (!edition && item.targetUuid) edition = "JAVA";
+      const recipient = await resolvePlayer(giftName, edition);
+      if (item.targetUuid && recipient.uuid.toLowerCase() !== item.targetUuid.toLowerCase()) {
+        throw new CheckoutError("Identitas penerima berubah. Hapus hadiah dan tambahkan kembali.");
+      }
       if ((recipient.edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") && recipient.source !== "cache") {
         throw new CheckoutError("Penerima harus memverifikasi akun Minecraft in-game sebelum menerima hadiah.");
       }

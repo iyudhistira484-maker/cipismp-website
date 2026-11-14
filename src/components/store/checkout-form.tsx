@@ -30,6 +30,7 @@ export function CheckoutForm({ providers, defaultProviderId, items, season, defa
 }) {
   const [state, formAction] = useActionState(checkoutAction, initialState);
   const [mcName, setMcName] = useState(defaults.mcName);
+  const [edition, setEdition] = useState<"" | "JAVA" | "BEDROCK">("");
   const [email, setEmail] = useState(defaults.email);
   const [coupon, setCoupon] = useState("");
   const [provider, setProvider] = useState(defaultProviderId ?? providers[0]?.id ?? "FAKE");
@@ -61,7 +62,7 @@ export function CheckoutForm({ providers, defaultProviderId, items, season, defa
     setPreviewError(null);
     startPreview(async () => {
       try {
-        const result = await previewTotalsAction({ mcName: name, couponCode });
+        const result = await previewTotalsAction({ mcName: name, couponCode, edition: edition || undefined });
         if (previewRevision.current === revision) setPreview(result);
       } catch {
         if (previewRevision.current === revision) setPreviewError("Perkiraan belum tersedia. Coba periksa lagi.");
@@ -77,7 +78,7 @@ export function CheckoutForm({ providers, defaultProviderId, items, season, defa
     setLookup(null);
     invalidatePreview();
     try {
-      const res = await fetch("/api/minecraft/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      const res = await fetch("/api/minecraft/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, edition: edition || undefined }) });
       const json = (await res.json()) as { ok: boolean; player?: LookupResult; message?: string };
       if (!res.ok || !json.ok || !json.player) throw new Error(json.message ?? "Username tidak ditemukan.");
       if (lookupRevision.current !== revision) return;
@@ -99,7 +100,8 @@ export function CheckoutForm({ providers, defaultProviderId, items, season, defa
       <form id="checkout-form" action={formAction} className="order-2 min-w-0 space-y-5 lg:order-none" noValidate>
         <section aria-labelledby="checkout-player" className="rounded-[22px] border border-line bg-white p-5 shadow-card sm:p-6"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f9e9f2] font-display text-sm font-semibold text-accent-strong">01</span><div><p className="dashboard-kicker">PEMAIN & KONTAK</p><h2 id="checkout-player" className="mt-1 font-display text-[20px] text-ink">Untuk siapa petualangannya?</h2><p className="mt-1 text-[12px] leading-relaxed text-muted">Username ini adalah pemain pembeli; item hadiah tetap dikirim ke penerima yang tertera pada ringkasan.</p></div></div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="Username Minecraft" htmlFor="mcName" required error={state.fields?.mcName ?? lookupError ?? undefined}><div className="flex min-w-0 gap-2"><Input id="mcName" name="mcName" value={mcName} onChange={(event) => { lookupRevision.current += 1; setChecking(false); setMcName(event.target.value); setLookup(null); setLookupError(null); invalidatePreview(); }} autoComplete="off" required aria-invalid={Boolean(state.fields?.mcName || lookupError) || undefined} aria-describedby="checkout-mc-hint" placeholder="CipiPlayer" /><Button type="button" variant="secondary" onClick={() => void verifyPlayer()} loading={checking} className="h-11 shrink-0">{!checking ? <Search className="size-4" aria-hidden /> : null} Cek</Button></div></Field><Field label="Email pembelian" htmlFor="email" required error={state.fields?.email}><Input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" aria-invalid={Boolean(state.fields?.email) || undefined} aria-describedby="checkout-email-hint" placeholder="kamu@email.com" /></Field></div>
-          <p id="checkout-mc-hint" className="mt-3 text-[11px] leading-relaxed text-muted">{offlineMode ? "Java dan Bedrock perlu verifikasi in-game melalui dashboard sebelum checkout. " : "Bedrock perlu verifikasi in-game sebelum checkout. "}Untuk Bedrock, tulis titik di depan username, misalnya <span className="font-mono text-ink">.CipiPlayer</span>. Perubahan nama di server offline dapat mengubah UUID; akses tidak otomatis berpindah.</p><p id="checkout-email-hint" className="mt-2 text-[11px] text-muted">Informasi pesanan dikirim ke email pembelian.</p>
+          <label htmlFor="checkout-edition" className="mt-4 block text-[12px] font-semibold text-muted">Edisi Minecraft</label><select id="checkout-edition" name="mcEdition" value={edition} onChange={(event) => { setEdition(event.target.value as "" | "JAVA" | "BEDROCK"); lookupRevision.current += 1; setChecking(false); setLookup(null); setLookupError(null); invalidatePreview(); }} className="mt-1 h-11 w-full rounded-md border border-line bg-white px-3 text-sm text-ink"><option value="">Pilih edisi</option><option value="JAVA">Java</option><option value="BEDROCK">Bedrock</option></select>
+          <p id="checkout-mc-hint" className="mt-3 text-[11px] leading-relaxed text-muted">{offlineMode ? "Java dan Bedrock perlu verifikasi in-game melalui dashboard sebelum checkout. " : "Bedrock perlu verifikasi in-game sebelum checkout. "}Untuk Bedrock, tulis nama server dengan awalan _, misalnya <span className="font-mono text-ink">_CipiPlayer</span>. Pilih edisi yang benar; nama Java juga bisa diawali _. Perubahan nama di server offline dapat mengubah UUID; akses tidak otomatis berpindah.</p><p id="checkout-email-hint" className="mt-2 text-[11px] text-muted">Informasi pesanan dikirim ke email pembelian.</p>
           {lookup ? <div role="status" className="mt-4 flex items-start gap-3 rounded-2xl border border-success/25 bg-[#f6fbf7] p-4"><Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden /><div><p className="break-words text-[13px] font-semibold text-ink">{lookup.name} · {lookup.edition === "BEDROCK" ? "Bedrock" : "Java"}</p><p className="mt-1 text-[11px] leading-relaxed text-muted">Nama ditemukan. Kelayakan pembelian dan penerima tetap diperiksa saat checkout.</p></div></div> : null}
           {!signedIn ? <p className="mt-3 text-[11px] leading-relaxed text-muted">Checkout tamu tersedia; simpan tautan status atau cari pesanan dengan nomor order dan email pembelian.</p> : null}
         </section>

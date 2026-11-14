@@ -186,7 +186,7 @@ describe.skipIf(!enabled)("pembuatan order (server-side totals)", () => {
   });
 
   it("menolak transaksi Bedrock yang belum diverifikasi daripada mengirim ke UUID sementara", async () => {
-    await expect(createOrder({ ...baseInput, mcName: `.Bed${suffix.slice(0, 5)}`, items: [{ productId: rank1 }] }))
+    await expect(createOrder({ ...baseInput, mcName: `_Bed${suffix.slice(0, 5)}`, mcEdition: "BEDROCK", items: [{ productId: rank1 }] }))
       .rejects.toThrow(/harus diverifikasi in-game/);
   });
 

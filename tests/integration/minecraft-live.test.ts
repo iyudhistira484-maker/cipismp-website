@@ -20,7 +20,7 @@ describe.skipIf(!databaseUrl())("snapshot status Minecraft", () => {
     await db.insert(users).values([owner, other].map((id, index) => ({ id, email: `${id}@example.test`, username: `live${index}${suffix}`, passwordHash: "test" })));
     await db.insert(minecraftProfiles).values([
       { id: profile, uuid, edition: "JAVA", displayName: "LivePlayer", userId: owner, verifiedAt: new Date(time - 10000) },
-      { id: unverifiedProfile, uuid: bedrock, edition: "BEDROCK", displayName: ".Bedrock", userId: owner },
+      { id: unverifiedProfile, uuid: bedrock, edition: "BEDROCK", displayName: "_Bedrock", userId: owner },
     ]);
   });
   afterAll(async () => {

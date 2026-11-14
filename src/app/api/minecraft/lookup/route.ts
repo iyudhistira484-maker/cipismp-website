@@ -7,7 +7,7 @@ import { env } from "@/server/env";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({ name: z.string().min(1).max(32) });
+const schema = z.object({ name: z.string().min(1).max(32), edition: z.enum(["JAVA", "BEDROCK"]).optional() });
 
 /** Validasi username Minecraft + preview kepala. Tidak menyimpan data apa pun. */
 export async function POST(request: Request) {
@@ -32,8 +32,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const player = await resolvePlayer(parsed.data.name);
-    if (env.MINECRAFT_LOOKUP_MODE === "offline" && player.source !== "cache") {
+    const player = await resolvePlayer(parsed.data.name, parsed.data.edition);
+    if ((player.edition === "BEDROCK" || env.MINECRAFT_LOOKUP_MODE === "offline") && player.source !== "cache") {
       return NextResponse.json({ ok: false, message: "Akun belum diverifikasi di server. Hubungkan melalui dashboard terlebih dahulu." }, { status: 422 });
     }
     const profile = await getProfileByUuidSafe(player.uuid);
