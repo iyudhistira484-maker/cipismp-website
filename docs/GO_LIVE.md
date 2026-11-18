@@ -89,6 +89,7 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
       keduanya diaktifkan.
 - [ ] Uji transaksi nyata nominal kecil: order menjadi PAID, entitlement muncul, pengiriman
       terkirim, invoice PDF bisa diunduh, email masuk.
+- [ ] Di staging terisolasi, uji checkout serentak, reload/dua tab, dan respons gateway terputus. Pastikan satu order/sesi untuk snapshot yang sama; hasil gateway yang tidak pasti harus ditinjau manual, bukan dicoba otomatis. Uji juga pembelian terpisah dan kasus pengguna mengganti keranjang.
 - [ ] Uji webhook ganda: kirim ulang callback → tidak ada pengiriman kedua.
 - [ ] Uji signature salah (`curl` dengan signature rusak) → HTTP 401 tercatat.
 - [ ] Owner menyetujui prosedur chargeback: order menjadi DISPUTED, panel belum menyediakan

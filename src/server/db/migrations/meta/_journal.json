@@ -141,6 +141,13 @@
       "when": 1794458002022,
       "tag": "0019_low_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794976623382,
+      "tag": "0020_legal_whirlwind",
+      "breakpoints": true
     }
   ]
 }

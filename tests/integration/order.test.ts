@@ -1,8 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/server/db";
-import { automaticDiscounts, commandTemplates, couponRedemptions, coupons, entitlements, jobs, legalAcceptances, minecraftProfiles, notifications, orderItems, orders, payments, products, seasons, servers, staffMinecraftAccounts, users } from "@/server/db/schema";
+import { automaticDiscounts, checkoutAttempts, commandTemplates, couponRedemptions, coupons, entitlements, jobs, legalAcceptances, minecraftProfiles, notifications, orderItems, orders, payments, products, seasons, servers, staffMinecraftAccounts, users } from "@/server/db/schema";
 import { deterministicUuid } from "@/server/minecraft";
+import { FakeAdapter } from "@/server/payments/fake";
+import { claimCheckoutAttempt, failCheckoutAttempt, findCheckoutAttempt } from "@/server/checkout-attempts";
 import { createOrder, CheckoutError, fulfillPaidOrder } from "@/server/orders";
 import { getSettings } from "@/server/settings";
 import { updateCouponPreservingOrderReferences } from "@/server/coupon-admin";
@@ -101,6 +103,47 @@ describe.skipIf(!enabled)("pembuatan order (server-side totals)", () => {
     await cleanup();
     await db.delete(servers).where(eq(servers.id, serverId));
     if (previousServers.length) await db.update(servers).set({ isDefault: true }).where(inArray(servers.id, previousServers));
+  });
+
+  it("menghubungkan klaim dan order dalam transaksi sebelum gateway serta menolak penggunaan ulang", async () => {
+    const key = "a".repeat(64);
+    const cart = `cart-order-${suffix}`;
+    const attemptPlayer = `Idem${suffix.slice(0, 6)}`;
+    await db.delete(checkoutAttempts).where(eq(checkoutAttempts.key, key));
+    try {
+      expect(await claimCheckoutAttempt(key, cart)).toBe(true);
+      const result = await createOrder({ ...baseInput, mcName: attemptPlayer, checkoutAttemptKey: key, items: [{ productId: rank1 }] });
+      expect((await findCheckoutAttempt(key, cart))?.order?.id).toBe(result.order.id);
+      await expect(createOrder({ ...baseInput, mcName: attemptPlayer, checkoutAttemptKey: key, items: [{ productId: rank1 }] })).rejects.toThrow(/sudah diproses/);
+      await failCheckoutAttempt(key);
+      expect((await findCheckoutAttempt(key, cart))?.attempt.state).toBe("REVIEW");
+      expect(await claimCheckoutAttempt(key, cart)).toBe(false);
+    } finally {
+      await db.delete(checkoutAttempts).where(eq(checkoutAttempts.key, key));
+      await db.delete(minecraftProfiles).where(eq(minecraftProfiles.uuid, deterministicUuid(attemptPlayer, "JAVA")));
+    }
+  });
+
+  it("menahan upaya yang hasil gateway-nya tidak pasti tanpa mengirim pembayaran lagi", async () => {
+    const key = "b".repeat(64);
+    const cart = `cart-uncertain-${suffix}`;
+    const attemptPlayer = `Wait${suffix.slice(0, 6)}`;
+    const gateway = vi.spyOn(FakeAdapter.prototype, "createPayment").mockRejectedValue(new Error("response lost after request"));
+    await db.delete(checkoutAttempts).where(eq(checkoutAttempts.key, key));
+    try {
+      expect(await claimCheckoutAttempt(key, cart)).toBe(true);
+      await expect(createOrder({ ...baseInput, mcName: attemptPlayer, checkoutAttemptKey: key, items: [{ productId: rank1 }] })).rejects.toThrow(/belum dapat dipastikan/);
+      await failCheckoutAttempt(key);
+      const existing = await findCheckoutAttempt(key, cart);
+      expect(existing?.order?.orderNumber).toBeTruthy();
+      expect(existing?.attempt.state).toBe("REVIEW");
+      expect(await claimCheckoutAttempt(key, cart)).toBe(false);
+      expect(gateway).toHaveBeenCalledTimes(1);
+    } finally {
+      gateway.mockRestore();
+      await db.delete(checkoutAttempts).where(eq(checkoutAttempts.key, key));
+      await db.delete(minecraftProfiles).where(eq(minecraftProfiles.uuid, deterministicUuid(attemptPlayer, "JAVA")));
+    }
   });
 
   it("checkout tidak mengambil alih profil Minecraft yang diverifikasi akun lain", async () => {

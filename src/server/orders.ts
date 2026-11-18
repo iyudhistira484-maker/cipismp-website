@@ -1,6 +1,7 @@
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
+  checkoutAttempts,
   couponRedemptions,
   coupons,
   deliveries,
@@ -62,6 +63,8 @@ export interface CreateOrderInput {
   userAgent: string;
   noRefundAccepted: boolean;
   legalVersions: { tos: string; privacy: string; sales: string };
+  /** Internal checkout claim, linked atomically to the order before contacting the gateway. */
+  checkoutAttemptKey?: string;
 }
 
 export interface CreatedOrder {
@@ -315,6 +318,13 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
       })
       .returning();
 
+    if (input.checkoutAttemptKey) {
+      const linked = await tx.update(checkoutAttempts).set({ orderId, updatedAt: new Date() })
+        .where(and(eq(checkoutAttempts.key, input.checkoutAttemptKey), sql`${checkoutAttempts.orderId} IS NULL`, eq(checkoutAttempts.state, "PROCESSING")))
+        .returning({ key: checkoutAttempts.key });
+      if (linked.length !== 1) throw new CheckoutError("Permintaan checkout sudah diproses. Muat ulang halaman.");
+    }
+
     for (const line of pricing.lines) {
       const recipient = resolvedItems.find(
         (item) => item.uuid === line.targetUuid && item.productId === line.productId,
@@ -378,7 +388,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     await upsertProfile({ uuid: item.uuid, name: item.name, edition: item.edition });
   }
 
-  // Buat transaksi di gateway. Kalau gagal, order tetap PENDING dan bisa dicoba lagi.
+  // Buat transaksi di gateway. Jika hasil tidak pasti, jangan membuat transaksi lagi otomatis.
   let paymentUrl: string | null = null;
   let payCode: string | null = null;
   try {
@@ -427,7 +437,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
     if (error instanceof ProviderUnavailableError) {
       throw new CheckoutError("Metode pembayaran yang dipilih sedang tidak tersedia. Pilih metode lain.");
     }
-    throw new CheckoutError("Gagal membuat transaksi pembayaran. Pesanan tersimpan — coba lagi dari halaman pesanan.");
+    throw new CheckoutError("Pembuatan pembayaran belum dapat dipastikan. Periksa pesanan dan hubungi bantuan sebelum mencoba lagi.");
   }
 
   await enqueue("email.send", { template: "order.created", orderId }, { dedupeKey: `email-created:${orderId}` });
