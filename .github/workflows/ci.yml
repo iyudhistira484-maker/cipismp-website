@@ -84,6 +84,7 @@ jobs:
       # These are not valid gateway credentials; no real transaction is made by the tests.
       E2E_REQUIRE_CHECKOUT: "1"
       MIDTRANS_SERVER_KEY: "invalid-ci-test-key-not-a-credential"
+      MIDTRANS_SIGNATURE_SECRET_KEY: "invalid-ci-signature-secret-not-a-credential"
       MIDTRANS_MODE: sandbox
       SEED_OWNER_EMAIL: owner@cipismp.test
       SEED_OWNER_USERNAME: owner
