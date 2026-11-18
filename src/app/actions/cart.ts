@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { addToCart, removeFromCart } from "@/server/cart";
+import { addToCart } from "@/server/cart";
 import { getProductById } from "@/server/catalog";
 import { getActiveSeason } from "@/server/catalog";
 import { getSettings } from "@/server/settings";
@@ -57,10 +57,4 @@ export async function addToCartAction(_prev: CartActionState, formData: FormData
   await addToCart(product.id, 1, gift);
   revalidatePath("/keranjang");
   redirect("/keranjang");
-}
-
-export async function removeFromCartAction(formData: FormData): Promise<void> {
-  const itemId = String(formData.get("itemId") ?? "");
-  if (itemId) await removeFromCart(itemId);
-  revalidatePath("/keranjang");
 }

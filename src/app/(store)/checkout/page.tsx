@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { checkoutAttemptKey, findCheckoutAttempt, latestCheckoutOrder } from "@/server/checkout-attempts";
 import { getCartIdentity, getCartLines } from "@/server/cart";
 import { getActiveSeason, getPublishedProducts } from "@/server/catalog";
 import { getAvailableProviders, defaultProvider } from "@/server/payments";
@@ -28,8 +29,13 @@ export default async function CheckoutPage() {
     getViewer(),
   ]);
   const lines = await getCartLines(identity.cartId);
-  if (lines.length === 0) redirect("/keranjang");
+  if (lines.length === 0) {
+    const previousOrder = identity.cartId ? await latestCheckoutOrder(identity.cartId) : null;
+    redirect(previousOrder ? `/pesanan/${encodeURIComponent(previousOrder.token)}` : "/keranjang");
+  }
 
+  const attemptKey = checkoutAttemptKey(identity.cartId!, lines);
+  const previousAttempt = await findCheckoutAttempt(attemptKey, identity.cartId!);
   const products = await getPublishedProducts();
   const cartProducts = lines.map((line) => ({ line, product: products.find((p) => p.id === line.productId) ?? null }));
   const hasUnavailableItems = cartProducts.some(({ product }) => !product);
@@ -45,6 +51,11 @@ export default async function CheckoutPage() {
       <Link href="/keranjang" className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-accent-strong"><ArrowLeft className="size-3.5" aria-hidden /> Kembali ke keranjang</Link>
       <header className="relative isolate mt-6 overflow-hidden rounded-[24px] bg-[#493342] px-6 py-8 text-white shadow-[0_18px_45px_-28px_rgba(69,35,55,.6)] sm:px-9 sm:py-10"><div className="absolute inset-0 -z-10 bg-[url('/images/gameplay/forest-path.webp')] bg-cover bg-center" aria-hidden /><div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#2f1c2c]/95 via-[#4d3044]/90 to-[#4a3042]/65" aria-hidden /><p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.17em] text-[#ffe0ee]"><Sparkles className="size-3" aria-hidden /> YOUR SHOPPING JOURNEY</p><h1 className="mt-5 font-display text-[clamp(2rem,4vw,2.9rem)] leading-[1.1] tracking-[-.04em]">Satu langkah lagi<span className="text-[#f6b6d1]">.</span></h1><p className="mt-3 max-w-xl text-[13px] leading-relaxed text-white/80">Periksa pemain penerima, pilihan pembayaran, dan rincian pesananmu sebelum melanjutkan.</p></header>
 
+      {previousAttempt ? (
+        <Alert tone="warning" className="mt-6" title="Checkout sebelumnya sedang diproses atau perlu diperiksa">
+          Jangan membuat pembayaran baru sebelum status dipastikan. {previousAttempt.order ? <Link className="underline" href={`/pesanan/${encodeURIComponent(previousAttempt.order.publicToken)}`}>Lihat status pesanan</Link> : "Tunggu atau hubungi bantuan."}
+        </Alert>
+      ) : null}
       {!settings.store.checkoutEnabled ? <Alert tone="warning" className="mt-6" title="Checkout sedang dinonaktifkan">Keranjangmu tetap tersimpan. Pembayaran belum dapat dilanjutkan.</Alert> : null}
       {!season ? <Alert tone="warning" className="mt-6" title="Belum ada season aktif">Pembelian dibuka saat season dimulai.</Alert> : null}
       {hasUnavailableItems ? <Alert tone="warning" className="mt-6" title="Ada produk yang tidak tersedia">Hapus produk tersebut dari keranjang sebelum melanjutkan.</Alert> : null}
@@ -70,6 +81,7 @@ export default async function CheckoutPage() {
         />
       ) : (
         <CheckoutForm
+          attemptKey={attemptKey}
           providers={providers}
           defaultProviderId={preferred}
           items={cartProducts.map(({ product, line }) => ({
@@ -92,7 +104,7 @@ export default async function CheckoutPage() {
           taxPercent={settings.store.taxPercent}
           taxLabel={settings.store.taxLabel}
           minimumAge={settings.store.minimumAge}
-          blocked={frozen || !season || !settings.store.checkoutEnabled || hasUnavailableItems || hasMissingGiftRecipient || Boolean(viewer && !viewer.user.emailVerifiedAt)}
+          blocked={Boolean(previousAttempt) || frozen || !season || !settings.store.checkoutEnabled || hasUnavailableItems || hasMissingGiftRecipient || Boolean(viewer && !viewer.user.emailVerifiedAt)}
           offlineMode={env.MINECRAFT_LOOKUP_MODE === "offline"}
         />
       )}

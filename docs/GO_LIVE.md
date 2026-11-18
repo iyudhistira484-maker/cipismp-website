@@ -78,7 +78,12 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 - [ ] Admin/Owner mengatur metode QRIS/VA/e-wallet di `/admin/pembayaran` sesuai yang aktif
       di akun Tripay/Midtrans; checkout hanya menampilkan metode yang dicentang.
 - [ ] Owner mengisi kredensial Tripay/Midtrans di `/admin/pembayaran` dengan mode **live**,
-      lalu menjalankan uji kesiapan provider. Kredensial dan diagnostik tetap Owner-only.
+      lalu menjalankan uji kesiapan provider. Untuk Midtrans, Server Key dan Signature Secret Key
+      harus sesuai mode yang dipilih. Konfigurasi lama tanpa Signature Secret Key harus diperbarui.
+      Server Key Midtrans harus dapat membaca Core API Get Status; webhook dikonfirmasi
+      lewat API sebelum mengubah order. Uji kesiapan hanya memeriksa konfigurasi/metode,
+      bukan transaksi, akses API, atau webhook.
+      Kredensial dan diagnostik tetap Owner-only.
 - [ ] URL webhook terdaftar di dashboard gateway:
       `https://<domain>/api/webhooks/tripay` atau `/api/webhooks/midtrans`.
 - [ ] Di sandbox masing-masing gateway, buat transaksi untuk metode yang dipakai dan
@@ -86,6 +91,7 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
       keduanya diaktifkan.
 - [ ] Uji transaksi nyata nominal kecil: order menjadi PAID, entitlement muncul, pengiriman
       terkirim, invoice PDF bisa diunduh, email masuk.
+- [ ] Di staging terisolasi, uji checkout serentak, reload/dua tab, dan respons gateway terputus. Pastikan satu order/sesi untuk snapshot yang sama; hasil gateway yang tidak pasti harus ditinjau manual, bukan dicoba otomatis. Uji juga pembelian terpisah dan kasus pengguna mengganti keranjang.
 - [ ] Uji webhook ganda: kirim ulang callback → tidak ada pengiriman kedua.
 - [ ] Uji signature salah (`curl` dengan signature rusak) → HTTP 401 tercatat.
 - [ ] Owner menyetujui prosedur chargeback: order menjadi DISPUTED, panel belum menyediakan

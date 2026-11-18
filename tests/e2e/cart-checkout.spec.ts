@@ -92,6 +92,16 @@ test.describe("keranjang dan checkout", () => {
     if (process.env.E2E_PREVIEW_ORIGIN) await expect(page.getByRole("button", { name: /Lanjutkan pembayaran/ })).toBeDisabled();
   });
 
+  test("kunci checkout stabil saat halaman yang sama dimuat ulang", async ({ page }) => {
+    test.skip(seasonFrozen, "Season seed sedang freeze.");
+    await page.goto("/checkout");
+    await requireCheckoutForm(page);
+    const first = await page.locator('input[name="attemptKey"]').inputValue();
+    expect(first).toMatch(/^[a-f0-9]{64}$/);
+    await page.reload();
+    expect(await page.locator('input[name="attemptKey"]').inputValue()).toBe(first);
+  });
+
   test("kupon tidak valid tidak ditampilkan sebagai total nol", async ({ page }) => {
     test.skip(seasonFrozen, "Season seed sedang freeze.");
     await page.goto("/checkout");

@@ -19,7 +19,7 @@ export { FakeAdapter } from "./fake";
 
 export interface ProviderCredentials {
   TRIPAY?: { apiKey: string; privateKey: string; merchantCode: string };
-  MIDTRANS?: { serverKey: string; clientKey: string };
+  MIDTRANS?: { serverKey: string; clientKey: string; signatureSecretKey: string };
   FAKE?: { secret: string };
 }
 
@@ -69,7 +69,7 @@ export async function loadProviderConfig(provider: ProviderId): Promise<Provider
       provider,
       enabled: true,
       mode: env.MIDTRANS_MODE,
-      config: { serverKey: env.MIDTRANS_SERVER_KEY, clientKey: env.MIDTRANS_CLIENT_KEY ?? "" },
+      config: { serverKey: env.MIDTRANS_SERVER_KEY, clientKey: env.MIDTRANS_CLIENT_KEY ?? "", signatureSecretKey: env.MIDTRANS_SIGNATURE_SECRET_KEY ?? "" },
     };
   }
   if (provider === "FAKE" && simulationAllowed(env.NODE_ENV, env.APP_ENV)) {
@@ -87,6 +87,9 @@ export async function saveProviderConfig(input: {
 }): Promise<void> {
   if (input.provider === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV)) {
     throw new Error("Gateway simulasi tidak tersedia di produksi.");
+  }
+  if (input.provider === "MIDTRANS" && input.enabled && (!input.config.serverKey?.trim() || !input.config.signatureSecretKey?.trim())) {
+    throw new Error("Server key dan Signature Secret Key Midtrans wajib diisi untuk mengaktifkan gateway.");
   }
   const encrypted = encryptSecret(JSON.stringify(input.config));
   await db
@@ -128,9 +131,9 @@ export async function getAdapter(provider: ProviderId): Promise<PaymentAdapter> 
     return new TripayAdapter({ apiKey, privateKey, merchantCode }, record.mode);
   }
   if (provider === "MIDTRANS") {
-    const { serverKey, clientKey } = record.config;
-    if (!serverKey) throw new ProviderUnavailableError("MIDTRANS");
-    return new MidtransAdapter({ serverKey, clientKey: clientKey ?? "" }, record.mode);
+    const { serverKey, clientKey, signatureSecretKey } = record.config;
+    if (!serverKey?.trim() || !signatureSecretKey?.trim()) throw new ProviderUnavailableError("MIDTRANS");
+    return new MidtransAdapter({ serverKey, clientKey: clientKey ?? "", signatureSecretKey }, record.mode);
   }
   const secret = record.config.secret ?? env.SESSION_SECRET;
   return new FakeAdapter(secret);

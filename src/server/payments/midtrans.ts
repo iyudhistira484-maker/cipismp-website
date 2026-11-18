@@ -14,6 +14,7 @@ import { MIDTRANS_METHODS } from "@/lib/payment-methods";
 interface MidtransConfig {
   serverKey: string;
   clientKey: string;
+  signatureSecretKey: string;
 }
 
 const SNAP = {
@@ -27,7 +28,7 @@ const API = {
 
 /**
  * Adapter Midtrans Snap. Signature notifikasi:
- * SHA512(order_id + status_code + gross_amount + serverKey).
+ * SHA512(order_id + status_code + gross_amount + signatureSecretKey).
  */
 export class MidtransAdapter implements PaymentAdapter {
   readonly id = "MIDTRANS" as const;
@@ -96,20 +97,22 @@ export class MidtransAdapter implements PaymentAdapter {
     const res = await fetch(`${API[this.mode]}/v2/${encodeURIComponent(orderNumber)}/status`, {
       method: "GET",
       headers: { Authorization: this.authHeader(), Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
     });
-    const json = (await res.json().catch(() => ({}))) as {
-      transaction_status?: string;
-      fraud_status?: string;
-      gross_amount?: string;
-    };
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
       throw new PaymentProviderError("MIDTRANS", `Status Midtrans gagal (${res.status})`, true);
     }
+    const amountIdr = parseMidtransAmount(json.gross_amount);
+    if (json.order_id !== orderNumber || typeof json.transaction_id !== "string" || !json.transaction_id ||
+        typeof json.transaction_status !== "string" || !json.transaction_status || amountIdr === null) {
+      throw new PaymentProviderError("MIDTRANS", "Respons status Midtrans tidak lengkap atau tidak cocok dengan order.", true);
+    }
     return {
-      status: mapMidtransStatus(json.transaction_status ?? "", json.fraud_status ?? ""),
-      amountIdr: json.gross_amount ? Math.round(Number.parseFloat(json.gross_amount)) : null,
-      providerRef: orderNumber,
-      raw: json as Record<string, unknown>,
+      status: mapMidtransStatus(json.transaction_status, typeof json.fraud_status === "string" ? json.fraud_status : ""),
+      amountIdr,
+      providerRef: json.transaction_id,
+      raw: json,
     };
   }
 
@@ -126,13 +129,13 @@ export class MidtransAdapter implements PaymentAdapter {
     const grossAmount = String(payload.gross_amount ?? "");
     const provided = String(payload.signature_key ?? "");
     const expected = createHash("sha512")
-      .update(`${orderId}${statusCode}${grossAmount}${this.config.serverKey}`)
+      .update(`${orderId}${statusCode}${grossAmount}${this.config.signatureSecretKey}`)
       .digest("hex");
-    const signatureValid = provided.length > 0 && safeCompare(provided, expected);
+    const signatureValid = this.config.signatureSecretKey.trim().length > 0 && provided.length > 0 && safeCompare(provided, expected);
 
     const transactionStatus = String(payload.transaction_status ?? "");
     const fraudStatus = String(payload.fraud_status ?? "");
-    const amount = grossAmount ? Math.round(Number.parseFloat(grossAmount)) : null;
+    const amount = parseMidtransAmount(grossAmount);
 
     return {
       signatureValid,
@@ -141,7 +144,7 @@ export class MidtransAdapter implements PaymentAdapter {
       providerRef: String(payload.transaction_id ?? "") || null,
       orderNumber: orderId || null,
       status: mapMidtransStatus(transactionStatus, fraudStatus),
-      amountIdr: Number.isFinite(amount) ? amount : null,
+      amountIdr: amount,
       method: typeof payload.payment_type === "string" ? payload.payment_type : null,
       raw: payload,
     };
@@ -152,13 +155,20 @@ export class MidtransAdapter implements PaymentAdapter {
   }
 }
 
+/** IDR is an integer; reject fractional, malformed and unsafe values rather than rounding. */
+export function parseMidtransAmount(value: unknown): number | null {
+  if (typeof value !== "string" || !/^\d+(?:\.0{1,2})?$/.test(value)) return null;
+  const amount = Number(value);
+  return Number.isSafeInteger(amount) ? amount : null;
+}
+
 export function mapMidtransStatus(
   transactionStatus: string,
   fraudStatus: string,
 ): "PAID" | "PENDING" | "FAILED" | "EXPIRED" | "DISPUTED" {
   const status = (transactionStatus ?? "").toLowerCase();
   const fraud = (fraudStatus ?? "").toLowerCase();
-  if (status === "capture") return fraud === "challenge" ? "PENDING" : "PAID";
+  if (status === "capture") return fraud === "accept" ? "PAID" : fraud === "deny" ? "FAILED" : "PENDING";
   if (status === "settlement") return "PAID";
   if (status === "pending") return "PENDING";
   if (status === "expire") return "EXPIRED";

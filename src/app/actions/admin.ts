@@ -26,7 +26,8 @@ import { enqueue } from "@/server/queue";
 import { getSettings, updateSettings } from "@/server/settings";
 import { env } from "@/server/env";
 import { resolvePlayer } from "@/server/minecraft";
-import { saveProviderConfig, getAvailableProviders, PROVIDER_LABEL, type ProviderId } from "@/server/payments";
+import { saveProviderConfig, loadProviderConfig, getAvailableProviders, PROVIDER_LABEL, type ProviderId } from "@/server/payments";
+import { resolveMidtransSignatureSecret } from "@/server/payments/midtrans-config";
 import { encryptSecret, decryptSecret } from "@/server/crypto";
 import { testRcon } from "@/server/admin/server-test";
 import { parseIdr } from "@/lib/money";
@@ -1173,6 +1174,8 @@ export async function adminSaveProviderAction(_prev: AdminState, formData: FormD
     const provider = String(formData.get("provider") ?? "") as ProviderId;
     if (!PROVIDERS.includes(provider) || (provider === "FAKE" && !simulationAllowed(env.NODE_ENV, env.APP_ENV))) return { error: "Gateway tidak tersedia." };
 
+    const mode = String(formData.get("mode") ?? "sandbox") === "live" ? "live" : "sandbox";
+    const enabled = formData.get("enabled") !== null;
     const config: Record<string, string> = {};
     if (provider === "TRIPAY") {
       config.apiKey = String(formData.get("apiKey") ?? "").trim();
@@ -1185,13 +1188,17 @@ export async function adminSaveProviderAction(_prev: AdminState, formData: FormD
       config.serverKey = String(formData.get("serverKey") ?? "").trim();
       config.clientKey = String(formData.get("clientKey") ?? "").trim();
       if (!config.serverKey) return { error: "Server key Midtrans wajib diisi." };
+      const enteredSecret = String(formData.get("signatureSecretKey") ?? "").trim();
+      const existing = enteredSecret ? null : await loadProviderConfig("MIDTRANS");
+      config.signatureSecretKey = resolveMidtransSignatureSecret(enteredSecret, mode, existing);
+      if (enabled && !config.signatureSecretKey.trim()) {
+        return { error: "Signature Secret Key Midtrans wajib diisi untuk mengaktifkan gateway; gunakan key untuk mode yang dipilih." };
+      }
     } else {
       config.secret = String(formData.get("secret") ?? "").trim();
       if (config.secret.length < 16) return { error: "Secret simulasi minimal 16 karakter." };
     }
 
-    const mode = String(formData.get("mode") ?? "sandbox") === "live" ? "live" : "sandbox";
-    const enabled = formData.get("enabled") !== null;
     const settingsBefore = await getSettings();
     await saveProviderConfig({
       provider,
@@ -1230,7 +1237,7 @@ export async function adminTestProvidersAction(_prev: AdminState): Promise<Admin
       return { error: "Tidak ada gateway yang siap dipakai. Periksa kredensial dan status aktif." };
     }
     return {
-      success: `Gateway siap: ${available.map((p) => `${p.label} (${p.mode}, ${p.methods.length} metode)`).join("; ")}.`,
+      success: `Gateway terkonfigurasi: ${available.map((p) => `${p.label} (${p.mode}, ${p.methods.length} metode)`).join("; ")}. Ini bukan uji transaksi atau webhook.`,
     };
   } catch (error) {
     return fail(error);

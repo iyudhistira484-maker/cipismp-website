@@ -435,6 +435,21 @@ export const orders = pgTable(
   ],
 );
 
+/** Satu upaya checkout per snapshot keranjang; tidak pernah otomatis dicoba ulang setelah order dibuat. */
+export const checkoutAttempts = pgTable(
+  "checkout_attempts",
+  {
+    key: text("key").primaryKey(),
+    cartId: text("cart_id").notNull(),
+    // Tidak memakai cascade: penghapusan order tidak boleh membuka kembali upaya lama.
+    orderId: text("order_id"),
+    state: text("state").notNull().default("PROCESSING"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("checkout_attempts_cart_idx").on(t.cartId)],
+);
+
 export const orderItems = pgTable(
   "order_items",
   {

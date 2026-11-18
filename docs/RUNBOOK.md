@@ -173,3 +173,22 @@ Transisi aman dijalankan ulang (idempoten): season yang sudah ENDED mengembalika
 - Owner: `/admin/pembayaran` → tidak ada `UNDERPAID` menggantung.
 - `/admin/pesanan?status=FAILED` → kosong.
 - Backup terakhir berhasil.
+
+### Checkout berulang atau respons gateway tidak pasti
+
+Checkout menyimpan klaim unik untuk snapshot keranjang di PostgreSQL. Permintaan berulang
+untuk snapshot yang sama tidak memulai order atau panggilan gateway baru; order dikaitkan
+secara atomik sebelum gateway dihubungi. Klaim yang terhenti tanpa order tetap ditahan
+setelah proses crash (tidak otomatis dibuka berdasarkan waktu). Snapshot berbeda, akun
+berbeda, atau pembelian yang memang dibuat lagi tetap bisa menghasilkan order terpisah.
+
+Jika pembeli melihat status belum pasti, minta mereka **jangan membayar atau membuat
+pesanan baru** sampai Owner memeriksa order dan dashboard gateway. Respons yang hilang bisa
+berarti transaksi sudah terbentuk di gateway meskipun tidak ada baris pembayaran lokal;
+rekonsiliasi otomatis tidak bisa menjamin pemulihan kasus itu. Cocokkan nomor order, mode,
+nominal dan status langsung di gateway, lalu tangani secara manual sesuai prosedur. Jangan
+menghapus klaim, membuat ulang transaksi, menandai lunas, atau memicu pengiriman hanya
+berdasarkan pesan pengguna. Jika klaim masih memproses tanpa nomor order setelah gangguan,
+eskalasikan untuk pemeriksaan log dan database; jangan membuka paksa tanpa memastikan
+seluruh proses lama berhenti dan tidak ada transaksi gateway terkait. Batasi akses data
+pembayaran dan jangan membagikan key, payload atau tautan pesanan publik.

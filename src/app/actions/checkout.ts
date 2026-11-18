@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assertSameOrigin, clientIp } from "@/server/csrf";
 import { enforceRateLimit, RateLimitError } from "@/server/rate-limit";
-import { getCartIdentity, getCartLines, clearCart } from "@/server/cart";
+import { getCartIdentity, getCartLines, clearCartLines } from "@/server/cart";
+import { checkoutAttemptKey, claimCheckoutAttempt, completeCheckoutAttempt, failCheckoutAttempt, findCheckoutAttempt } from "@/server/checkout-attempts";
 import { getSettings } from "@/server/settings";
 import { getViewer } from "@/server/auth/guard";
 import { getCurrentSession } from "@/server/auth/session";
@@ -16,6 +17,7 @@ import { InvalidUsernameError } from "@/server/minecraft";
 export interface CheckoutState {
   error?: string;
   fields?: Record<string, string>;
+  orderUrl?: string;
 }
 
 const checkoutSchema = z.object({
@@ -71,14 +73,41 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
   if (viewer && !viewer.user.emailVerifiedAt) {
     return { error: "Verifikasi email akun sebelum checkout, atau keluar untuk checkout sebagai tamu." };
   }
+  if (!identity.cartId) return { error: "Keranjang kosong." };
+  const key = String(formData.get("attemptKey") ?? "");
+  const describeExisting = async (): Promise<CheckoutState | { redirectUrl: string } | null> => {
+    const existing = await findCheckoutAttempt(key, identity.cartId!);
+    if (!existing) return null;
+    const orderUrl = existing.order ? `/pesanan/${encodeURIComponent(existing.order.publicToken)}` : undefined;
+    if (existing.attempt.state !== "PROCESSING" && orderUrl) return { redirectUrl: orderUrl };
+    return {
+      error: "Permintaan checkout ini sedang diproses atau perlu diperiksa. Jangan membuat pembayaran baru; tunggu atau hubungi bantuan.",
+      ...(orderUrl ? { orderUrl } : {}),
+    };
+  };
+  const previous = await describeExisting();
+  if (previous) {
+    if ("redirectUrl" in previous) redirect(previous.redirectUrl);
+    return previous;
+  }
   const lines = await getCartLines(identity.cartId);
-  if (!identity.cartId || lines.length === 0) return { error: "Keranjang kosong." };
+  if (!lines.length) return { error: "Keranjang kosong." };
   if (lines.some((line) => line.isGift && !line.targetName?.trim())) {
     return { error: "Penerima hadiah tidak tersedia. Hapus item hadiah dari keranjang dan tambahkan kembali." };
   }
+  if (key !== checkoutAttemptKey(identity.cartId, lines)) {
+    return { error: "Keranjang berubah. Muat ulang checkout sebelum melanjutkan." };
+  }
+  if (!(await claimCheckoutAttempt(key, identity.cartId))) {
+    const concurrent = await describeExisting();
+    if (concurrent && "redirectUrl" in concurrent) redirect(concurrent.redirectUrl);
+    return concurrent ?? { error: "Permintaan checkout sedang diproses. Tunggu dan periksa status sebelum mencoba lagi." };
+  }
 
+  let destination: string;
   try {
     const result = await createOrder({
+      checkoutAttemptKey: key,
       items: lines.map((line) => ({
         productId: line.productId,
         quantity: line.quantity,
@@ -101,17 +130,25 @@ export async function checkoutAction(_prev: CheckoutState, formData: FormData): 
         sales: settings.legal.salesVersion,
       },
     });
-    await clearCart(identity.cartId);
-    redirect(result.paymentUrl ?? `/pesanan/${encodeURIComponent(result.order.publicToken)}`);
+    await completeCheckoutAttempt(key);
+    await clearCartLines(identity.cartId, lines.map((line) => line.id));
+    destination = result.paymentUrl ?? `/pesanan/${encodeURIComponent(result.order.publicToken)}`;
   } catch (error) {
+    // A committed order means the gateway may already have created a payment even
+    // if its response was lost. Never retry that attempt automatically.
+    await failCheckoutAttempt(key);
+    const existing = await findCheckoutAttempt(key, identity.cartId);
+    if (existing) {
+      const orderUrl = existing.order ? `/pesanan/${encodeURIComponent(existing.order.publicToken)}` : undefined;
+      return { error: "Status pembayaran belum dapat dipastikan. Jangan membuat pembayaran baru; periksa pesanan dan hubungi bantuan.", ...(orderUrl ? { orderUrl } : {}) };
+    }
     if (error instanceof CheckoutError) return { error: error.message, fields: error.fields };
     if (error instanceof InvalidUsernameError) return { error: error.message, fields: { mcName: error.message } };
     if (error instanceof ProviderUnavailableError) return { error: error.message };
-    if (error instanceof RateLimitError) {
-      return { error: "Terlalu banyak percobaan checkout. Tunggu sebentar lalu coba lagi." };
-    }
+    if (error instanceof RateLimitError) return { error: "Terlalu banyak percobaan checkout. Tunggu sebentar lalu coba lagi." };
     throw error;
   }
+  redirect(destination);
 }
 
 /** Cek status pesanan tamu: nomor order + email, lalu arahkan ke halaman bertoken. */

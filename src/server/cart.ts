@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { cartItems, carts } from "./db/schema";
 import { ids } from "./ids";
@@ -129,6 +129,11 @@ export async function removeFromCart(itemId: string): Promise<void> {
 
 export async function clearCart(cartId: string): Promise<void> {
   await db.delete(cartItems).where(eq(cartItems.cartId, cartId));
+}
+
+/** Hapus hanya baris yang benar-benar diproses, bukan item baru yang ditambahkan saat menunggu gateway. */
+export async function clearCartLines(cartId: string, itemIds: string[]): Promise<void> {
+  if (itemIds.length) await db.delete(cartItems).where(and(eq(cartItems.cartId, cartId), inArray(cartItems.id, itemIds)));
 }
 
 /**

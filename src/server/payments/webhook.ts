@@ -8,7 +8,7 @@ import { alertStaff } from "../notifications";
 import { fulfillPaidOrder, markOrderDisputed } from "../orders";
 import { enqueue } from "../queue";
 import { getAdapter, type ProviderId } from "./index";
-import type { WebhookResult } from "./types";
+import { PaymentProviderError, type WebhookResult } from "./types";
 
 export interface WebhookOutcome {
   httpStatus: number;
@@ -30,7 +30,31 @@ export async function handleProviderWebhook(
   ip: string | null,
 ): Promise<WebhookOutcome> {
   const adapter = await getAdapter(provider);
-  const parsed: WebhookResult = await adapter.verifyWebhook(rawBody, headers);
+  let parsed: WebhookResult = await adapter.verifyWebhook(rawBody, headers);
+  if (provider === "MIDTRANS" && parsed.signatureValid) {
+    // The Midtrans signature covers order_id, status_code and gross_amount, not
+    // transaction_status, fraud_status or transaction_id. Only a server-to-server
+    // status query may authorize a state transition. Fail before deduplication on
+    // network/API/malformed responses so the gateway can retry the notification.
+    if (!parsed.orderNumber || parsed.amountIdr === null) {
+      throw new PaymentProviderError("MIDTRANS", "Notifikasi Midtrans tidak lengkap.", true);
+    }
+    const authoritative = await adapter.getStatus("", parsed.orderNumber);
+    if (authoritative.amountIdr === null || authoritative.amountIdr !== parsed.amountIdr) {
+      throw new PaymentProviderError("MIDTRANS", "Nominal notifikasi dan status Midtrans tidak cocok.", true);
+    }
+    const status = String(authoritative.raw.transaction_status);
+    const fraud = typeof authoritative.raw.fraud_status === "string" ? authoritative.raw.fraud_status : "";
+    parsed = {
+      ...parsed,
+      eventType: `notification:${status}`,
+      dedupeKey: `MIDTRANS:${authoritative.providerRef}:${status}:${fraud}:${authoritative.amountIdr}`,
+      providerRef: authoritative.providerRef,
+      status: authoritative.status,
+      amountIdr: authoritative.amountIdr,
+      method: typeof authoritative.raw.payment_type === "string" ? authoritative.raw.payment_type : null,
+    };
+  }
 
   let eventId = ids.paymentEvent();
   // Event dengan signature tidak valid TIDAK boleh memakai dedupe key asli: bila dipakai,

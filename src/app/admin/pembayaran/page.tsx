@@ -94,6 +94,7 @@ export default async function AdminPaymentsPage() {
                         ? [
                             { name: "serverKey", label: "Server key", value: record?.config.serverKey ?? "", type: "password" },
                             { name: "clientKey", label: "Client key", value: record?.config.clientKey ?? "" },
+                            { name: "signatureSecretKey", label: "Signature Secret Key", value: "", type: "password", hint: record?.config.signatureSecretKey ? "Sudah diatur. Kosongkan untuk mempertahankan key pada mode yang sama; isi key baru saat ganti mode." : "Wajib untuk mengaktifkan Midtrans. Ambil Signature Secret Key di dashboard Midtrans sesuai mode; bukan Client Key." },
                           ]
                         : [{ name: "secret", label: "Secret simulasi", value: record?.config.secret ?? "", type: "password", hint: "Minimal 16 karakter; dipakai menghitung HMAC webhook." }]
                   }
