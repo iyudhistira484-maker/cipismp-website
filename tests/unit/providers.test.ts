@@ -7,7 +7,7 @@ import { MidtransAdapter, mapMidtransStatus } from "@/server/payments/midtrans";
  * Kontrak adapter gateway: bentuk payload dan algoritma signature mengikuti
  * dokumentasi resmi Tripay (X-Callback-Signature = HMAC-SHA256 raw body dengan
  * private key) dan Midtrans (signature_key = SHA512(order_id + status_code +
- * gross_amount + serverKey)). Test ini memakai payload contoh dari dokumentasi
+ * gross_amount + signatureSecretKey)). Test ini memakai payload contoh dari dokumentasi
  * sehingga tidak memerlukan kredensial atau koneksi ke gateway.
  */
 
@@ -16,7 +16,7 @@ const TRIPAY = new TripayAdapter(
   "sandbox",
 );
 
-const MIDTRANS = new MidtransAdapter({ serverKey: "SB-Mid-server-TESTKEY", clientKey: "SB-Mid-client-TESTKEY" }, "sandbox");
+const MIDTRANS = new MidtransAdapter({ serverKey: "SB-Mid-server-TESTKEY", clientKey: "SB-Mid-client-TESTKEY", signatureSecretKey: "SB-Mid-signature-TESTKEY" }, "sandbox");
 
 function tripayCallback(overrides: Record<string, unknown> = {}) {
   return {
@@ -46,7 +46,7 @@ function tripayHeaders(rawBody: string, privateKey = "DEV-private-key") {
   };
 }
 
-function midtransNotification(overrides: Record<string, unknown> = {}) {
+function midtransNotification(overrides: Record<string, unknown> = {}, signingKey = "SB-Mid-signature-TESTKEY") {
   const base = {
     transaction_id: "7b0f2a8e-tripay-like",
     order_id: "CIPS-ABCD1234",
@@ -61,7 +61,7 @@ function midtransNotification(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   const signature = createHash("sha512")
-    .update(`${base.order_id}${base.status_code}${base.gross_amount}SB-Mid-server-TESTKEY`)
+    .update(`${base.order_id}${base.status_code}${base.gross_amount}${signingKey}`)
     .digest("hex");
   return { ...base, signature_key: signature };
 }
@@ -155,11 +155,26 @@ describe("Midtrans: verifikasi notifikasi", () => {
     expect(result.method).toBe("qris");
   });
 
-  it("menolak signature yang dihitung dengan server key berbeda", async () => {
+  it("menolak payload yang diubah setelah ditandatangani", async () => {
     const notification = midtransNotification();
     notification.order_id = "CIPS-LAIN";
     const result = await MIDTRANS.verifyWebhook(JSON.stringify(notification), {});
     expect(result.signatureValid).toBe(false);
+  });
+
+  it("menolak signature yang dihitung memakai Server Key, bukan Signature Secret Key", async () => {
+    const result = await MIDTRANS.verifyWebhook(JSON.stringify(midtransNotification({}, "SB-Mid-server-TESTKEY")), {});
+    expect(result.signatureValid).toBe(false);
+  });
+
+  it("mendukung legacy bila Signature Secret Key secara eksplisit sama dengan Server Key", async () => {
+    const legacy = new MidtransAdapter({ serverKey: "legacy-key", clientKey: "", signatureSecretKey: "legacy-key" }, "live");
+    expect((await legacy.verifyWebhook(JSON.stringify(midtransNotification({}, "legacy-key")), {})).signatureValid).toBe(true);
+  });
+
+  it("menolak signature bahkan jika dihitung dengan secret kosong", async () => {
+    const invalid = new MidtransAdapter({ serverKey: "server", clientKey: "", signatureSecretKey: "" }, "sandbox");
+    expect((await invalid.verifyWebhook(JSON.stringify(midtransNotification({}, "")), {})).signatureValid).toBe(false);
   });
 
   it("menolak notifikasi tanpa signature_key", async () => {
@@ -231,6 +246,18 @@ describe("request API sandbox", () => {
       payCode: "0123456789",
       method: "QRIS",
     });
+  });
+
+  it("membaca status Midtrans memakai Server Key, bukan Signature Secret Key", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ transaction_status: "settlement", gross_amount: "25000.00" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await MIDTRANS.getStatus("snap-token", "CIPS-ABCD1234");
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toBe("https://api.sandbox.midtrans.com/v2/CIPS-ABCD1234/status");
+    expect(init?.headers).toMatchObject({ Authorization: `Basic ${Buffer.from("SB-Mid-server-TESTKEY:").toString("base64")}` });
+    expect(result.status).toBe("PAID");
   });
 
   it("membuat transaksi Midtrans dengan Snap sandbox, item, customer, dan Basic auth", async () => {

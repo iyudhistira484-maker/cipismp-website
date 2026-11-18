@@ -54,6 +54,7 @@ const envSchema = z.object({
   TRIPAY_PRIVATE_KEY: z.string().optional(),
   TRIPAY_MERCHANT_CODE: z.string().optional(),
   MIDTRANS_SERVER_KEY: z.string().optional(),
+  MIDTRANS_SIGNATURE_SECRET_KEY: z.string().optional(),
   MIDTRANS_CLIENT_KEY: z.string().optional(),
   FAKE_PROVIDER_MODE: z.enum(["auto", "manual"]).default("auto"),
   DISCORD_CLIENT_ID: z.string().optional(),

@@ -14,6 +14,7 @@ import { MIDTRANS_METHODS } from "@/lib/payment-methods";
 interface MidtransConfig {
   serverKey: string;
   clientKey: string;
+  signatureSecretKey: string;
 }
 
 const SNAP = {
@@ -27,7 +28,7 @@ const API = {
 
 /**
  * Adapter Midtrans Snap. Signature notifikasi:
- * SHA512(order_id + status_code + gross_amount + serverKey).
+ * SHA512(order_id + status_code + gross_amount + signatureSecretKey).
  */
 export class MidtransAdapter implements PaymentAdapter {
   readonly id = "MIDTRANS" as const;
@@ -126,9 +127,9 @@ export class MidtransAdapter implements PaymentAdapter {
     const grossAmount = String(payload.gross_amount ?? "");
     const provided = String(payload.signature_key ?? "");
     const expected = createHash("sha512")
-      .update(`${orderId}${statusCode}${grossAmount}${this.config.serverKey}`)
+      .update(`${orderId}${statusCode}${grossAmount}${this.config.signatureSecretKey}`)
       .digest("hex");
-    const signatureValid = provided.length > 0 && safeCompare(provided, expected);
+    const signatureValid = this.config.signatureSecretKey.trim().length > 0 && provided.length > 0 && safeCompare(provided, expected);
 
     const transactionStatus = String(payload.transaction_status ?? "");
     const fraudStatus = String(payload.fraud_status ?? "");
