@@ -131,6 +131,7 @@ season berakhir.
   checkout, tetapi tidak membaca rahasia atau hasil uji provider.
 - Midtrans memerlukan **Server Key** untuk API dan **Signature Secret Key** untuk verifikasi webhook, keduanya dari mode Sandbox atau Live yang sama. Isi Signature Secret Key di panel Owner; kolom tidak menampilkan nilai tersimpan. Kosongkan untuk mempertahankannya hanya jika mode tidak berubah. Jika mengganti mode, masukkan key untuk mode baru. Jangan bagikan key atau screenshot-nya.
 - Setelah upgrade, konfigurasi Midtrans lama tanpa Signature Secret Key tidak siap digunakan sampai Owner mengisinya. Untuk akun legacy, gunakan Signature Secret Key yang ditampilkan dashboard Midtrans meskipun kebetulan sama dengan Server Key; tidak ada fallback otomatis. Env alternatif: `MIDTRANS_SIGNATURE_SECRET_KEY`, bersama `MIDTRANS_SERVER_KEY` dan `MIDTRANS_MODE`. Konfigurasi database mengungguli env.
+- Status webhook Midtrans dikonfirmasi lagi melalui Get Status API dengan Server Key sebelum order berubah. Server Key harus memiliki izin Core API Read; kegagalan API atau respons yang tidak cocok menahan pemrosesan dan mengembalikan error untuk retry. Verifikasi rekonsiliasi dan pengiriman di staging.
 - Tombol uji kesiapan hanya memeriksa konfigurasi dan daftar metode, bukan transaksi nyata atau verifikasi webhook. Uji transaksi dan callback di staging terisolasi terlebih dahulu.
 - Rincian **Pembayaran menunggu** dan ringkasan **Webhook terakhir** hanya tersedia untuk
   Owner. Tampilan webhook dibatasi pada status signature dan hasil proses; payload mentah,

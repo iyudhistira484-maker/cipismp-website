@@ -188,6 +188,8 @@ describe("Midtrans: verifikasi notifikasi", () => {
     expect(mapMidtransStatus("settlement", "")).toBe("PAID");
     expect(mapMidtransStatus("capture", "accept")).toBe("PAID");
     expect(mapMidtransStatus("capture", "challenge")).toBe("PENDING");
+    expect(mapMidtransStatus("capture", "")).toBe("PENDING");
+    expect(mapMidtransStatus("capture", "deny")).toBe("FAILED");
     expect(mapMidtransStatus("pending", "")).toBe("PENDING");
     expect(mapMidtransStatus("expire", "")).toBe("EXPIRED");
     expect(mapMidtransStatus("deny", "")).toBe("FAILED");
@@ -250,7 +252,7 @@ describe("request API sandbox", () => {
 
   it("membaca status Midtrans memakai Server Key, bukan Signature Secret Key", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ transaction_status: "settlement", gross_amount: "25000.00" }), { status: 200 }),
+      new Response(JSON.stringify({ order_id: "CIPS-ABCD1234", transaction_id: "trx-1", transaction_status: "settlement", gross_amount: "25000.00" }), { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
     const result = await MIDTRANS.getStatus("snap-token", "CIPS-ABCD1234");

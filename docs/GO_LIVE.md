@@ -80,7 +80,9 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 - [ ] Owner mengisi kredensial Tripay/Midtrans di `/admin/pembayaran` dengan mode **live**,
       lalu menjalankan uji kesiapan provider. Untuk Midtrans, Server Key dan Signature Secret Key
       harus sesuai mode yang dipilih. Konfigurasi lama tanpa Signature Secret Key harus diperbarui.
-      Uji kesiapan hanya memeriksa konfigurasi/metode, bukan transaksi atau webhook.
+      Server Key Midtrans harus dapat membaca Core API Get Status; webhook dikonfirmasi
+      lewat API sebelum mengubah order. Uji kesiapan hanya memeriksa konfigurasi/metode,
+      bukan transaksi, akses API, atau webhook.
       Kredensial dan diagnostik tetap Owner-only.
 - [ ] URL webhook terdaftar di dashboard gateway:
       `https://<domain>/api/webhooks/tripay` atau `/api/webhooks/midtrans`.
