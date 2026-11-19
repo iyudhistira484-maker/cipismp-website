@@ -92,6 +92,22 @@ test.describe("keranjang dan checkout", () => {
     if (process.env.E2E_PREVIEW_ORIGIN) await expect(page.getByRole("button", { name: /Lanjutkan pembayaran/ })).toBeDisabled();
   });
 
+  test("pilihan QRIS Midtrans menjelaskan kanal dan tampilan QR", async ({ page }) => {
+    await page.goto("/checkout");
+    await requireCheckoutForm(page);
+    const midtrans = page.getByRole("radio", { name: /Midtrans/i });
+    if (process.env.E2E_REQUIRE_CHECKOUT === "1") await expect(midtrans).toBeVisible();
+    else if (!(await midtrans.count())) test.skip(true, "Midtrans tidak tersedia di lingkungan ini.");
+
+    await midtrans.check();
+    const method = page.getByLabel("Metode", { exact: true });
+    await method.selectOption("qris");
+    await expect(method.locator('option[value="qris"]')).toHaveText("QRIS — QRIS melalui GoPay");
+    await expect(page.getByText(/QRIS melalui kanal GoPay Midtrans/)).toBeVisible();
+    await method.selectOption("gopay");
+    await expect(page.getByText(/QRIS melalui kanal GoPay Midtrans/)).toHaveCount(0);
+  });
+
   test("kunci checkout stabil saat halaman yang sama dimuat ulang", async ({ page }) => {
     test.skip(seasonFrozen, "Season seed sedang freeze.");
     await page.goto("/checkout");

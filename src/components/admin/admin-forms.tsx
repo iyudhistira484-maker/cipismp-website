@@ -975,6 +975,8 @@ export function PaymentMethodsForm({
       <p className="text-2xs leading-relaxed text-muted-2">
         Hanya metode Tripay/Midtrans yang dicentang akan ditawarkan saat checkout. Jika semua metode satu gateway dimatikan,
         gateway itu tidak muncul untuk pembeli. Ketersediaan gateway tetap mengikuti akun penyedia pembayaran.
+        QRIS Midtrans memakai kanal GoPay; aktifkan kanal tersebut pada Snap. Tampilan QR atau tautan aplikasi
+        mengikuti pengaturan Midtrans dan perangkat, sehingga perlu diuji di sandbox.
       </p>
       <SubmitButton size="sm">Simpan metode pembayaran</SubmitButton>
     </form>
