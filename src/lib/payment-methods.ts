@@ -16,7 +16,7 @@ export const TRIPAY_METHODS = [
 ] as const satisfies readonly PaymentMethodOption[];
 
 export const MIDTRANS_METHODS = [
-  { code: "qris", label: "QRIS", group: "QRIS" },
+  { code: "qris", label: "QRIS melalui GoPay", group: "QRIS" },
   { code: "bca_va", label: "BCA Virtual Account", group: "Virtual Account" },
   { code: "bni_va", label: "BNI Virtual Account", group: "Virtual Account" },
   { code: "bri_va", label: "BRI Virtual Account", group: "Virtual Account" },

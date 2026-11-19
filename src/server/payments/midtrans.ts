@@ -26,6 +26,19 @@ const API = {
   live: "https://api.midtrans.com",
 } as const;
 
+// Store method codes are stable for existing settings and orders. Snap's
+// enabled_payments uses GoPay to offer its QRIS flow; "qris" is a Core API /
+// transaction payment_type, not the corresponding Snap channel identifier.
+// https://docs.midtrans.com/reference/gopay
+const SNAP_PAYMENT_CHANNELS: Record<(typeof MIDTRANS_METHODS)[number]["code"], string> = {
+  qris: "gopay",
+  bca_va: "bca_va",
+  bni_va: "bni_va",
+  bri_va: "bri_va",
+  gopay: "gopay",
+  shopeepay: "shopeepay",
+};
+
 /**
  * Adapter Midtrans Snap. Signature notifikasi:
  * SHA512(order_id + status_code + gross_amount + signatureSecretKey).
@@ -43,6 +56,14 @@ export class MidtransAdapter implements PaymentAdapter {
   }
 
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
+    let snapChannel: string | undefined;
+    if (input.method) {
+      if (!Object.hasOwn(SNAP_PAYMENT_CHANNELS, input.method)) {
+        throw new PaymentProviderError("MIDTRANS", "Metode pembayaran Midtrans tidak dikenal.");
+      }
+      snapChannel = SNAP_PAYMENT_CHANNELS[input.method as keyof typeof SNAP_PAYMENT_CHANNELS];
+    }
+
     const body = {
       transaction_details: { order_id: input.orderNumber, gross_amount: input.totalIdr },
       item_details: input.items.map((item) => ({
@@ -57,7 +78,7 @@ export class MidtransAdapter implements PaymentAdapter {
       },
       callbacks: { finish: input.returnUrl, error: input.returnUrl },
       expiry: { unit: "minutes", duration: input.expiresInMinutes },
-      ...(input.method ? { enabled_payments: [input.method] } : {}),
+      ...(snapChannel ? { enabled_payments: [snapChannel] } : {}),
     };
 
     const res = await fetch(`${SNAP[this.mode]}/snap/v1/transactions`, {

@@ -270,7 +270,7 @@ describe("request API sandbox", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await MIDTRANS.createPayment(PAYMENT_INPUT);
+    const result = await MIDTRANS.createPayment({ ...PAYMENT_INPUT, method: "qris" });
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toBe("https://app.sandbox.midtrans.com/snap/v1/transactions");
     expect(init?.headers).toMatchObject({
@@ -281,12 +281,62 @@ describe("request API sandbox", () => {
       item_details: [{ id: "Rank Iron", price: 25_000, quantity: 1, name: "Rank Iron" }],
       customer_details: { first_name: "Steve Player", email: "steve@example.com" },
       callbacks: { finish: PAYMENT_INPUT.returnUrl, error: PAYMENT_INPUT.returnUrl },
-      enabled_payments: ["QRIS"],
+      enabled_payments: ["gopay"],
     });
     expect(result).toMatchObject({
       providerRef: "snap-token",
       checkoutUrl: "https://app.sandbox.midtrans.com/snap/v4/abc",
-      method: "QRIS",
+      method: "qris",
     });
+  });
+
+  it.each([
+    ["qris", "gopay"],
+    ["gopay", "gopay"],
+    ["shopeepay", "shopeepay"],
+    ["bca_va", "bca_va"],
+    ["bni_va", "bni_va"],
+    ["bri_va", "bri_va"],
+  ])("memetakan metode toko %s ke kanal Snap %s tanpa mengubah metode tersimpan", async (method, channel) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ token: "snap-token" }), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await MIDTRANS.createPayment({ ...PAYMENT_INPUT, method });
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(String(init?.body)).enabled_payments).toEqual([channel]);
+    expect(result.method).toBe(method);
+  });
+
+  it("memakai pemetaan QRIS yang sama dalam mode live", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ token: "snap-token" }), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const live = new MidtransAdapter({ serverKey: "test", clientKey: "", signatureSecretKey: "secret" }, "live");
+    const result = await live.createPayment({ ...PAYMENT_INPUT, method: "qris" });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toBe("https://app.midtrans.com/snap/v1/transactions");
+    expect(JSON.parse(String(init?.body)).enabled_payments).toEqual(["gopay"]);
+    expect(result.method).toBe("qris");
+  });
+
+  it("tanpa metode eksplisit membiarkan Snap memakai pengaturan akun", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ token: "snap-token" }), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await MIDTRANS.createPayment({ ...PAYMENT_INPUT, method: null });
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(String(init?.body))).not.toHaveProperty("enabled_payments");
+    expect(result.method).toBeNull();
+  });
+
+  it("menolak kode yang tidak dikenal sebelum menghubungi Midtrans", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(MIDTRANS.createPayment({ ...PAYMENT_INPUT, method: "QRIS" })).rejects.toThrow("Metode pembayaran Midtrans tidak dikenal");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

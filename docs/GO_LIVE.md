@@ -77,6 +77,9 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 
 - [ ] Admin/Owner mengatur metode QRIS/VA/e-wallet di `/admin/pembayaran` sesuai yang aktif
       di akun Tripay/Midtrans; checkout hanya menampilkan metode yang dicentang.
+      QRIS Midtrans memakai kanal Snap GoPay; pastikan kanal tersedia dan aktif pada mode
+      terkait. Tampilan QR/deeplink mengikuti pengaturan Snap dan perangkat. Uji di staging
+      pada desktop dan ponsel; label atau kesiapan konfigurasi bukan bukti QRIS aktif di produksi.
 - [ ] Owner mengisi kredensial Tripay/Midtrans di `/admin/pembayaran` dengan mode **live**,
       lalu menjalankan uji kesiapan provider. Untuk Midtrans, Server Key dan Signature Secret Key
       harus sesuai mode yang dipilih. Konfigurasi lama tanpa Signature Secret Key harus diperbarui.
