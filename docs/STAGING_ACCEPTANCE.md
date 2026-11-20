@@ -11,7 +11,7 @@
 
 ## Matriks Minecraft: Java dan Bedrock
 
-- [ ] Dengan Floodgate berprefiks `_`, uji Bedrock `_Nama` dan Java bernama `_Nama` dengan edisi yang benar; periksa konflik, hadiah, checkout dan comp. Uji verifikasi ulang profil lama berprefiks titik tanpa memindahkan kepemilikan/entitlement otomatis, termasuk kasus UUID berubah.
+- [ ] Pastikan konfigurasi Floodgate server uji menggunakan prefiks `.`. Uji Bedrock `.Nama` dan Java `_Nama` dengan edisi yang benar; periksa konflik, hadiah, checkout dan comp. Uji verifikasi ulang profil lama berprefiks `_` tanpa memindahkan kepemilikan/entitlement otomatis, termasuk kasus UUID berubah. Sebelum rilis, audit profil Bedrock yang sudah terverifikasi (termasuk nama `.` yang mungkin berasal dari konfigurasi lebih lama) dan semua delivery/antrean; jangan anggap profil lama otomatis aman hanya karena prefiksnya cocok.
 
 Lakukan setiap kasus menggunakan akun uji sendiri dan UUID yang dilaporkan langsung oleh server/plugin, bukan UUID yang ditebak. Jangan simpan kata sandi LoginSecurity dalam bukti.
 

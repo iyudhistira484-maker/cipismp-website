@@ -221,7 +221,7 @@ export function MinecraftPanel() {
         <select id="mc-edition" name="edition" value={edition} onChange={(event) => setEdition(event.target.value)} className="h-11 w-full rounded-md border border-line bg-white px-3 text-sm text-ink">
           <option value="">Pilih edisi</option><option value="JAVA">Java</option><option value="BEDROCK">Bedrock</option>
         </select>
-        <p id="minecraft-name-hint" className="text-[11.5px] leading-relaxed text-muted">Pilih edisi yang benar. Java: masukkan username seperti biasa. Bedrock: gunakan nama yang tampil di server beserta awalan garis bawah, misalnya <span className="font-mono text-ink">_CipiPlayer</span>. Nama Java juga bisa diawali _.</p>
+        <p id="minecraft-name-hint" className="text-[11.5px] leading-relaxed text-muted">Pilih edisi yang benar. Java: masukkan username seperti biasa. Bedrock: gunakan nama yang tampil di server beserta awalan titik (.), misalnya <span className="font-mono text-ink">.CipiPlayer</span>. Nama Java juga bisa diawali _.</p>
         <SubmitButton className="w-full sm:w-auto">{state.data?.code ? "Buat kode baru" : "Buat kode verifikasi"}</SubmitButton>
       </form>
       {state.data?.code && state.data.playerName ? <VerificationSteps key={state.data.code} code={state.data.code} playerName={state.data.playerName} /> : (

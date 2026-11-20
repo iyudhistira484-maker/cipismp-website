@@ -18,7 +18,7 @@ vi.mock("@/server/env", async (original) => {
 const suffix = uniqueSuffix();
 const owner = `offline-user-${suffix}`, staff = `offline-staff-${suffix}`;
 const server = `offline-server-${suffix}`, season = `offline-season-${suffix}`, product = `offline-product-${suffix}`;
-const javaName = `Java${suffix.slice(0, 7)}`, bedrockName = `_Bed${suffix.slice(0, 6)}`;
+const javaName = `Java${suffix.slice(0, 7)}`, bedrockName = `.Bed${suffix.slice(0, 6)}`;
 const javaUuid = randomUUID(), bedrockUuid = "00000000-0000-0000-0009-01fd62950c17";
 const legacyUuid = randomUUID(), oldBedrockUuid = randomUUID(), oldChangedUuid = randomUUID(), newChangedUuid = randomUUID(), collisionJavaUuid = randomUUID(), collisionBedrockUuid = randomUUID(), delivery = `offline-delivery-${suffix}`;
 let previousServers: string[] = [];
@@ -102,25 +102,26 @@ describe.skipIf(!databaseUrl())("identitas server offline terautentikasi", () =>
     expect(await resolvePlayer(bedrockName.toLowerCase(), "BEDROCK")).toMatchObject({ uuid: bedrockUuid, name: bedrockName, source: "cache" });
     const order = await createOrder(input);
     expect(order.order.mcUuid).toBe(javaUuid);
-    await expect(createOrder({ ...input, items: [{ productId: product, targetName: "_NotVerified", targetEdition: "BEDROCK" }] })).rejects.toThrow(/memverifikasi/);
+    await expect(createOrder({ ...input, items: [{ productId: product, targetName: ".NotVerified", targetEdition: "BEDROCK" }] })).rejects.toThrow(/memverifikasi/);
     await db.insert(staffMinecraftAccounts).values({ uuid: bedrockUuid, staffUserId: staff, label: "alternatif" });
     await expect(createOrder({ ...input, items: [{ productId: product, targetName: bedrockName, targetEdition: "BEDROCK" }] })).rejects.toThrow(/Rank tidak tersedia untuk staf/);
     await db.delete(staffMinecraftAccounts).where(eq(staffMinecraftAccounts.uuid, bedrockUuid));
   });
-  it("menjaga edisi dan UUID untuk nama ambigu serta profil prefiks lama", async () => {
-    const name = `_Same${suffix.slice(0, 5)}`;
-    await token(`same-java-${suffix}`, "EFG567", name, "JAVA");
-    expect(await consumeMinecraftVerification({ code: "EFG567", uuid: collisionJavaUuid, player: name, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: false, status: 409 });
-    expect(await consumeMinecraftVerification({ code: "EFG567", uuid: collisionJavaUuid, player: name, edition: "JAVA", identityVersion: 2 })).toMatchObject({ ok: true });
-    await token(`same-bed-${suffix}`, "FGH678", name, "BEDROCK");
-    expect(await consumeMinecraftVerification({ code: "FGH678", uuid: collisionBedrockUuid, player: name, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
-    expect(await resolvePlayer(name, "JAVA")).toMatchObject({ uuid: collisionJavaUuid, edition: "JAVA" });
-    expect(await resolvePlayer(name, "BEDROCK")).toMatchObject({ uuid: collisionBedrockUuid, edition: "BEDROCK" });
-    await expect(resolvePlayer(name)).rejects.toThrow(/Pilih edisi/);
-    await expect(createOrder({ ...input, items: [{ productId: product, targetName: name, targetUuid: collisionJavaUuid, targetEdition: "BEDROCK" }] })).rejects.toThrow(/Identitas penerima berubah/);
+  it("membedakan Java dengan garis bawah dari Bedrock bertitik dan menolak kode prefix lama", async () => {
+    const javaUnderscore = `_Same${suffix.slice(0, 5)}`;
+    const bedrockDot = `.Same${suffix.slice(0, 5)}`;
+    await token(`same-java-${suffix}`, "EFG567", javaUnderscore, "JAVA");
+    expect(await consumeMinecraftVerification({ code: "EFG567", uuid: collisionJavaUuid, player: javaUnderscore, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: false, status: 409 });
+    expect(await consumeMinecraftVerification({ code: "EFG567", uuid: collisionJavaUuid, player: javaUnderscore, edition: "JAVA", identityVersion: 2 })).toMatchObject({ ok: true });
+    await token(`same-bed-${suffix}`, "FGH678", bedrockDot, "BEDROCK");
+    expect(await consumeMinecraftVerification({ code: "FGH678", uuid: collisionBedrockUuid, player: bedrockDot, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
+    expect(await resolvePlayer(javaUnderscore, "JAVA")).toMatchObject({ uuid: collisionJavaUuid, edition: "JAVA" });
+    expect(await resolvePlayer(bedrockDot, "BEDROCK")).toMatchObject({ uuid: collisionBedrockUuid, edition: "BEDROCK" });
+    await expect(resolvePlayer(javaUnderscore)).rejects.toThrow(/Pilih edisi/);
+    await expect(createOrder({ ...input, items: [{ productId: product, targetName: bedrockDot, targetUuid: collisionJavaUuid, targetEdition: "BEDROCK" }] })).rejects.toThrow(/Identitas penerima berubah/);
 
-    const oldName = `.Old${suffix.slice(0, 5)}`;
-    const newName = `_Old${suffix.slice(0, 5)}`;
+    const oldName = `_Old${suffix.slice(0, 5)}`;
+    const newName = `.Old${suffix.slice(0, 5)}`;
     await db.insert(minecraftProfiles).values({ id: `old-bed-${suffix}`, uuid: oldBedrockUuid, edition: "BEDROCK", displayName: oldName, userId: owner, verifiedAt: new Date(), identityVerifiedVersion: 2 });
     await token(`old-code-${suffix}`, "GHJ789", oldName, "BEDROCK");
     expect(await consumeMinecraftVerification({ code: "GHJ789", uuid: oldBedrockUuid, player: oldName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: false, status: 409 });
@@ -134,8 +135,8 @@ describe.skipIf(!databaseUrl())("identitas server offline terautentikasi", () =>
   });
 
   it("tidak memindahkan data jika UUID Floodgate berubah", async () => {
-    const oldName = `.Changed${suffix.slice(0, 4)}`;
-    const newName = `_Changed${suffix.slice(0, 4)}`;
+    const oldName = `_Changed${suffix.slice(0, 4)}`;
+    const newName = `.Changed${suffix.slice(0, 4)}`;
     await db.insert(minecraftProfiles).values({ id: `changed-old-${suffix}`, uuid: oldChangedUuid, edition: "BEDROCK", displayName: oldName, userId: owner, verifiedAt: new Date(), identityVerifiedVersion: 2 });
     await token(`changed-new-${suffix}`, "KNM234", newName, "BEDROCK");
     expect(await consumeMinecraftVerification({ code: "KNM234", uuid: newChangedUuid, player: newName, edition: "BEDROCK", identityVersion: 2 })).toMatchObject({ ok: true });
