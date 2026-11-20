@@ -61,7 +61,7 @@ export function AddToCart({
               <select id={`gift-edition-${productId}`} name="giftEdition" value={giftEdition} onChange={(event) => setGiftEdition(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-line bg-white px-3 text-sm text-ink">
                 <option value="">Pilih edisi</option><option value="JAVA">Java</option><option value="BEDROCK">Bedrock</option>
               </select>
-              <p className="mt-1 text-2xs text-muted-2">Bedrock: masukkan nama server dengan awalan _, misalnya _CipiPlayer. Pilih edisi yang benar.</p>
+              <p className="mt-1 text-2xs text-muted-2">Bedrock: masukkan nama server dengan awalan titik (.), misalnya .CipiPlayer. Pilih edisi yang benar.</p>
               <p className="mt-1.5 text-2xs leading-relaxed text-muted-2">
                 Aturan rank dicek terhadap penerima: tidak bisa membelikan rank yang sudah dia miliki,
                 dan upgrade hanya menagih selisih. Rank tetap berakhir di akhir season.

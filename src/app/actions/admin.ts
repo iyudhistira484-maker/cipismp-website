@@ -1513,7 +1513,7 @@ export async function adminGrantCompAction(_prev: AdminState, formData: FormData
       .object({
         productId: z.string().min(1),
         uuid: z.string().uuid("UUID pemain tidak valid."),
-        playerName: z.string().min(3).max(16),
+        playerName: z.string().min(3).max(17),
         reason: z.string().min(10, "Alasan comp minimal 10 karakter."),
       })
       .safeParse({

@@ -28,8 +28,8 @@ export async function consumeMinecraftVerification(input: { code: string; uuid: 
       return { ok: false, status: 400, message: "Data kode tidak lengkap" };
     }
     // Pending codes created for the retired Floodgate prefix must not relink it.
-    if (payload.edition === "BEDROCK" && !payload.playerName.startsWith("_")) {
-      return { ok: false, status: 409, message: "Prefiks Bedrock telah berubah. Buat kode baru dengan nama server berawalan _." };
+    if (payload.edition === "BEDROCK" && !payload.playerName.startsWith(".")) {
+      return { ok: false, status: 409, message: "Prefiks Bedrock telah berubah. Buat kode baru dengan nama server berawalan titik (.)." };
     }
     const offline = env.MINECRAFT_LOOKUP_MODE === "offline";
     if (offline && (payload.identityMode !== "offline" || input.identityVersion !== 2 || !input.edition)) {

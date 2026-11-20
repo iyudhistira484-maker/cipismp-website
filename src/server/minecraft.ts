@@ -23,24 +23,24 @@ export class InvalidUsernameError extends Error {
 }
 
 const JAVA_NAME = /^[A-Za-z0-9_]{3,16}$/;
-const BEDROCK_NAME = /^_[A-Za-z0-9_ ]{3,16}$/;
+const BEDROCK_NAME = /^\.[A-Za-z0-9_ ]{3,16}$/;
 
-/** A leading underscore is ambiguous: Java usernames can begin with it too. */
+/** Require an explicit edition for current and retired Floodgate prefixes. */
 export function normalizeUsername(raw: string, selectedEdition?: Edition): { name: string; edition: Edition } {
   const name = raw.trim().replace(/\s+/g, " ");
   if (!name) throw new InvalidUsernameError("Username Minecraft wajib diisi.");
   if (selectedEdition !== undefined && selectedEdition !== "JAVA" && selectedEdition !== "BEDROCK") {
     throw new InvalidUsernameError("Pilih edisi Minecraft yang valid.");
   }
-  if (!selectedEdition && name.startsWith("_")) {
-    throw new InvalidUsernameError("Pilih edisi Java atau Bedrock untuk nama yang diawali _.");
+  if (!selectedEdition && (name.startsWith("_") || name.startsWith("."))) {
+    throw new InvalidUsernameError("Pilih edisi Java atau Bedrock untuk nama yang diawali _ atau titik.");
   }
   const edition = selectedEdition ?? "JAVA";
   if (edition === "JAVA" && !JAVA_NAME.test(name)) {
     throw new InvalidUsernameError("Username Java 3–16 karakter, hanya huruf, angka, dan garis bawah.");
   }
   if (edition === "BEDROCK" && !BEDROCK_NAME.test(name)) {
-    throw new InvalidUsernameError("Nama Bedrock harus menggunakan awalan _ dan 3–16 karakter setelahnya.");
+    throw new InvalidUsernameError("Nama Bedrock harus menggunakan awalan titik (.) dan 3–16 karakter setelahnya.");
   }
   return { name, edition };
 }

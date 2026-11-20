@@ -1260,7 +1260,7 @@ export function CompForm({ products }: { products: Array<{ id: string; name: str
           <Input id="comp-uuid" name="uuid" required placeholder="069a79f4-44e9-4726-a5be-fca90e38aaf5" />
         </Field>
         <Field label="Nama pemain" htmlFor="comp-name" required>
-          <Input id="comp-name" name="playerName" required maxLength={16} />
+          <Input id="comp-name" name="playerName" required maxLength={17} />
         </Field>
       </div>
       <Field label="Alasan (masuk audit log)" htmlFor="comp-reason" required>
