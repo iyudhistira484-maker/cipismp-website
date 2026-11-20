@@ -54,11 +54,14 @@ test.describe("dashboard pemain", () => {
     await page.goto("/dashboard/minecraft");
     await expect(page.getByRole("heading", { name: /Hubungkan akun Minecraft/ })).toBeVisible();
     await expect(page.getByText("PlayerUji", { exact: true })).toBeVisible();
-    const name = `_B${suffix}`;
-    await page.getByLabel("Username Minecraft").fill(name);
+    const name = `.B${suffix}`;
+    await page.getByLabel("Username Minecraft").fill(`_B${suffix}`);
     await page.getByRole("button", { name: "Buat kode verifikasi" }).click();
     await expect(page.getByText(/Pilih edisi Java atau Bedrock/)).toBeVisible();
     await page.getByLabel("Edisi Minecraft").selectOption("BEDROCK");
+    await page.getByRole("button", { name: "Buat kode verifikasi" }).click();
+    await expect(page.getByText(/Nama Bedrock harus menggunakan awalan titik/)).toBeVisible();
+    await page.getByLabel("Username Minecraft").fill(name);
     await page.getByRole("button", { name: "Buat kode verifikasi" }).click();
     await expect(page.getByText("Simpan kode verifikasi")).toBeVisible();
     await expect(page.getByText(/Java dan Bedrock sama-sama perlu login/)).toBeVisible();
