@@ -5,18 +5,18 @@ plugins {
 group = "id.cipismp"
 version = "1.1.0"
 
-// Keep the existing 1.21.4 build while providing an explicit 26.1.2 build.
-// Newer Paper APIs require Java 25; selecting the target must not silently
-// change the requirements of existing deployments.
+// Keep the existing 1.21.4 and 26.1.2 builds while providing a separate
+// Paper 26.3 build. Each target pins its API and Java version explicitly.
 val paperTarget = providers.gradleProperty("paperTarget").orElse("1.21.4").get()
 val javaTarget = when (paperTarget) {
     "1.21.4" -> 21
-    "26.1.2" -> 25
-    else -> error("paperTarget must be 1.21.4 or 26.1.2")
+    "26.1.2", "26.3" -> 25
+    else -> error("paperTarget must be 1.21.4, 26.1.2 or 26.3")
 }
 val paperApiVersion = when (paperTarget) {
     "1.21.4" -> "1.21.4-R0.1-SNAPSHOT"
     "26.1.2" -> "26.1.2.build.74-stable"
+    "26.3" -> "26.3.build.247-stable"
     else -> error("Unsupported paperTarget")
 }
 

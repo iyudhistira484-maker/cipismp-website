@@ -132,7 +132,7 @@ src/app/dashboard dashboard pemain
 src/app/admin     panel admin (pesanan, produk, season, kupon, pembayaran, server, staf, audit)
 src/app/actions   server actions (auth, akun, keranjang, checkout, admin)
 src/server        domain: pricing, orders, payments, delivery, seasons, auth, jobs
-plugin/           plugin Paper (Gradle, Java 21)
+plugin/           plugin Paper (Gradle, Java 21 atau 25 sesuai target)
 drizzle/          migrasi SQL
 tests/            unit, integrasi, e2e, load
 docs/             arsitektur, asumsi, progres, go-live, runbook, panduan admin
@@ -142,18 +142,22 @@ docs/             arsitektur, asumsi, progres, go-live, runbook, panduan admin
 
 ```bash
 cd plugin
-gradle test build         # JDK 21 + Gradle 8.10
-cp build/libs/cipismp-store-companion-1.0.0.jar <server>/plugins/
-# isi plugins/CipiStoreCompanion/config.yml: website-url, shared-secret, polling.*
+gradle clean test build -PpaperTarget=26.3  # JDK 25 + Gradle 9.2.1
+# Hasil: build/libs/cipismp-store-companion-1.1.0.jar
 ```
 
-Plugin memulai polling keluar ke toko melalui HTTPS setiap 10 detik (default), memverifikasi
-setiap request dengan HMAC + timestamp + nonce, dan menjalankan perintah melalui LuckPerms
-(bila ada) atau konsol. Hosting Minecraft hanya memerlukan akses keluar HTTPS; jangan membuka
-port HTTP inbound untuk plugin. Perintah untuk pemain offline disimpan ke disk dan baru
-mendapat ACK setelah antrean lokal berhasil disimpan. `/admin/server` menampilkan check-in
-terakhir plugin; pastikan website dapat diakses melalui DNS/TLS dari hosting Minecraft.
-Pemain menghubungkan akun dengan `/verify KODE` dari dashboard.
+Target lain tetap tersedia: `1.21.4` (default, JDK 21 dan Gradle 8.10.2) dan
+`26.1.2` (JDK 25 dan Gradle 9.2.1). Target 26.3 menggunakan API Paper
+`26.3.build.247-stable`. CI menyimpan JAR dan checksum terpisah untuk masing-masing
+versi selama tujuh hari. Build dan tes unit bukan bukti kompatibilitas runtime;
+periksa versi server dan uji lebih dulu di server Paper staging yang terisolasi.
+
+Jangan menghubungkan plugin uji ke website atau Minecraft produksi. Siapkan layanan
+staging terpisah, tutup checkout dan matikan worker/polling sampai keamanan dan
+antrean lama selesai diperiksa. Koneksi plugin keluar melalui HTTPS dan memakai HMAC;
+jangan bagikan `shared-secret` atau file konfigurasi. Untuk prosedur, pengujian,
+risiko duplikasi dan syarat rilis, lihat [`docs/GO_LIVE.md`](docs/GO_LIVE.md) dan
+[`docs/STAGING_ACCEPTANCE.md`](docs/STAGING_ACCEPTANCE.md).
 
 ## Dokumentasi
 
