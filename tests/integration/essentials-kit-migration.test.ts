@@ -26,6 +26,7 @@ describe.skipIf(!databaseUrl())("migrasi permission kit Essentials", () => {
         ["historic-delivery", "cipiprime", "{uuid}"],
         ["custom", "cipiprime", "{uuid}"],
         ["mixed", "cipiprime", "{uuid}"],
+        ["duplicate", "cipiprime", "{uuid}"],
       ]) {
         const permission = slug === "cipiprime" ? "playerkits.kits.cipiprime" : "playerkits.kits.cipi++";
         await client.query("INSERT INTO products VALUES ($1,$2,'KIT',$3,$4,$5,now())", [id, slug, oldTagline, oldDescription, oldPerks]);
@@ -34,6 +35,8 @@ describe.skipIf(!databaseUrl())("migrasi permission kit Essentials", () => {
           id === "custom" ? "custom command" : `lp user ${id === "mixed" ? "{player}" : target} permission unset ${permission}`,
         ]);
       }
+      // Test defensively even though the real schema has a unique (product_id, kind) index.
+      await client.query("INSERT INTO command_templates VALUES ('duplicate','GRANT','custom command',now())");
       await client.query("INSERT INTO entitlements VALUES ('historic-entitlement',true)");
       await client.query("INSERT INTO deliveries VALUES ('historic-delivery','QUEUED',$1)", [JSON.stringify(["old command"])]);
       const migration = await readFile("src/server/db/migrations/0021_essentials_kit_permissions.sql", "utf8");
@@ -49,6 +52,9 @@ describe.skipIf(!databaseUrl())("migrasi permission kit Essentials", () => {
         expect(template(id, "GRANT")).toContain("playerkits.kits.");
       }
       expect(template("custom", "REVOKE")).toBe("custom command");
+      expect(rows.filter((r) => r.product_id === "duplicate").map((r) => r.template))
+        .toContain("custom command");
+      expect(rows.find((r) => r.product_id === "duplicate" && r.template.includes("playerkits.kits."))).toBeDefined();
       const deliveries = await client.query("SELECT * FROM deliveries");
       expect(deliveries.rows).toEqual([{ product_id: "historic-delivery", status: "QUEUED", commands: ["old command"] }]);
       expect((await client.query("SELECT * FROM entitlements")).rows).toEqual([{ product_id: "historic-entitlement", active: true }]);

@@ -15,6 +15,7 @@ WITH defaults(slug, old_permission, new_permission) AS (
   WHERE p.type = 'KIT'
     AND NOT EXISTS (SELECT 1 FROM entitlements e WHERE e.product_id = p.id)
     AND NOT EXISTS (SELECT 1 FROM deliveries x WHERE x.product_id = p.id)
+    AND (SELECT count(*) FROM command_templates t WHERE t.product_id = p.id AND t.kind IN ('GRANT', 'REVOKE')) = 2
     AND (
       (g.template = 'lp user {uuid} permission set ' || d.old_permission || ' true'
        AND r.template = 'lp user {uuid} permission unset ' || d.old_permission)
