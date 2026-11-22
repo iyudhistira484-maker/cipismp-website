@@ -1,3 +1,5 @@
+> **NO-GO — transisi kit Essentials:** Checkout dan polling tetap tertutup sampai izin, menu, cooldown, grant/revoke dan pemulihan diuji. Tes produksi Cipi++ sebelumnya menghasilkan entitlement dan permission PlayerKits2 lama tetapi menu tetap terkunci; status `DELIVERED` bukan bukti akses. Jangan kirim ulang atau menghapus permission itu otomatis. Migrasi 0021 tidak menyentuh produk dengan riwayat entitlement/delivery atau antrean yang ada. Lihat [ESSENTIALS_KIT_TRANSITION.md](ESSENTIALS_KIT_TRANSITION.md).
+
 # Checklist go-live
 
 ## Profil produksi dan data yang sudah ada
@@ -70,7 +72,7 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
       website serta queue offline plugin sebelum aktivasi. Verifikasi hierarchy LuckPerms di staging.
 - [ ] Hanya **CipiPrime** (Rp35.000) dan **Cipi++** (Rp75.000) yang tayang sebagai kit.
       `maxPerSeason=1` dan `cooldownHours=0`; template GRANT/REVOKE memakai tepat
-      `playerkits.kits.cipiprime` dan `playerkits.kits.cipi++`.
+      `essentials.kits.cipiprime` dan `essentials.kits.cipi++`. Migrasi 0021 hanya mengganti pasangan bawaan pada produk tanpa riwayat entitlement/delivery; sisanya harus direkonsiliasi manual.
 - [ ] Halaman `/rank` dan `/kit` menampilkan nama season + tanggal berakhir.
 
 ## 4. Pembayaran
@@ -135,9 +137,9 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
       lama dicabut, group baru dipasang), dan REVOKE `parent remove` untuk group rank saat akhir season.
       Pengaturan group/inheritance sebenarnya tetap harus diperiksa agar group staf tidak berubah.
 - [ ] Uji pembelian kit di staging: pembayaran sukses memberi permission tepat pada pemain
-      penerima; PlayerKits mengenali permission tersebut dan bisa mengklaim isi kit yang
+      penerima; menu dan Essentials mengenali permission tersebut dan pemain bisa mengklaim isi kit yang
       disetujui di halaman produk.
-- [ ] Verifikasi langsung di PlayerKits bahwa cooldown klaim **5 jam** berlaku di dalam
+- [ ] Verifikasi langsung pada konfigurasi Essentials dan menu bahwa cooldown klaim yang ditetapkan berlaku di dalam
       game; checkout tetap tidak memakai cooldown repurchase dan pembelian dibatasi satu kali
       per pemain per season.
 - [ ] Di akhir season uji transisi pada staging: job REVOKE berjalan dan kedua permission
@@ -197,15 +199,15 @@ Turnstile/plugin di checklist berikut tetap perlu diuji manual di staging/produk
 - [ ] Uji plugin online/offline, crash dan perintah sebagian pada server staging. ACK antrean offline kini belum dinyatakan selesai, tetapi exactly-once belum dijamin.
 
 ### Bantuan dan riwayat hadiah
-Jalankan seluruh migrasi termasuk `0017` sebelum deploy. Bantuan dan percakapan tersimpan di PostgreSQL; staf perlu izin `orders.read` dan MFA. Feed operasional staf adalah 50 notifikasi terbaru yang disaring izin, bukan sistem penugasan atau konfirmasi penyelesaian. Riwayat bantuan, hadiah dan pesanan menggunakan paginasi; pemilihan pesanan di formulir bantuan menampilkan 100 terbaru serta pesanan milik sendiri yang dibuka dari detail. Lindungi data percakapan sesuai kebijakan retensi/privasi dan atur Redis untuk pembatasan laju bersama antar instance. Validasi alur dengan akun dan server staging sesungguhnya sebelum produksi. Snapshot grup dan cooldown sudah disiapkan tetapi dinonaktifkan secara default dan belum divalidasi pada server nyata; catatan toko tetap ditampilkan terpisah.
+Jalankan migrasi hanya setelah review dan persetujuan Owner; lihat `ESSENTIALS_KIT_TRANSITION.md` untuk migrasi `0021` dan antrean lama. Bantuan dan percakapan tersimpan di PostgreSQL; staf perlu izin `orders.read` dan MFA. Feed operasional staf adalah 50 notifikasi terbaru yang disaring izin, bukan sistem penugasan atau konfirmasi penyelesaian. Riwayat bantuan, hadiah dan pesanan menggunakan paginasi; pemilihan pesanan di formulir bantuan menampilkan 100 terbaru serta pesanan milik sendiri yang dibuka dari detail. Lindungi data percakapan sesuai kebijakan retensi/privasi dan atur Redis untuk pembatasan laju bersama antar instance. Validasi alur dengan akun dan server staging sesungguhnya sebelum produksi. Snapshot grup dan cooldown sudah disiapkan tetapi dinonaktifkan secara default dan belum divalidasi pada server nyata; catatan toko tetap ditampilkan terpisah.
 
 Tes browser `tests/e2e/auth-support.spec.ts` memeriksa login biasa, isolasi bantuan, dan 2FA staf. Jalankan hanya dengan database khusus tes dan `E2E_ALLOW_DB_FIXTURES=1`; CI menyiapkan database tersendiri. Keberhasilan lokal tidak membuktikan login pada preview iframe lintas situs atau layanan produksi.
 
 ### Target Paper 26.1.2 / 26.3 dan status pemain (perlu validasi staging)
 Konfigurasi yang dilaporkan sebelumnya: **Paper 26.1.2 build 74** dan **PlayerKits 2 1.23.1**; pemilik kini meminta target **Paper 26.3**, tetapi versi dan build server uji maupun produksi harus dikonfirmasi lagi. Target default plugin tetap Paper 1.21.4/Java 21. Build `gradle clean build -PpaperTarget=26.1.2` memakai API `26.1.2.build.74-stable`, sedangkan `-PpaperTarget=26.3` memakai API `26.3.build.247-stable`; keduanya memakai Java 25 dan Gradle 9.2.1. CI memisahkan artefak tiap target dan checksum; periksa hasil run commit yang akan dipakai. Jangan memasang JAR hanya berdasarkan keberhasilan kompilasi: uji runtime, autentikasi dan seluruh plugin pada staging yang terisolasi terlebih dahulu.
 
-- Terapkan seluruh migrasi sampai `0017` (snapshot ditambahkan oleh `0013`). `polling.enabled` harus aktif; `live-status.enabled` default **false** dan hanya diaktifkan setelah uji staging. Pemilik mengonfirmasi nama kit `cipiprime` dan `cipi++`; keduanya menjadi default `live-status.kit-names` (maksimal lima). Instalasi lama dengan `config.yml` yang sudah ada perlu menambahkan bagian `live-status` secara manual; `saveDefaultConfig()` tidak menimpa file lama. Restart server/plugin setelah mengubah bagian ini: `/cipistore reload` tidak membangun ulang poller. Pastikan nama kit dan hasil cooldown benar di staging.
-- Companion membaca grup utama LuckPerms dan teks cooldown PlayerKits2 1.23.1 untuk maksimal 50 pemain online per polling, bergilir jika lebih banyak. API mengembalikan teks terlokalisasi, bukan durasi; tidak ada hitung mundur di website. Cooldown akan kosong jika versi plugin berbeda, kit tidak ada, atau data PlayerKits2 belum dimuat. Nama grup utama bukan jaminan permission efektif atau kelayakan klaim kit.
+- Snapshot ditambahkan oleh `0013`; tinjau semua migrasi termasuk `0021` sebelum penerapan. Pada staging yang benar-benar terisolasi, `polling.enabled` diperlukan untuk menguji snapshot; polling produksi tetap tertutup sesuai NO-GO di atas. `live-status.enabled` default **false** dan hanya diaktifkan setelah uji staging. Pemilik mengonfirmasi nama kit `cipiprime` dan `cipi++`; keduanya menjadi default `live-status.kit-names` (maksimal lima). Instalasi lama dengan `config.yml` yang sudah ada perlu menambahkan bagian `live-status` secara manual; `saveDefaultConfig()` tidak menimpa file lama. Restart server/plugin setelah mengubah bagian ini: `/cipistore reload` tidak membangun ulang poller. Pastikan nama kit dan hasil cooldown benar di staging.
+- Companion membaca grup utama LuckPerms dan teks cooldown PlayerKits2 1.23.1 untuk maksimal 50 pemain online per polling, bergilir jika lebih banyak. API mengembalikan teks terlokalisasi, bukan durasi; tidak ada hitung mundur di website. Cooldown akan kosong jika versi plugin berbeda, kit tidak ada, atau data PlayerKits2 belum dimuat. **Snapshot PlayerKits2 bukan cooldown Essentials dan tidak membuktikan akses kit Essentials.** Nama grup utama bukan jaminan permission efektif atau kelayakan klaim kit.
 - Permintaan HMAC menyertakan UUID serta snapshot pemain online; website hanya menyimpan untuk profil terverifikasi yang terhubung dan menampilkan hanya kepada pemilik. Hanya satu snapshot terakhir per profil disimpan; snapshot lama tetap di database sampai ditimpa atau profil dihapus, tetapi tidak ditampilkan setelah 90 detik. Pengamatan terbaru bukan jaminan pemain masih online sekarang. Catat penggunaan data dan tetapkan kebijakan retensi sebelum produksi.
 - Uji clock kedua server sinkron; HMAC, replay, akun lain, unlink/relink, pemain online/offline, pemain baru, cooldown dan format bahasa, permission sebenarnya, versi plugin, LuckPerms, Java/Floodgate dan restart. Snapshot tidak memengaruhi pengiriman atau entitlement. Pengujian lokal saat ini belum membuktikan kompatibilitas runtime ataupun integrasi di server nyata.
 
@@ -217,7 +219,7 @@ Migrasi `0015` menambahkan pilihan cakupan potongan di formulir admin. Aturan ya
 
 ### Pengaman perintah pengiriman (wajib diperiksa sebelum rilis)
 
-- Website dan plugin versi baru membatasi perintah ke LuckPerms parent add/remove untuk grup `vip`, `mvp`, `elite`, `legend`, dan permission `playerkits.kits.cipiprime` / `playerkits.kits.cipi++` (set true atau unset), dengan target penerima yang cocok. `parent set` dan perintah arbitrer ditahan. Checkout menolak template GRANT kosong/tidak aman dan REVOKE upgrade kosong/tidak aman; perubahan template setelah checkout tetap bisa menyebabkan pengiriman tertahan dan perlu rekonsiliasi pembayaran.
+- Website dan plugin versi baru membatasi perintah ke LuckPerms parent add/remove untuk grup `vip`, `mvp`, `elite`, `legend`, dan permission `essentials.kits.cipiprime` / `essentials.kits.cipi++` (set true atau unset), dengan target penerima yang cocok. `parent set` dan perintah arbitrer ditahan. Checkout menolak template GRANT kosong/tidak aman dan REVOKE upgrade kosong/tidak aman; perubahan template setelah checkout tetap bisa menyebabkan pengiriman tertahan dan perlu rekonsiliasi pembayaran.
 - Username Bedrock dengan spasi tidak dapat dipakai sebagai satu argumen perintah; gunakan `{uuid}` dalam template yang valid, dan uji UUID Floodgate di staging. Perintah kustom lain tidak lagi dikirim otomatis tanpa perubahan kode yang direview.
 - Sebelum mengganti versi, **hentikan polling dan pengiriman plugin lama**; queue offline di plugin lama tidak memiliki pengaman versi baru. Backup dan periksa queue serta delivery `QUEUED`, `SENT`, `FAILED`, `DEAD` secara manual; jangan hapus atau kirim ulang sebelum memeriksa apakah sudah dijalankan.
 - Nama grup yang diizinkan bukan bukti konfigurasi LuckPerms aman. Periksa keempat grup, seluruh inheritance/weight dan grup staf pada server staging. Perubahan API gagal tidak otomatis diteruskan ke konsol pada plugin baru. Identitas akun alternatif staf yang tidak terdaftar masih belum dapat diketahui; penjualan rank harus tetap ditunda sampai kebijakan identitas teruji.

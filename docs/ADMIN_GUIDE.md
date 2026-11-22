@@ -54,9 +54,9 @@ Buka **Pesanan**, cari dengan nomor order, email, atau nama pemain.
 ## Kalau akses atau reward belum masuk
 
 1. Buka detail pesanan → bagian **Pengiriman** dan catat nomor pesanan, status, waktu dan error tanpa membagikan data sensitif.
-2. **Jangan langsung menekan Kirim ulang**, mengirim comp, atau mengubah status untuk hasil yang belum pasti. Eskalasi ke Admin/Owner dan ikuti `docs/RUNBOOK.md`: cocokkan status pembayaran, lease/ACK, antrean website dan plugin, marker intent/selesai, serta keadaan LuckPerms/PlayerKits di server.
+2. **Jangan langsung menekan Kirim ulang**, mengirim comp, atau mengubah status untuk hasil yang belum pasti. Eskalasi ke Admin/Owner dan ikuti `docs/RUNBOOK.md`: cocokkan status pembayaran, lease/ACK, antrean website dan plugin, marker intent/selesai, serta keadaan LuckPerms/Essentials dan menu kit di server.
 3. Status `SENT`, timeout, ACK hilang, restart atau eksekusi sebagian tidak membuktikan perintah belum berjalan. Jika hasilnya tidak pasti, hentikan pengiriman terkait dan lakukan rekonsiliasi manual sebelum keputusan retry; jangan retry massal. Catat tindakan dan hasilnya.
-4. Untuk pemain offline, rank maupun kit menunggu login LoginSecurity dan lease website berikutnya saat pemain tetap online (biasanya sekitar satu menit atau lebih). Antrean lokal lama perlu direkonsiliasi; login saja tidak membuktikan pengiriman sukses. Untuk kit, periksa permission, reward dan cooldown 5 jam di PlayerKits.
+4. Untuk pemain offline, rank maupun kit menunggu login LoginSecurity dan lease website berikutnya saat pemain tetap online (biasanya sekitar satu menit atau lebih). Antrean lokal lama perlu direkonsiliasi; login saja tidak membuktikan pengiriman sukses. Untuk kit, periksa permission Essentials, menu, reward dan cooldown yang dikonfigurasi di server.
 5. Jika tetap gagal atau menyangkut pembayaran/staf, eskalasi ke Owner. Jangan memberi comp sebagai pengganti kecuali Owner memutuskan setelah rekonsiliasi.
 
 Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diterima`,
@@ -64,15 +64,17 @@ Halaman **Pengiriman** menampilkan semua antrean: `Antrean`, `Terkirim`, `Diteri
 
 ## Produk
 
+**Transisi kit belum tervalidasi:** ikuti [ESSENTIALS_KIT_TRANSITION.md](ESSENTIALS_KIT_TRANSITION.md); jangan mengirim ulang delivery lama atau membuka checkout/polling sebelum rekonsiliasi dan persetujuan Owner.
+
 **Produk** menampilkan rank dan kit beserta harga, status, dan jumlah terjual.
 
 - Katalog rank dan urutannya: **Cute Cipi Rp10.000** (`vip`), **Pop Cipi Rp30.000** (`mvp`), **Milk Cipi Rp60.000** (`elite`), lalu **Star Cipi Rp100.000** (`legend`). Tier 1–4 mengikuti urutan ini agar pembelian rank berikutnya diperlakukan sebagai upgrade.
-- Keuntungan katalog mengikuti daftar pemilik: prefix tiap rank, limit auction, jumlah/baris AxVaults, command Essentials, BetterRTP, dan kit PlayerKits. Permission serta prefix group sudah dikonfigurasi pada LuckPerms server; katalog hanya menampilkan benefit dan sistem toko memasang group setelah pembayaran terverifikasi.
+- Keuntungan katalog mengikuti daftar pemilik: prefix tiap rank, limit auction, jumlah/baris AxVaults, command Essentials, BetterRTP, dan kit server. Permission serta prefix group sudah dikonfigurasi pada LuckPerms server; katalog hanya menampilkan benefit dan sistem toko memasang group setelah pembayaran terverifikasi.
 - Form produk mengatur nama, slug, status, harga, tier/urutan, batas/cooldown, warna badge, ilustrasi lokal, tagline, deskripsi, keuntungan, dan apakah pengiriman perintah server dipakai.
 - Template rank standar menggunakan `lp user {uuid} parent add <group>` untuk GRANT dan `lp user {uuid} parent remove <group>` untuk REVOKE, hanya bagi `vip`, `mvp`, `elite`, atau `legend`. Jangan gunakan `parent set`: perintah itu dapat mengganti grup lain. Grup `freerank` khusus event dan tidak boleh ditambahkan, dicabut, atau diubah oleh otomatisasi toko. Perintah rank wajib melalui plugin yang telah diuji; RCON tidak diizinkan untuk perubahan rank. Periksa migrasi 0016, template kustom, dan antrean lama sebelum aktivasi karena perintah yang sudah tersalin tidak diperbarui otomatis. Uji di staging dan rekonsiliasi hasil yang tidak pasti.
 - Untuk kit, isi daftar item satu per baris dengan format `item_key | nama | jumlah | enchantment1,enchantment2 | lore1,lore2`. Kit tayang wajib punya minimal satu item.
-- Katalog kit saat ini: **CipiPrime** (Rp35.000, permission `playerkits.kits.cipiprime`) dan **Cipi++** (Rp75.000, permission `playerkits.kits.cipi++`). Pembelian membuka akses satu kali per pemain setiap season; template REVOKE mencabut permission saat season berakhir.
-- Cooldown klaim 5 jam dikelola oleh plugin **PlayerKits** di server, bukan oleh field cooldown toko. Pastikan reward dan cooldown di PlayerKits cocok dengan daftar item di halaman produk. Field admin `Cooldown pembelian ulang (jam)` harus tetap 0 untuk kedua kit.
+- Katalog kit saat ini: **CipiPrime** (Rp35.000, permission `essentials.kits.cipiprime`) dan **Cipi++** (Rp75.000, permission `essentials.kits.cipi++`). Pembelian membuka akses satu kali per pemain setiap season; template REVOKE mencabut permission saat season berakhir.
+- Cooldown klaim dikelola oleh server, bukan oleh field cooldown toko. Periksa konfigurasi Essentials dan menu, termasuk reward dan cooldown aktual. Field admin `Cooldown pembelian ulang (jam)` harus tetap 0 untuk kedua kit.
 - Menambah produk: isi formulir di kanan, simpan sebagai **Draft** dulu, cek tampilan di
   `/rank` atau `/kit`, uji template pengiriman, lalu ubah ke **Published**.
 - Menyembunyikan produk: tombol tempat sampah (soft delete). Riwayat order tetap utuh.

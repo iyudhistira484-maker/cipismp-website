@@ -7,7 +7,9 @@
 - [ ] Owner menunjuk operator dan menyetujui lingkungan staging. Konfirmasi endpoint staging, akses kontrol, DNS/TLS dan backup terpisah; tidak mengarah ke database, antrean, webhook, RCON, atau Minecraft produksi.
 - [ ] Periksa CI pada commit yang akan dirilis; migrasikan database staging kosong, lalu uji migrasi pada salinan backup yang terisolasi. Uji restore backup, termasuk database, konfigurasi dan antrean/marker plugin; verifikasi hasilnya, bukan hanya keberadaan berkas.
 - [ ] Sebelum upgrade pada sistem yang sudah berjalan, matikan checkout dan hentikan polling plugin/worker lama sesuai runbook. Simpan inventaris pesanan, pembayaran, delivery, lease/ACK, antrean lokal, `delivery-intents` dan marker selesai. Rekonsiliasi `SENT`, eksekusi parsial, UUID lama, profil dan entitlement satu per satu. Jangan mass-retry, menghapus marker atau menganggap status yang ambigu belum dieksekusi. Tentukan apakah tiap kasus harus ditahan, diperbaiki manual atau di-retry, lalu catat bukti.
-- [ ] Cocokkan versi Paper, Java, LoginSecurity, Geyser, Floodgate, LuckPerms dan PlayerKits dengan deployment target; pastikan hanya jalur koneksi yang dipercaya dan tidak ada bypass LoginSecurity/Floodgate. Pasang companion protokol 2 dengan secret staging dan lookup mode `offline`, lalu cek heartbeat. Heartbeat saja bukan bukti seluruh integrasi sehat.
+- [ ] Cocokkan versi Paper, Java, LoginSecurity, Geyser, Floodgate, LuckPerms dan Essentials dengan deployment target (PlayerKits2 hanya untuk snapshot opsional yang tidak membuktikan cooldown Essentials); pastikan hanya jalur koneksi yang dipercaya dan tidak ada bypass LoginSecurity/Floodgate. Pasang companion protokol 2 dengan secret staging dan lookup mode `offline`, lalu cek heartbeat. Heartbeat saja bukan bukti seluruh integrasi sehat.
+
+Migrasi 0021 mengubah hanya pasangan default tanpa riwayat; seluruh delivery, entitlement dan kit dengan riwayat atau template kustom memerlukan rekonsiliasi manual. Jangan otomatis mengubah atau menjalankan antrean lama. Lihat [ESSENTIALS_KIT_TRANSITION.md](ESSENTIALS_KIT_TRANSITION.md).
 
 ## Matriks Minecraft: Java dan Bedrock
 
@@ -16,7 +18,7 @@
 Lakukan setiap kasus menggunakan akun uji sendiri dan UUID yang dilaporkan langsung oleh server/plugin, bukan UUID yang ditebak. Jangan simpan kata sandi LoginSecurity dalam bukti.
 
 - [ ] Java **dan** Bedrock: sebelum `/login`, `/verify` gagal dan tidak ada perintah delivery; salah password atau LoginSecurity tidak tersedia juga fail closed. Setelah `/login`, `/verify` berhasil dan website terhubung ke edisi, nama serta UUID yang benar. Uji logout/reconnect dan pergantian nama sesuai kebijakan server.
-- [ ] Masing-masing edisi: bayar melalui gateway sandbox, cocokkan order, webhook, entitlement, polling/lease, ACK dan efek di game untuk rank dan kit. Pastikan target perintah adalah UUID server yang sama; kit benar-benar tersedia di PlayerKits dan cooldown klaim 5 jam berlaku.
+- [ ] Masing-masing edisi: bayar melalui gateway sandbox, cocokkan order, webhook, entitlement, polling/lease, ACK dan efek di game untuk rank dan kit. Pastikan target perintah adalah UUID server yang sama; kit benar-benar tersedia di Essentials, menu dan permission sesuai, serta cooldown klaim yang dikonfigurasi berlaku.
 - [ ] Pemain offline: pembayaran tercatat tetapi tidak ada eksekusi sebelum login; setelah login, lease baru dapat memproses selama pemain tetap online. Uji restart, logout sebelum eksekusi, lease kadaluarsa, ACK hilang dan kegagalan parsial; catat mana yang perlu rekonsiliasi manual. Jangan menyimpulkan exactly-once hanya dari satu tes.
 - [ ] Uji upgrade dan revoke di staging, termasuk akun dengan `freerank`: hanya group rank toko `vip`, `mvp`, `elite`, `legend` berubah; `freerank` dan group lain tetap utuh. Periksa hierarchy, inheritance dan context LuckPerms yang sebenarnya. Uji revoke kit pada transisi season staging tanpa menjadwalkan transisi produksi.
 

@@ -1,8 +1,8 @@
 // A deliberately small allowlist for the current CipiSMP catalog. Custom console
 // commands are not safe to execute with server privileges without review.
 const RANK = /^lp user (\S+) parent (?:add|remove) (?:vip|mvp|elite|legend)$/i;
-const KIT_SET = /^lp user (\S+) permission set playerkits\.kits\.(?:cipiprime|cipi\+\+) true$/i;
-const KIT_UNSET = /^lp user (\S+) permission unset playerkits\.kits\.(?:cipiprime|cipi\+\+)$/i;
+const KIT_SET = /^lp user (\S+) permission set essentials\.kits\.(?:cipiprime|cipi\+\+) true$/i;
+const KIT_UNSET = /^lp user (\S+) permission unset essentials\.kits\.(?:cipiprime|cipi\+\+)$/i;
 
 export function deliveryCommandsAreSafe(commands: string[], player: string, uuid: string): boolean {
   if (!commands.length || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) return false;

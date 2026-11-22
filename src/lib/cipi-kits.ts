@@ -6,7 +6,7 @@ export interface CipiKitDefinition {
   priceIdr: number;
   sortOrder: number;
   maxPerSeason: number;
-  /** Store-side repeat-purchase delay; PlayerKits enforces the in-game claim cooldown. */
+  /** Store-side repeat-purchase delay; Essentials manages the in-game claim cooldown. */
   purchaseCooldownHours: number;
   permissionNode: string;
   perks: readonly string[];
@@ -20,24 +20,24 @@ export interface CipiKitDefinition {
 }
 
 /**
- * Default CipiSMP kit catalogue. Access is purchased once per season; the five-hour
- * in-game claim cooldown is configured separately in PlayerKits on the Minecraft server.
+ * Default CipiSMP kit catalogue. Access is purchased once per season; the in-game
+ * claim cooldown and any menu requirements are configured separately on the server.
  */
 export const CIPI_KITS: readonly CipiKitDefinition[] = [
   {
     slug: "cipiprime",
     name: "CipiPrime",
-    tagline: "Akses kit Diamond lewat PlayerKits selama satu season.",
+    tagline: "Akses kit Diamond lewat Essentials selama satu season.",
     description:
-      "Pembelian mengaktifkan akses CipiPrime di PlayerKits sampai season berakhir. Klaim kit dapat diulang dengan cooldown 5 jam yang diatur di server.",
+      "Pembelian mengaktifkan akses CipiPrime di Essentials sampai season berakhir. Klaim kit dapat diulang dengan cooldown yang diatur di server.",
     priceIdr: 35_000,
     sortOrder: 1,
     maxPerSeason: 1,
     purchaseCooldownHours: 0,
-    permissionNode: "playerkits.kits.cipiprime",
+    permissionNode: "essentials.kits.cipiprime",
     perks: [
-      "Akses PlayerKits sampai season berakhir",
-      "Cooldown klaim 5 jam diatur oleh PlayerKits",
+      "Akses kit Essentials sampai season berakhir",
+      "Cooldown klaim diatur oleh server",
       "Dibeli sekali per pemain setiap season",
     ],
     items: [
@@ -58,17 +58,17 @@ export const CIPI_KITS: readonly CipiKitDefinition[] = [
   {
     slug: "cipi-plus-plus",
     name: "Cipi++",
-    tagline: "Akses kit Netherite lewat PlayerKits selama satu season.",
+    tagline: "Akses kit Netherite lewat Essentials selama satu season.",
     description:
-      "Pembelian mengaktifkan akses Cipi++ di PlayerKits sampai season berakhir. Klaim kit dapat diulang dengan cooldown 5 jam yang diatur di server.",
+      "Pembelian mengaktifkan akses Cipi++ di Essentials sampai season berakhir. Klaim kit dapat diulang dengan cooldown yang diatur di server.",
     priceIdr: 75_000,
     sortOrder: 2,
     maxPerSeason: 1,
     purchaseCooldownHours: 0,
-    permissionNode: "playerkits.kits.cipi++",
+    permissionNode: "essentials.kits.cipi++",
     perks: [
-      "Akses PlayerKits sampai season berakhir",
-      "Cooldown klaim 5 jam diatur oleh PlayerKits",
+      "Akses kit Essentials sampai season berakhir",
+      "Cooldown klaim diatur oleh server",
       "Dibeli sekali per pemain setiap season",
     ],
     items: [

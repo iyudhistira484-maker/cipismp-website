@@ -226,7 +226,7 @@ export function orderPaidTemplate(data: OrderEmailData): EmailContent {
       bodyHtml:
         p(`Halo <strong>${escapeHtml(data.playerName)}</strong>, pembayaran untuk order <strong>${escapeHtml(data.orderNumber)}</strong> sudah kami terima.`) +
         orderSummary(data) +
-        p("Akses rank atau permission PlayerKits sedang dikirim ke server. Jika kamu offline, plugin akan mencoba aktivasi saat kamu masuk berikutnya; periksa status pesanan atau hubungi bantuan jika belum aktif.") +
+        p("Akses rank atau permission Essentials sedang dikirim ke server. Jika kamu offline, plugin akan mencoba aktivasi saat kamu masuk berikutnya; periksa status pesanan atau hubungi bantuan jika belum aktif.") +
         button(data.statusUrl, "Lihat status pesanan"),
     }),
     text: `Pembayaran diterima untuk ${data.orderNumber}. Total ${formatRp(data.totalIdr)}.\nStatus: ${data.statusUrl}`,
@@ -242,7 +242,7 @@ export function orderDeliveredTemplate(data: OrderEmailData): EmailContent {
       bodyHtml:
         p(`Halo <strong>${escapeHtml(data.playerName)}</strong>, perintah aktivasi untuk order <strong>${escapeHtml(data.orderNumber)}</strong> sudah dijalankan di server.`) +
         orderSummary(data) +
-        p("Masuk ke server untuk menggunakan rank atau permission PlayerKits. CipiPrime dan Cipi++ diklaim lewat PlayerKits dengan cooldown 5 jam. Kalau permission belum aktif, buka halaman status pesanan dan hubungi kami dengan nomor order di atas.") +
+        p("Masuk ke server untuk menggunakan rank atau permission Essentials. CipiPrime dan Cipi++ diklaim lewat Essentials dengan cooldown yang diatur server. Kalau permission belum aktif, buka halaman status pesanan dan hubungi kami dengan nomor order di atas.") +
         button(data.statusUrl, "Lihat pesanan"),
     }),
     text: `Order ${data.orderNumber} selesai dan akses diaktifkan.`,
