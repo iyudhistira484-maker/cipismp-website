@@ -30,7 +30,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: "1. Layanan yang kami sediakan",
         paragraphs: [
           "CipiSMP Store adalah toko resmi untuk membeli rank dan kit yang berlaku di server Minecraft CipiSMP (Java dan Bedrock, terhubung melalui Geyser/Floodgate). Toko menjual barang virtual yang tidak dapat dipindahkan ke server lain.",
-          "Rank dan akses Essentials adalah barang digital yang diaktifkan di akun Minecraft setelah pembayaran terverifikasi. Untuk CipiPrime dan Cipi++, pembelian mengaktifkan permission untuk season berjalan; reward diklaim melalui Essentials dengan cooldown yang diatur server.",
+          "Rank dan akses PlayerKits2 adalah barang digital yang diaktifkan di akun Minecraft setelah pembayaran terverifikasi. Untuk CipiPrime dan Cipi++, pembelian mengaktifkan permission untuk season berjalan; reward diklaim melalui PlayerKits2 dengan cooldown yang diatur server.",
           "Isi kit adalah reward dalam game; daftar yang ditampilkan di halaman produk menjadi acuan sebelum pembayaran. Akses berakhir saat season berjalan berakhir.",
         ],
       },
@@ -161,7 +161,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: "2. Masa aktif mengikuti season",
         paragraphs: [
           "Rank dan akses kit berlaku sampai season berjalan berakhir. Tidak ada perpanjangan otomatis dan tidak ada diskon pembelian ulang. Saat season baru dimulai, semua rank dan kit harus dibeli kembali.",
-          "CipiPrime dan Cipi++ dibeli satu kali per pemain per season. Pembelian memberi permission Essentials; klaim reward dapat diulang dengan cooldown yang dikelola di server.",
+          "CipiPrime dan Cipi++ dibeli satu kali per pemain per season. Pembelian memberi permission PlayerKits2; klaim reward dapat diulang dengan cooldown yang dikelola di server.",
           "Tanggal berakhir season ditampilkan pada halaman produk, keranjang, checkout, dan kuitansi. Pembelian ditutup pada tiga hari terakhir season.",
         ],
       },
@@ -182,7 +182,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       {
         heading: "5. Bila akses atau reward gagal dikirim",
         paragraphs: [
-          "Kalau pembayaran sudah terverifikasi tetapi permission atau reward belum masuk, kami akan mengirim ulang perintah aktivasi. Pengiriman ulang adalah satu-satunya solusi dan tidak dianggap sebagai pembatalan pembelian.",
+          "Kalau pembayaran sudah terverifikasi tetapi permission atau reward belum masuk, hubungi bantuan dengan nomor pesanan. Tim akan memeriksa pembayaran dan status pengiriman sebelum menentukan tindakan yang aman.",
           "Hubungi bantuan dengan nomor order. Kami tidak akan meminta pembayaran kedua dengan alasan apa pun.",
         ],
       },

@@ -239,7 +239,7 @@ export default async function HomePage() {
               },
               {
                 title: "Akses aktif otomatis",
-                body: "Setelah pembayaran, akses rank atau permission Essentials dikirim ke server. Kalau kamu offline, perintah dijalankan saat login berikutnya dan tercatat di riwayat.",
+                body: "Setelah pembayaran, akses rank atau permission PlayerKits2 dikirim ke server. Kalau kamu offline, perintah dijalankan saat login berikutnya dan tercatat di riwayat.",
               },
             ].map((step, index) => (
               <li key={step.title} className="bg-surface p-5">

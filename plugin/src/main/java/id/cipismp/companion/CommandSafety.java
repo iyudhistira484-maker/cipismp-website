@@ -9,8 +9,8 @@ import java.util.regex.Pattern;
 public final class CommandSafety {
     private static final int FLAGS = Pattern.CASE_INSENSITIVE;
     private static final Pattern RANK = Pattern.compile("lp user (\\S+) parent (?:add|remove) (?:vip|mvp|elite|legend)", FLAGS);
-    private static final Pattern KIT_SET = Pattern.compile("lp user (\\S+) permission set essentials\\.kits\\.(?:cipiprime|cipi\\+\\+) true", FLAGS);
-    private static final Pattern KIT_UNSET = Pattern.compile("lp user (\\S+) permission unset essentials\\.kits\\.(?:cipiprime|cipi\\+\\+)", FLAGS);
+    private static final Pattern KIT_SET = Pattern.compile("lp user (\\S+) permission set playerkits\\.kit\\.(?:cipiprime|cipi\\+\\+) true", FLAGS);
+    private static final Pattern KIT_UNSET = Pattern.compile("lp user (\\S+) permission unset playerkits\\.kit\\.(?:cipiprime|cipi\\+\\+)", FLAGS);
     private static final Pattern PLAYER = Pattern.compile("[A-Za-z0-9_.]{3,16}");
 
     private CommandSafety() {}

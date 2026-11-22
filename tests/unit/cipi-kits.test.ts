@@ -13,8 +13,8 @@ describe("katalog kit CipiSMP", () => {
     expect(CIPI_KITS.map((kit) => kit.maxPerSeason)).toEqual([1, 1]);
     expect(CIPI_KITS.map((kit) => kit.purchaseCooldownHours)).toEqual([0, 0]);
     expect(CIPI_KITS.map((kit) => kit.permissionNode)).toEqual([
-      "essentials.kits.cipiprime",
-      "essentials.kits.cipi++",
+      "playerkits.kit.cipiprime",
+      "playerkits.kit.cipi++",
     ]);
     expect(CIPI_KITS.every((kit) => kit.description.includes("cooldown"))).toBe(true);
   });
