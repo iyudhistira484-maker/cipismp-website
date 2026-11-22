@@ -45,7 +45,7 @@ test("perbandingan rank dan detail kit tetap tersedia", async ({ page }) => {
   await page.locator('#katalog a[href="/rank/star-cipi"]').click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Star Cipi", { timeout: 20_000 });
   await page.goto("/kit", { waitUntil: "domcontentloaded", timeout: 60000 });
-  await expect(page.getByText(/cooldown 5 jam/i).first()).toBeVisible();
+  await expect(page.getByText(/cooldown/i).first()).toBeVisible();
   await page.locator('#katalog a[href="/kit/cipiprime"]').click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("CipiPrime", { timeout: 20_000 });
 });

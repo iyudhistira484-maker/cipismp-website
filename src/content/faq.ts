@@ -32,7 +32,7 @@ export const FAQ_ITEMS: FaqEntry[] = [
     category: "pemain-dan-pengiriman",
     question: "Berapa lama akses rank atau kit aktif setelah saya bayar?",
     answer:
-      "Setelah pembayaran terverifikasi, pengiriman permission rank atau akses PlayerKits diproses otomatis. Jika server atau pemain belum siap, pengiriman menunggu; masuk ke server dan selesaikan /login melalui LoginSecurity, lalu pantau status pesanan. Waktu pengiriman dapat bervariasi. CipiPrime dan Cipi++ diklaim lewat PlayerKits dengan cooldown 5 jam yang dikelola server.",
+      "Setelah pembayaran terverifikasi, pengiriman permission rank atau akses Essentials diproses otomatis. Jika server atau pemain belum siap, pengiriman menunggu; masuk ke server dan selesaikan /login melalui LoginSecurity, lalu pantau status pesanan. Waktu pengiriman dapat bervariasi. CipiPrime dan Cipi++ diklaim lewat Essentials dengan cooldown yang diatur server.",
   },
   {
     id: "refund",

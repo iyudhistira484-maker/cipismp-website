@@ -1,3 +1,5 @@
+> **Catatan terkini:** panduan lama di bawah mungkin menyebut PlayerKits untuk kit toko. CipiPrime dan Cipi++ memakai permission Essentials; ikuti `docs/ESSENTIALS_KIT_TRANSITION.md` sebelum mengaktifkan pengiriman. Snapshot PlayerKits2 bukan status Essentials.
+
 # Panduan staging dan persiapan rilis CipiSMP Store
 
 Panduan ini untuk Owner dan operator server. Tujuannya membuktikan bahwa website, pembayaran, dan server Minecraft bekerja bersama **sebelum** checkout produksi dibuka. Daftar ringkas tugas juga ada di [plan.md](plan.md#32-langkah-berikutnya-staging-dan-keputusan-checkout-produksi).
@@ -44,7 +46,7 @@ Panduan ini untuk Owner dan operator server. Tujuannya membuktikan bahwa website
 
    Service `migrate` harus selesai tanpa error. Perintah ini mengubah database yang dikonfigurasi: **jangan jalankan jika belum yakin targetnya staging**. Seed membuat data awal dan Owner bila diperlukan; seed tidak lagi membuat kupon contoh.
 4. Masuk sebagai Owner staging, aktifkan 2FA, dan di `/admin/server` set server default ke Minecraft staging dengan metode pengiriman **PLUGIN**. Di `/admin/pembayaran`, atur gateway dan metode **sandbox** yang akan diuji. Di `/admin/pengaturan`, pastikan checkout hanya dibuka untuk penguji staging.
-5. Di `/admin/season`, pastikan ada satu season aktif dengan tanggal saat ini berada dalam periode pembelian dan di luar freeze window; atur hanya data staging. Periksa rank/kit dan template di panel produk. Default yang aman menggunakan `{uuid}`, misalnya `lp user {uuid} parent add vip` dan `lp user {uuid} permission set playerkits.kits.cipiprime true`. Template kustom dan antrean lama tidak otomatis diperbaiki.
+5. Di `/admin/season`, pastikan ada satu season aktif dengan tanggal saat ini berada dalam periode pembelian dan di luar freeze window; atur hanya data staging. Periksa rank/kit dan template di panel produk. Default yang aman menggunakan `{uuid}`, misalnya `lp user {uuid} parent add vip` dan `lp user {uuid} permission set essentials.kits.cipiprime true`. Template kustom dan antrean lama tidak otomatis diperbaiki.
 
 **Catatan:** pengaturan default checkout bisa terbuka setelah seed. Karena itu batasi akses staging **sebelum** menyalakannya. Website staging tidak boleh mengirim pembayaran maupun pengiriman ke sistem produksi.
 
@@ -83,7 +85,7 @@ Jalankan untuk **Java dan Bedrock**, termasuk akun Bedrock tertaut bila konfigur
 Gunakan gateway sandbox dan akun pemain terverifikasi pada staging. Simulasi `FAKE` bukan pengganti pengujian webhook gateway sandbox yang benar.
 
 1. Beli rank untuk akun Java uji dan selesaikan pembayaran **sandbox**. Periksa status pembayaran/pesanan dan `/admin/pengiriman`, lalu periksa grup penerima di LuckPerms. Harapan: rank yang benar diberikan kepada UUID yang benar tanpa Owner menyetujui pesanan secara individual.
-2. Ulangi untuk Bedrock; uji kit CipiPrime dan Cipi++ serta klaim dan cooldown yang dikonfigurasi di PlayerKits. Pastikan permission diberikan pada UUID yang benar dan isi kit sesuai yang disepakati.
+2. Ulangi untuk Bedrock; uji kit CipiPrime dan Cipi++ serta klaim, menu dan cooldown yang dikonfigurasi di Essentials. Pastikan permission diberikan pada UUID yang benar dan isi kit sesuai yang disepakati.
 3. Uji upgrade rank, hadiah ke akun lain yang sudah terverifikasi, comp, revoke dan transisi season **pada data uji saja**. Periksa bahwa `freerank` dan grup lain tidak berubah. Penerima hadiah offline-mode juga harus sudah terverifikasi.
 4. Uji penerima offline atau belum login ketika pembayaran diterima. Harapan: delivery belum dianggap selesai. Setelah pemain login dan tetap online, rank maupun kit menunggu lease/polling website berikutnya—biasanya sekitar satu menit atau lebih, bukan langsung dari salinan antrean lokal. Periksa lagi status dan hasil in-game.
 5. Uji webhook duplikat, ACK hilang, restart website/plugin, storage/queue gagal, dan perintah yang sebagian gagal di staging. Bandingkan order, `/admin/pengiriman`, log, marker dan hasil in-game. Jika hasil tidak pasti, **jangan** hapus marker, reset status atau kirim ulang massal; eskalasi untuk rekonsiliasi. Exactly-once belum dijamin.

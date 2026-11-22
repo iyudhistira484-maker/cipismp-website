@@ -1,3 +1,5 @@
+> **Catatan terkini:** entri historis PlayerKits untuk delivery kit tidak berlaku untuk transisi Essentials. Lihat `docs/ESSENTIALS_KIT_TRANSITION.md`; antrean dan entitlement lama tidak dimigrasikan otomatis.
+
 # Rencana penyelesaian CipiSMP Website & Plugin
 
 **Pembaruan:** 11 November 2026

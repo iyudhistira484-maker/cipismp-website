@@ -30,7 +30,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: "1. Layanan yang kami sediakan",
         paragraphs: [
           "CipiSMP Store adalah toko resmi untuk membeli rank dan kit yang berlaku di server Minecraft CipiSMP (Java dan Bedrock, terhubung melalui Geyser/Floodgate). Toko menjual barang virtual yang tidak dapat dipindahkan ke server lain.",
-          "Rank dan akses PlayerKits adalah barang digital yang diaktifkan di akun Minecraft setelah pembayaran terverifikasi. Untuk CipiPrime dan Cipi++, pembelian mengaktifkan permission untuk season berjalan; reward diklaim melalui PlayerKits dengan cooldown 5 jam yang dikelola server.",
+          "Rank dan akses Essentials adalah barang digital yang diaktifkan di akun Minecraft setelah pembayaran terverifikasi. Untuk CipiPrime dan Cipi++, pembelian mengaktifkan permission untuk season berjalan; reward diklaim melalui Essentials dengan cooldown yang diatur server.",
           "Isi kit adalah reward dalam game; daftar yang ditampilkan di halaman produk menjadi acuan sebelum pembayaran. Akses berakhir saat season berjalan berakhir.",
         ],
       },
@@ -161,7 +161,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: "2. Masa aktif mengikuti season",
         paragraphs: [
           "Rank dan akses kit berlaku sampai season berjalan berakhir. Tidak ada perpanjangan otomatis dan tidak ada diskon pembelian ulang. Saat season baru dimulai, semua rank dan kit harus dibeli kembali.",
-          "CipiPrime dan Cipi++ dibeli satu kali per pemain per season. Pembelian memberi permission PlayerKits; klaim reward dapat diulang dengan cooldown 5 jam yang dikelola di server.",
+          "CipiPrime dan Cipi++ dibeli satu kali per pemain per season. Pembelian memberi permission Essentials; klaim reward dapat diulang dengan cooldown yang dikelola di server.",
           "Tanggal berakhir season ditampilkan pada halaman produk, keranjang, checkout, dan kuitansi. Pembelian ditutup pada tiga hari terakhir season.",
         ],
       },

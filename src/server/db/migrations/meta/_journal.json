@@ -148,6 +148,13 @@
       "when": 1794976623382,
       "tag": "0020_legal_whirlwind",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794976623383,
+      "tag": "0021_essentials_kit_permissions",
+      "breakpoints": true
     }
   ]
 }
