@@ -1,4 +1,4 @@
-> **Catatan terkini:** entri historis PlayerKits untuk delivery kit tidak berlaku untuk transisi Essentials. Lihat `docs/ESSENTIALS_KIT_TRANSITION.md`; antrean dan entitlement lama tidak dimigrasikan otomatis.
+> **Catatan terkini:** catatan historis tentang permission Essentials atau `playerkits.kits.*` tidak berlaku untuk delivery kit PlayerKits2. Lihat `docs/PLAYERKITS2_TRANSITION.md`; entitlement dan antrean lama tidak dimigrasikan otomatis.
 
 # Rencana penyelesaian CipiSMP Website & Plugin
 
@@ -81,7 +81,7 @@ Pekerjaan yang tidak memerlukan dependensi boleh dikerjakan paralel. Yang ditand
 - [ ] Uji webhook pembayaran → antrean → polling HMAC/nonce → ACK → perintah tepat satu kali, termasuk retry, lease kedaluwarsa, ACK hilang, request ganda, restart plugin/web/worker dan kegagalan tulis disk.
 - [ ] Tambahkan tes antrean offline, termasuk kegagalan penulisan marker selesai dan pemulihan saat pemain login; pastikan tidak ada kehilangan atau eksekusi ganda yang tidak terdeteksi.
 - [ ] Di staging, uji pemain online/offline, queue penuh, upgrade rank, comp, revoke melalui plugin serta RCON untuk kit yang diizinkan. Verifikasi perintah rank `parent add/remove`, template lama/kustom dan hierarchy tidak menghapus group lain, terutama group staf; sepakati penanganannya dengan owner.
-- [ ] Uji permission `playerkits.kits.cipiprime` dan `playerkits.kits.cipi++`, klaim isi kit, cooldown **5 jam** di PlayerKits, limit satu pembelian per pemain per season, dan revoke keduanya pada simulasi akhir season staging.
+- [ ] Uji permission `playerkits.kit.cipiprime` dan `playerkits.kit.cipi++`, klaim isi kit, cooldown **5 jam** di PlayerKits, limit satu pembelian per pemain per season, dan revoke keduanya pada simulasi akhir season staging.
 - [ ] Uji akhir season **hanya pada staging**; pastikan perintah revoke benar-benar diterapkan di game, bukan sekadar status database berubah.
 
 **Selesai bila:** tersedia JAR yang dapat diunduh beserta checksum dan hasil build/test; Java dan Bedrock berhasil memverifikasi serta menerima rank/kit pada server staging, termasuk kasus gagal/retry yang aman.

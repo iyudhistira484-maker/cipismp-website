@@ -9,20 +9,22 @@ describe("pembatasan perintah pengiriman", () => {
     expect(safe("lp user CipiPlayer parent add vip")).toBe(true);
     expect(safe(`lp user ${uuid} parent remove legend`)).toBe(true);
     for (const kit of ["cipiprime", "cipi++"]) {
-      expect(safe(`lp user ${uuid} permission set essentials.kits.${kit} true`)).toBe(true);
-      expect(safe(`lp user ${uuid} permission unset essentials.kits.${kit}`)).toBe(true);
-      expect(deliveryCommandsAreSafe([`lp user .Bedrock permission set essentials.kits.${kit} true`], ".Bedrock", uuid)).toBe(true);
+      expect(safe(`lp user ${uuid} permission set playerkits.kit.${kit} true`)).toBe(true);
+      expect(safe(`lp user ${uuid} permission unset playerkits.kit.${kit}`)).toBe(true);
+      expect(deliveryCommandsAreSafe([`lp user .Bedrock permission set playerkits.kit.${kit} true`], ".Bedrock", uuid)).toBe(true);
     }
   });
   it("menahan permission kit lama dan menolak wildcard atau kit lain", () => {
     for (const command of [
+      "lp user CipiPlayer permission set essentials.kits.cipi++ true",
+      "lp user CipiPlayer permission unset essentials.kits.cipiprime",
       "lp user CipiPlayer permission set playerkits.kits.cipi++ true",
       "lp user CipiPlayer permission unset playerkits.kits.cipiprime",
-      "lp user CipiPlayer permission set essentials.kits.* true",
-      "lp user CipiPlayer permission set essentials.kits.other true",
-      "lp user SomeoneElse permission set essentials.kits.cipi++ true",
-      "lp user CipiPlayer permission set essentials.kits.cipi++ false",
-      "lp user CipiPlayer permission set essentials.kits.cipi++ true\nop CipiPlayer",
+      "lp user CipiPlayer permission set playerkits.kit.* true",
+      "lp user CipiPlayer permission set playerkits.kit.other true",
+      "lp user SomeoneElse permission set playerkits.kit.cipi++ true",
+      "lp user CipiPlayer permission set playerkits.kit.cipi++ false",
+      "lp user CipiPlayer permission set playerkits.kit.cipi++ true\nop CipiPlayer",
     ]) expect(safe(command), command).toBe(false);
   });
   it("menolak penambahan, pencabutan, atau penggantian grup freerank milik event", () => {
@@ -32,7 +34,7 @@ describe("pembatasan perintah pengiriman", () => {
     expect(deliveryCommandsAreSafe(["lp user CipiPlayer parent remove vip", "lp user CipiPlayer parent add mvp"], "CipiPlayer", uuid)).toBe(true);
   });
   it("menolak set/clear group, group staf, target lain, alias, perintah arbitrer dan injeksi", () => {
-    for (const c of ["lp user CipiPlayer parent set vip", "lp user CipiPlayer parent remove admin", "lp user someone parent add vip", "luckperms user CipiPlayer parent add vip", "op CipiPlayer", "lp user CipiPlayer parent add vip\nop someone", "lp user CipiPlayer permission set * true", "lp user CipiPlayer permission set essentials.kits.cipiprime false"]) expect(safe(c), c).toBe(false);
+    for (const c of ["lp user CipiPlayer parent set vip", "lp user CipiPlayer parent remove admin", "lp user someone parent add vip", "luckperms user CipiPlayer parent add vip", "op CipiPlayer", "lp user CipiPlayer parent add vip\nop someone", "lp user CipiPlayer permission set * true", "lp user CipiPlayer permission set playerkits.kit.cipiprime false"]) expect(safe(c), c).toBe(false);
     expect(deliveryCommandsAreSafe([], "CipiPlayer", uuid)).toBe(false);
     expect(deliveryCommandsAreSafe(["lp user CipiPlayer parent add vip"], "CipiPlayer", "invalid")).toBe(false);
   });

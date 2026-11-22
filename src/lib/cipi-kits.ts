@@ -6,7 +6,7 @@ export interface CipiKitDefinition {
   priceIdr: number;
   sortOrder: number;
   maxPerSeason: number;
-  /** Store-side repeat-purchase delay; Essentials manages the in-game claim cooldown. */
+  /** Store-side repeat-purchase delay; PlayerKits2 manages the in-game claim cooldown. */
   purchaseCooldownHours: number;
   permissionNode: string;
   perks: readonly string[];
@@ -27,16 +27,16 @@ export const CIPI_KITS: readonly CipiKitDefinition[] = [
   {
     slug: "cipiprime",
     name: "CipiPrime",
-    tagline: "Akses kit Diamond lewat Essentials selama satu season.",
+    tagline: "Akses kit Diamond lewat PlayerKits2 selama satu season.",
     description:
-      "Pembelian mengaktifkan akses CipiPrime di Essentials sampai season berakhir. Klaim kit dapat diulang dengan cooldown yang diatur di server.",
+      "Pembelian mengaktifkan akses CipiPrime di PlayerKits2 sampai season berakhir. Klaim kit dapat diulang dengan cooldown yang diatur di server.",
     priceIdr: 35_000,
     sortOrder: 1,
     maxPerSeason: 1,
     purchaseCooldownHours: 0,
-    permissionNode: "essentials.kits.cipiprime",
+    permissionNode: "playerkits.kit.cipiprime",
     perks: [
-      "Akses kit Essentials sampai season berakhir",
+      "Akses kit PlayerKits2 sampai season berakhir",
       "Cooldown klaim diatur oleh server",
       "Dibeli sekali per pemain setiap season",
     ],
@@ -58,16 +58,16 @@ export const CIPI_KITS: readonly CipiKitDefinition[] = [
   {
     slug: "cipi-plus-plus",
     name: "Cipi++",
-    tagline: "Akses kit Netherite lewat Essentials selama satu season.",
+    tagline: "Akses kit Netherite lewat PlayerKits2 selama satu season.",
     description:
-      "Pembelian mengaktifkan akses Cipi++ di Essentials sampai season berakhir. Klaim kit dapat diulang dengan cooldown yang diatur di server.",
+      "Pembelian mengaktifkan akses Cipi++ di PlayerKits2 sampai season berakhir. Klaim kit dapat diulang dengan cooldown yang diatur di server.",
     priceIdr: 75_000,
     sortOrder: 2,
     maxPerSeason: 1,
     purchaseCooldownHours: 0,
-    permissionNode: "essentials.kits.cipi++",
+    permissionNode: "playerkits.kit.cipi++",
     perks: [
-      "Akses kit Essentials sampai season berakhir",
+      "Akses kit PlayerKits2 sampai season berakhir",
       "Cooldown klaim diatur oleh server",
       "Dibeli sekali per pemain setiap season",
     ],

@@ -186,7 +186,7 @@ Catatan: angka dan smoke test sebelumnya adalah bukti historis; jalankan ulang u
 - **Playwright E2E:** konfigurasi server standalone sudah diperbaiki, tetapi 10 tes belum menjalankan assertion karena Chromium tidak tersedia di sandbox. Pasang Chromium pada runner, lalu jalankan `npm run test:e2e`.
 - **Plugin Paper:** JDK 21 dan Gradle tidak tersedia di sandbox, serta repo tidak memiliki Gradle Wrapper; kompilasi dan JUnit Java belum terverifikasi. Jalankan `cd plugin && gradle test build` di runner ber-toolchain. Tambahkan tes untuk pemulihan antrean offline ketika penulisan marker selesai gagal.
 - **Beban dan container:** uji k6 serta validasi/build Docker Compose belum dijalankan lokal karena k6 dan Docker tidak tersedia.
-- **Integrasi nyata di staging:** uji webhook Tripay/Midtrans, email, Discord OAuth, Turnstile, serta Paper/LuckPerms—polling HTTPS, HMAC, ACK/retry, pemain offline, revoke rank melalui plugin, RCON untuk kit yang diizinkan, dan permission kit Essentials beserta syarat menu aktual. Tes lokal memakai database disposable dan tidak menggantikan tes layanan live.
+- **Integrasi nyata di staging:** uji webhook Tripay/Midtrans, email, Discord OAuth, Turnstile, serta Paper/LuckPerms—polling HTTPS, HMAC, ACK/retry, pemain offline, revoke rank melalui plugin, RCON untuk kit yang diizinkan, dan permission kit PlayerKits2 beserta syarat menu aktual. Tes lokal memakai database disposable dan tidak menggantikan tes layanan live.
 - **Rilis production:** database production belum diubah. Verifikasi backup/restore dan drift schema/data terlebih dahulu, lalu rencanakan migrasi yang belum diterapkan hingga `0011`, seed, rahasia environment, TLS/domain, worker, dan cron di lingkungan production.
 - **Go-live non-fungsional:** Lighthouse, ukuran layar/reduced-motion, monitoring/backup/alert, lisensi aset Minecraft, dan tinjauan hukum syarat/privasi/penjualan masih perlu dituntaskan. Detail checklist ada di [`docs/GO_LIVE.md`](docs/GO_LIVE.md) dan [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
@@ -200,4 +200,4 @@ Syarat lengkap ada di halaman `/legal/syarat-penjualan`, `/legal/syarat-layanan`
 CipiSMP Store bukan produk resmi Mojang Studios atau Microsoft. Minecraft adalah merek
 dagang Mojang Studios. Kami tidak berafiliasi dengan Mojang maupun Microsoft.
 
-> **Transisi Essentials:** kit dan antrean lama memerlukan review terpisah sebelum deploy; lihat [docs/ESSENTIALS_KIT_TRANSITION.md](docs/ESSENTIALS_KIT_TRANSITION.md). Status pengiriman tidak membuktikan menu/kit dapat diklaim.
+> **NO-GO transisi PlayerKits2:** kit dan antrean lama memerlukan review terpisah sebelum deploy; lihat [docs/PLAYERKITS2_TRANSITION.md](docs/PLAYERKITS2_TRANSITION.md). Status pengiriman tidak membuktikan menu/kit dapat diklaim.

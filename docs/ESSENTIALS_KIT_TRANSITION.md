@@ -1,3 +1,5 @@
+> **HISTORIS — jangan gunakan sebagai petunjuk deploy.** Investigasi terbaru menemukan kit PlayerKits2 dan permission singular; lihat [PLAYERKITS2_TRANSITION.md](PLAYERKITS2_TRANSITION.md). PR #8 dan migrasi 0021 tidak cukup untuk menu tersebut.
+
 # Transisi CipiPrime dan Cipi++ ke permission Essentials
 
 **Status: NO-GO untuk rilis/pengiriman sampai rekonsiliasi dan uji terpisah lulus.** Pemilik menyebut permission `essentials.kits.cipiprime` dan `essentials.kits.cipi++`. Menu Cipi++ pernah menampilkan `ELITE` dan terkunci; syarat menu, command pembuka, konfigurasi Essentials, isi dan cooldown belum dikonfirmasi. Memasang node saja bukan bukti menu dapat digunakan atau kit berhasil diklaim.

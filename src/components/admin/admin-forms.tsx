@@ -226,7 +226,7 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
         <Field
           label="Cooldown pembelian ulang (jam)"
           htmlFor="product-cooldown"
-          hint="Bukan cooldown klaim Essentials di dalam server; kit Cipi diatur terpisah."
+          hint="Bukan cooldown klaim PlayerKits2 di dalam server; kit Cipi diatur terpisah."
         >
           <Input id="product-cooldown" name="cooldownHours" type="number" min={0} max={720} defaultValue={product?.cooldownHours ?? 0} />
         </Field>
